@@ -1,26 +1,35 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/* Fonts are self-hosted via @fontsource (imported in app/layout.tsx). */
+@theme {
+  --font-sans: "Space Grotesk Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono Variable", ui-monospace, monospace;
+  /* Deep View design fonts */
+  --font-display: "Chakra Petch", system-ui, sans-serif;
+  --font-geist: "Geist Mono Variable", "JetBrains Mono Variable", ui-monospace, monospace;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+@theme {
+  --animate-ticker: ticker 70s linear infinite;
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+  @keyframes ticker {
+    from { transform: translateX(0); }
+    to { transform: translateX(-50%); }
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+/* Fade the ticker in/out at the edges. */
+.ticker-mask {
+  mask-image: linear-gradient(90deg, transparent, #000 4%, #000 96%, transparent);
 }
+
+/* Thin dark scrollbars to match the UI. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.12) transparent;
+}
+
+
+/* Deep View entrance animation */
+@keyframes inf-take { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+.animate-inf-take { animation: inf-take 0.28s ease-out; }
