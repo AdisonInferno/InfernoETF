@@ -4,13 +4,17 @@ import Link from "next/link";
 import { AnimatePresence, LayoutGroup, motion, useReducedMotion, type Variants } from "framer-motion";
 import { useEffect, useMemo, useRef, useState } from "react";
 import PortfolioDeepView, { SEG_COLORS } from "@/components/PortfolioDeepView";
+import PortfolioPerformance from "@/components/PortfolioPerformance";
 import {
   PRESETS,
+  assetClass,
   clearPortfolio,
   loadPortfolio,
   parsePortfolio,
   roastPortfolio,
   savePortfolio,
+  scenarioLoss,
+  type Position,
   type SavedPortfolio,
 } from "@/lib/portfolio";
 
@@ -71,14 +75,57 @@ const LAYOUT_SPRING = { type: "spring", stiffness: 120, damping: 22, mass: 1 } a
 
 /* ───────────────────────────── Builder / Whales data ───────────────────────────── */
 
-const RISK_LEVELS = [
-  { core: 70, thematic: 5, defensive: 25, vol: 9.2, dd: -18, prompt: "VT SCHD TLT SMH 50/25/20/5" },
-  { core: 62, thematic: 15, defensive: 23, vol: 11.6, dd: -24, prompt: "VOO VT SMH SCHD TLT 40/22/15/13/10" },
-  { core: 55, thematic: 25, defensive: 20, vol: 14.1, dd: -31, prompt: "VOO SMH SCHD 55/25/20" },
-  { core: 45, thematic: 40, defensive: 15, vol: 18.7, dd: -39, prompt: "VOO SMH ARKK GLD 45/25/15/15" },
-  { core: 30, thematic: 65, defensive: 5, vol: 26.4, dd: -52, prompt: "QQQ SMH SOXL ARKK GLD 30/30/20/15/5" },
-];
-const RISK_LABELS = ["SAFE", "", "RISK", "", "MAX"];
+/** Builder presets — illustrative model backtests (placeholder figures). */
+const BUILD_PRESETS = [
+  { id: "safe", name: "SAFE", tag: "40% DEFENSIVE", core: 55, thematic: 5, defensive: 40, cagr: 7.9, dd2022: -14.6, crash2020: -11.8, prompt: "VT SCHD TLT GLD 45/15/30/10" },
+  { id: "balanced", name: "BALANCED", tag: "25% DEFENSIVE", core: 60, thematic: 15, defensive: 25, cagr: 11.6, dd2022: -19.8, crash2020: -13.9, prompt: "VOO VT SCHD TLT SMH 40/20/15/10/15" },
+  { id: "growth", name: "GROWTH", tag: "10% DEFENSIVE", core: 50, thematic: 40, defensive: 10, cagr: 17.9, dd2022: -24.7, crash2020: -15.1, prompt: "VOO QQQ SMH GLD 40/25/25/10" },
+  { id: "max", name: "MAX RISK", tag: "0% DEFENSIVE", core: 35, thematic: 65, defensive: 0, cagr: 24.8, dd2022: -28.4, crash2020: -16.2, prompt: "QQQ SMH SOXX ARKK 35/30/20/15" },
+] as const;
+type BuildPresetId = (typeof BUILD_PRESETS)[number]["id"];
+
+/** Model account used for $ figures until real broker balances are connected. */
+const MODEL_BALANCE = 124_580;
+/** Rough "since purchase" gain per asset, derived from YTD (placeholder until real cost basis exists). */
+const allTimeOf = (ytd: number) => (Math.pow(1 + ytd / 100, 1.92) - 1) * 100;
+
+const usd = (v: number, digits = 0) =>
+  (v < 0 ? "-" : "") + "$" + Math.abs(v).toLocaleString("en-US", { minimumFractionDigits: digits, maximumFractionDigits: digits });
+
+/* ───────────────────────────── Stacked allocation bar ───────────────────────────── */
+
+/** Thin at rest; on hover grows to h-5 and reveals ticker + weight inside each segment. */
+function AllocationBar({ positions }: { positions: Position[] }) {
+  return (
+    <div className="group/alloc py-1" aria-label="Portfolio allocation">
+      <div className="flex h-1.5 w-full overflow-hidden rounded-full bg-white/[0.04] transition-all duration-300 ease-out group-hover/alloc:h-4">
+        {positions.map((p, i) => {
+          const color = SEG_COLORS[i % SEG_COLORS.length];
+          return (
+            <div
+              key={p.asset.ticker}
+              title={`${p.asset.ticker} · ${p.weight}%`}
+              className="relative flex h-full min-w-0 items-center justify-center border-r border-[#0a0a0c] transition-[filter] duration-200 last:border-r-0 hover:brightness-125"
+              style={{ width: `${p.weight}%`, background: color }}
+            >
+              <span className="truncate px-1.5 font-mono text-[9px] font-bold leading-none text-black/80 opacity-0 transition-opacity delay-75 duration-200 group-hover/alloc:opacity-100">
+                {p.weight >= 6 ? `${p.asset.ticker} ${p.weight}%` : ""}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+      <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 opacity-70 transition-opacity group-hover/alloc:opacity-100">
+        {positions.map((p, i) => (
+          <span key={p.asset.ticker} className="flex items-center gap-1.5 font-mono text-[10.5px] text-zinc-400">
+            <span className="h-2 w-2 rounded-sm" style={{ background: SEG_COLORS[i % SEG_COLORS.length] }} />
+            {p.asset.ticker} <span className="text-zinc-200">{p.weight}%</span>
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 const WHALES = [
   { name: "Berkshire Hathaway", sub: "Buffett · 42 positions", move: "BUY", qq: 4.2, alloc: "22.4%", prompt: "XLF AAPL XLP XLE 35/25/20/20" },
@@ -132,7 +179,8 @@ export default function PortfolioPage() {
   const reduceMotion = useReducedMotion();
   const inputRef = useRef<HTMLInputElement>(null);
   const [prompt, setPrompt] = useState(PRESETS.classic);
-  const [risk, setRisk] = useState(2);
+  const [presetId, setPresetId] = useState<BuildPresetId>("max");
+  const [comparing, setComparing] = useState(false);
   const [saved, setSaved] = useState<SavedPortfolio | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -142,17 +190,21 @@ export default function PortfolioPage() {
   const timers = useRef<number[]>([]);
   useEffect(() => () => timers.current.forEach(clearTimeout), []);
 
-  // Restore the user's saved portfolio (browser storage) after mount.
+  // Restore the user's saved portfolio after mount (browser storage is unavailable during SSR,
+  // so this one-time sync from an external store has to happen in an effect).
   useEffect(() => {
     const p = loadPortfolio();
+    /* eslint-disable react-hooks/set-state-in-effect */
     if (p) { setSaved(p); setPrompt(p.prompt); }
     setLoaded(true);
+    /* eslint-enable react-hooks/set-state-in-effect */
   }, []);
 
-  // Esc returns from the deep view.
+  // Esc returns from the deep view (ref keeps the listener pointed at the latest handler).
+  const goOverviewRef = useRef<() => void>(() => {});
   useEffect(() => {
     if (view !== "deep-view") return;
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && goOverview();
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") goOverviewRef.current(); };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [view]);
@@ -162,7 +214,26 @@ export default function PortfolioPage() {
   const isExpanded = showMine && expanded; // card grown + analytics shown
   const parsed = useMemo(() => parsePortfolio(prompt), [prompt]);
   const roast = useMemo(() => roastPortfolio(parsed.positions), [parsed]);
-  const lvl = RISK_LEVELS[risk];
+  const preset = BUILD_PRESETS.find((b) => b.id === presetId)!;
+
+  /* Headline money metrics for the model account. */
+  const todayPct = parsed.positions.reduce((a, p) => a + (p.weight / 100) * p.asset.chg1d, 0);
+  const ytdPct = parsed.positions.reduce((a, p) => a + (p.weight / 100) * p.asset.ytd, 0);
+  const allTimePct = parsed.positions.reduce((a, p) => a + (p.weight / 100) * allTimeOf(p.asset.ytd), 0);
+  const todayUsd = (MODEL_BALANCE * todayPct) / 100;
+
+  /* "Compare with my portfolio" — same scenarios applied to the saved portfolio. */
+  const mine = useMemo(() => {
+    if (!saved) return null;
+    const pos = parsePortfolio(saved.prompt).positions;
+    const defensive = pos.filter((p) => ["bond", "gold"].includes(assetClass(p.asset))).reduce((a, p) => a + p.weight, 0);
+    return {
+      cagr: pos.reduce((a, p) => a + (p.weight / 100) * p.asset.ytd, 0),
+      dd2022: scenarioLoss(pos, "rates").total,
+      crash2020: scenarioLoss(pos, "covid").total,
+      defensive,
+    };
+  }, [saved]);
 
   const later = (ms: number, fn: () => void) => { timers.current.push(window.setTimeout(fn, ms)); };
 
@@ -188,8 +259,9 @@ export default function PortfolioPage() {
     setExpanded(false);
     setView("overview");
   }
+  useEffect(() => { goOverviewRef.current = goOverview; });
 
-  const usePrompt = (p: string) => {
+  const applyPrompt = (p: string) => {
     setPrompt(p);
     setEditing(true);
     setView("overview");
@@ -214,8 +286,6 @@ export default function PortfolioPage() {
     setPrompt(PRESETS.classic);
   };
 
-  const wavg = (f: (x: (typeof parsed.positions)[number]) => number) =>
-    parsed.positions.reduce((a, p) => a + (p.weight / 100) * f(p), 0);
 
   const tickers = parsed.positions.map((p) => p.asset.ticker).join(" · ");
   const roastQuestion = `Zrób roast mojego portfela: ${parsed.positions.map((p) => `${p.asset.ticker} ${p.weight}%`).join(", ")}. Oceń dywersyfikację, nakładanie się funduszy i ryzyko.`;
@@ -235,47 +305,110 @@ export default function PortfolioPage() {
     <>
       <div className="flex items-baseline justify-between">
         <span className={`${label} flex items-center gap-2 text-zinc-300`}><span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />BUILDER</span>
-        <span className="font-mono text-[10px] text-zinc-600">5 risk levels · live</span>
+        <span className="font-mono text-[10px] text-zinc-600">4 presets · model</span>
       </div>
       <div>
         <h2 className="text-[17px] font-semibold text-zinc-50">Build from scratch</h2>
-        <p className="mt-1 text-[12.5px] text-zinc-500">Set a risk level. The allocation rebuilds live.</p>
+        <p className="mt-1 text-[12.5px] text-zinc-500">Pick a risk profile and preview how it would have held up.</p>
       </div>
-      <div className="flex flex-col gap-2">
-        <div className="grid grid-cols-5 gap-1.5">
-          {RISK_LEVELS.map((_, i) => (
+
+      {/* Preset picker */}
+      <div className="grid grid-cols-2 gap-2">
+        {BUILD_PRESETS.map((b) => {
+          const on = b.id === presetId;
+          const hot = b.id === "max";
+          return (
             <button
-              key={i}
+              key={b.id}
               type="button"
-              aria-label={`Risk level ${i + 1}`}
-              onClick={() => setRisk(i)}
-              className={`h-2 rounded-full transition-colors ${i <= risk ? (i === risk ? "bg-emerald-400" : "bg-emerald-600/70") : "bg-white/[0.08] hover:bg-white/[0.16]"}`}
-            />
-          ))}
+              onClick={() => { setPresetId(b.id); setComparing(false); }}
+              className={`flex flex-col items-start gap-0.5 rounded-lg border px-3 py-2 text-left transition-colors ${
+                on
+                  ? hot ? "border-red-500/50 bg-red-500/[0.08]" : "border-emerald-400/40 bg-emerald-400/[0.06]"
+                  : "border-white/[0.05] bg-[#030303]/60 hover:border-white/[0.12]"
+              }`}
+            >
+              <span className={`font-mono text-[11px] font-bold tracking-[0.08em] ${on ? (hot ? "text-red-300" : "text-emerald-300") : "text-zinc-300"}`}>{b.name}</span>
+              <span className="font-mono text-[9.5px] tracking-[0.08em] text-zinc-500">{b.tag}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Allocation of the preset */}
+      <div className="flex flex-col gap-2">
+        <div className="flex h-1.5 overflow-hidden rounded-full bg-white/[0.04]">
+          <div className="bg-emerald-400 transition-[width] duration-300" style={{ width: `${preset.core}%` }} />
+          <div className="bg-violet-400 transition-[width] duration-300" style={{ width: `${preset.thematic}%` }} />
+          <div className="bg-sky-400 transition-[width] duration-300" style={{ width: `${preset.defensive}%` }} />
         </div>
-        <div className="grid grid-cols-5 text-center font-mono text-[9.5px] tracking-[0.1em]">
-          {RISK_LABELS.map((l, i) => <span key={i} className={i === risk ? "text-zinc-100" : "text-zinc-600"}>{l || "·"}</span>)}
+        <div className="flex justify-between font-mono text-[10px]">
+          <span className="text-zinc-500">CORE <span className="text-zinc-200">{preset.core}%</span></span>
+          <span className="text-zinc-500">THEMATIC <span className="text-zinc-200">{preset.thematic}%</span></span>
+          <span className="text-zinc-500">DEFENSIVE <span className={preset.defensive === 0 ? "text-red-400" : "text-zinc-200"}>{preset.defensive}%</span></span>
         </div>
       </div>
-      <div className="flex h-1.5 gap-[2px] overflow-hidden rounded-full">
-        <div className="bg-emerald-400 transition-[width] duration-300" style={{ width: `${lvl.core}%` }} />
-        <div className="bg-emerald-600 transition-[width] duration-300" style={{ width: `${lvl.thematic}%` }} />
-        <div className="bg-emerald-900 transition-[width] duration-300" style={{ width: `${lvl.defensive}%` }} />
-      </div>
-      <div className="grid grid-cols-3 gap-2">
-        {([["CORE", lvl.core], ["THEMATIC", lvl.thematic], ["DEFENSIVE", lvl.defensive]] as const).map(([k, v]) => (
-          <div key={k} className="flex flex-col gap-1">
-            <span className={label}>{k}</span>
-            <span className="font-mono text-[15px] font-semibold text-zinc-100">{v}%</span>
+
+      {/* Performance teaser / comparison */}
+      {comparing && mine ? (
+        <div className="flex flex-col rounded-lg border border-white/[0.05] bg-[#030303]/60">
+          <div className="grid grid-cols-[minmax(0,1fr)_72px_72px] gap-2 border-b border-white/[0.05] px-3 py-2 font-mono text-[9.5px] tracking-[0.12em] text-zinc-600">
+            <span>METRIC</span><span className="text-right">{preset.name}</span><span className="text-right">MINE</span>
           </div>
-        ))}
+          {([
+            ["3Y CAGR", preset.cagr, mine.cagr, true],
+            ["2022 REPLAY", preset.dd2022, mine.dd2022, true],
+            ["2020 CRASH", preset.crash2020, mine.crash2020, true],
+            ["DEFENSIVE", preset.defensive, mine.defensive, null],
+          ] as const).map(([k, a, b, higherBetter]) => {
+            // Higher is better for every row with a verdict (drawdowns are negative: less negative wins).
+            const aWins = higherBetter === null || a === b ? null : a > b;
+            const fmt = (v: number) => (k === "DEFENSIVE" ? `${v.toFixed(0)}%` : (v >= 0 ? "+" : "") + v.toFixed(1) + "%");
+            return (
+              <div key={k} className="grid grid-cols-[minmax(0,1fr)_72px_72px] items-center gap-2 px-3 py-1.5 font-mono text-[12px]">
+                <span className="text-[10.5px] tracking-[0.08em] text-zinc-500">{k}</span>
+                <span className={`text-right ${aWins === true ? "font-bold text-emerald-400" : "text-zinc-200"}`}>{fmt(a)}</span>
+                <span className={`text-right ${aWins === false ? "font-bold text-emerald-400" : "text-zinc-200"}`}>{fmt(b)}</span>
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+        <div className="flex flex-col gap-3 rounded-lg border border-white/[0.05] bg-[#030303]/60 p-3">
+          <div className="flex items-baseline justify-between">
+            <span className={label}>3Y ANNUALIZED RETURN</span>
+            <span className="font-mono text-[22px] font-semibold tabular-nums text-emerald-400">+{preset.cagr.toFixed(1)}%<span className="ml-1 text-[11px] text-emerald-400/70">CAGR</span></span>
+          </div>
+          {([["2022 Drawdown Replay", preset.dd2022], ["2020 Flash Crash", preset.crash2020]] as const).map(([k, v]) => (
+            <div key={k} className="flex flex-col gap-1">
+              <div className="flex justify-between">
+                <span className="text-[12px] text-zinc-400">{k}</span>
+                <span className="font-mono text-[12px] font-semibold tabular-nums text-rose-400">{v.toFixed(1)}%</span>
+              </div>
+              <div className="h-1 overflow-hidden rounded-full bg-white/[0.05]">
+                <div className="h-full rounded-full bg-rose-500/80 transition-[width] duration-300" style={{ width: `${Math.min(100, Math.abs(v) * 2)}%` }} />
+              </div>
+            </div>
+          ))}
+          <span className="font-mono text-[9px] tracking-[0.1em] text-zinc-600">MODEL BACKTEST · PLACEHOLDER DATA</span>
+        </div>
+      )}
+
+      {/* Bottom action bar */}
+      <div className="mt-auto flex items-center justify-between gap-2 border-t border-white/[0.05] pt-4">
+        <button type="button" onClick={() => applyPrompt(preset.prompt)} className="font-mono text-[11px] tracking-[0.06em] text-zinc-500 transition-colors hover:text-white" title={preset.prompt}>
+          Use preset
+        </button>
+        <button
+          type="button"
+          disabled={!mine}
+          onClick={() => setComparing((c) => !c)}
+          title={mine ? undefined : "Build your portfolio first"}
+          className="rounded-lg bg-white/[0.06] px-3 py-1.5 text-[12px] font-semibold text-zinc-100 transition-colors hover:bg-white/[0.1] disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          {comparing ? "← Back to preset" : "Compare with my portfolio →"}
+        </button>
       </div>
-      <div className="flex gap-5 border-t border-white/[0.04] pt-3 font-mono text-[11px]">
-        <span className="text-zinc-500">VOL <span className="ml-1 text-zinc-200">{lvl.vol.toFixed(1)}%</span></span>
-        <span className="text-zinc-500">MAX DD <span className="ml-1 text-rose-400">{lvl.dd}%</span></span>
-      </div>
-      <div className="font-mono text-[10.5px] text-zinc-600">→ {lvl.prompt}</div>
-      <button type="button" onClick={() => usePrompt(lvl.prompt)} className={`${ghostBtn} mt-auto self-start`}>Launch builder →</button>
     </>,
 
     /* Whales */
@@ -296,7 +429,7 @@ export default function PortfolioPage() {
           <button
             key={w.name}
             type="button"
-            onClick={() => usePrompt(w.prompt)}
+            onClick={() => applyPrompt(w.prompt)}
             title={`Clone: ${w.prompt}`}
             className="group grid grid-cols-[minmax(0,1fr)_56px_64px_56px] items-center gap-2 border-b border-white/[0.04] py-2.5 text-left transition-colors hover:bg-white/[0.02]"
           >
@@ -407,20 +540,25 @@ export default function PortfolioPage() {
 
             <motion.div layout="position" className="grid grid-cols-2 gap-3 md:grid-cols-4">
               {([
-                ["TODAY", fmtP(wavg((p) => p.asset.chg1d)), wavg((p) => p.asset.chg1d) >= 0],
-                ["YTD", fmtP(wavg((p) => p.asset.ytd)), wavg((p) => p.asset.ytd) >= 0],
-                ["2022 REPLAY", roast.drawdown.toFixed(1) + "%", false],
-                ["ROAST", `${roast.score} · ${roast.tier}`, null],
-              ] as const).map(([k, v, up]) => (
-                <div key={k} className="rounded-xl border border-white/[0.04] bg-black/30 px-4 py-3">
-                  <div className={label}>{k}</div>
-                  <div className={`mt-1 font-mono text-[18px] font-semibold ${up === null ? "text-zinc-100" : up ? "text-emerald-400" : "text-rose-400"}`}>{v}</div>
+                { k: "TODAY P&L", v: fmtP(todayPct), sub: (todayUsd >= 0 ? "+" : "") + usd(todayUsd), tone: todayPct >= 0 ? "up" : "down" },
+                { k: "YTD RETURN", v: fmtP(ytdPct), sub: "since Jan 1", tone: ytdPct >= 0 ? "up" : "down" },
+                { k: "TOTAL BALANCE", v: usd(MODEL_BALANCE, 2), sub: "model account", tone: "flat" },
+                { k: "ALL-TIME GAIN", v: (allTimePct >= 0 ? "+" : "") + allTimePct.toFixed(1) + "%", sub: (allTimePct >= 0 ? "+" : "") + usd(MODEL_BALANCE - MODEL_BALANCE / (1 + allTimePct / 100)), tone: allTimePct >= 0 ? "up" : "down" },
+              ] as const).map((m) => (
+                <div key={m.k} className="rounded-xl border border-white/[0.05] bg-[#030303]/60 px-4 py-3">
+                  <div className={label}>{m.k}</div>
+                  <div className={`mt-1 font-mono text-[20px] font-semibold tabular-nums ${m.tone === "up" ? "text-emerald-400" : m.tone === "down" ? "text-rose-400" : "text-zinc-50"}`}>{m.v}</div>
+                  <div className={`mt-0.5 font-mono text-[11px] tabular-nums ${m.tone === "up" ? "text-emerald-400/70" : m.tone === "down" ? "text-rose-400/70" : "text-zinc-600"}`}>{m.sub}</div>
                 </div>
               ))}
             </motion.div>
 
-            <motion.div layout="position" className="flex h-[3px] gap-[2px] overflow-hidden rounded-full">
-              {parsed.positions.map((p, i) => <div key={p.asset.ticker} style={{ width: `${p.weight}%`, background: SEG_COLORS[i % SEG_COLORS.length] }} />)}
+            <motion.div layout="position">
+              <AllocationBar positions={parsed.positions} />
+            </motion.div>
+
+            <motion.div layout="position" onClick={(e) => e.stopPropagation()}>
+              <PortfolioPerformance positions={parsed.positions} />
             </motion.div>
 
             <AnimatePresence mode="wait" initial={false}>
@@ -530,7 +668,7 @@ export default function PortfolioPage() {
 
             <div className="flex flex-wrap justify-end gap-2">
               {([["VOO QQQ NVDA", PRESETS.classic], ["retire 2045", PRESETS.retire2045], ["Clone Dalio", PRESETS.dalio]] as const).map(([l, p]) => (
-                <button key={l} type="button" onClick={() => usePrompt(p)} className="rounded-full border border-white/[0.06] bg-white/[0.03] px-3 py-1 font-mono text-[11px] text-zinc-400 transition-colors hover:bg-white/[0.08] hover:text-white">
+                <button key={l} type="button" onClick={() => applyPrompt(p)} className="rounded-full border border-white/[0.06] bg-white/[0.03] px-3 py-1 font-mono text-[11px] text-zinc-400 transition-colors hover:bg-white/[0.08] hover:text-white">
                   {l}
                 </button>
               ))}

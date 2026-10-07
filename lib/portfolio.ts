@@ -264,7 +264,7 @@ export function correlationMatrix(positions: Position[]) {
 /** Historical stress scenarios: per-class multipliers applied to each asset's 2022 drawdown. */
 export const SCENARIOS = [
   { id: "gfc", label: "2008 GFC", months: 17, mult: { equity: 1.55, bond: -0.75, gold: -0.25, commodity: 2.6, crypto: 1.0, fx: -0.6 } },
-  { id: "covid", label: "2020 COVID", months: 2, mult: { equity: 1.2, bond: -0.4, gold: 0.4, commodity: 2.0, crypto: 0.7, fx: -0.3 } },
+  { id: "covid", label: "2020 COVID", months: 2, mult: { equity: 0.85, bond: -0.4, gold: 0.4, commodity: 2.0, crypto: 0.6, fx: -0.3 } },
   { id: "rates", label: "2022 RATES", months: 9, mult: { equity: 1, bond: 1, gold: 1, commodity: 1, crypto: 1, fx: 1 } },
 ] as const;
 export type ScenarioId = (typeof SCENARIOS)[number]["id"];
