@@ -55,7 +55,7 @@ function Pill({ active, onClick, children }: { active: boolean; onClick: () => v
       onClick={onClick}
       className={`rounded-full px-3.5 py-1.5 text-xs font-semibold transition-colors ${
         active
-          ? "bg-white/[0.14] text-zinc-50 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.14),0_0_14px_rgba(255,255,255,0.06)]"
+          ? "bg-white/[0.14] text-zinc-50 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.14)]"
           : "bg-white/[0.05] text-zinc-400 hover:bg-white/10"
       }`}
     >
@@ -71,7 +71,7 @@ function FilterDeck({ filters, setFilters, onReset }: { filters: Filters; setFil
   const toggle = (p: string) =>
     setFilters({ ...filters, providers: filters.providers.includes(p) ? filters.providers.filter((x) => x !== p) : [...filters.providers, p] });
   return (
-    <aside className="flex flex-col gap-6 self-start rounded-3xl border border-white/[0.04] bg-[#0a0a0c] p-5 shadow-[0_25px_50px_-12px_rgba(0,0,0,0.8)]">
+    <aside className="flex flex-col gap-6 self-start rounded-3xl border border-white/[0.04] bg-[#0a0a0c] p-5">
       <div className="flex items-center justify-between">
         <span className="text-base font-semibold tracking-tight text-zinc-50">Filters</span>
         <button type="button" onClick={onReset} className="text-xs text-zinc-500 transition-colors hover:text-white">Reset</button>
@@ -137,7 +137,7 @@ export default function ScreenerPage() {
       <div className="mx-auto grid w-full max-w-[1600px] flex-1 grid-cols-[260px_minmax(0,1fr)] gap-4 px-6 pb-6 pt-4 max-lg:grid-cols-1">
         <FilterDeck filters={filters} setFilters={setFilters} onReset={() => { setFilters(defaults); setCategory("All"); }} />
 
-        <section className="flex min-w-0 flex-col gap-4 rounded-3xl border border-white/[0.04] bg-[#0a0a0c] p-5 shadow-[0_25px_50px_-12px_rgba(0,0,0,0.8)]">
+        <section className="flex min-w-0 flex-col gap-4 rounded-3xl border border-white/[0.04] bg-[#0a0a0c] p-5">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex flex-wrap gap-1.5">
               {CATEGORIES.map((c) => <Pill key={c} active={category === c} onClick={() => setCategory(c)}>{c}</Pill>)}

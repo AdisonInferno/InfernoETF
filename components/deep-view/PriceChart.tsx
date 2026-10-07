@@ -67,10 +67,10 @@ export default function PriceChart({ fund }: { fund: FundData }) {
     setHov(Math.round(((e.clientX - r.left) / r.width) * (n - 1)));
   };
 
-  const handle = "absolute top-1/2 -mt-[15px] flex h-[30px] w-2.5 cursor-ew-resize items-center justify-center gap-0.5 border border-emerald-400 bg-black shadow-[0_0_8px_rgba(52,211,153,0.4)]";
+  const handle = "absolute top-1/2 -mt-[15px] flex h-[30px] w-2.5 cursor-ew-resize items-center justify-center gap-0.5 border border-emerald-400 bg-black";
 
   return (
-    <div className="flex h-[560px] flex-none flex-col rounded-3xl border border-white/[0.04] bg-[#121214] shadow-[0_25px_50px_-12px_rgba(0,0,0,0.5)]">
+    <div className="flex h-[560px] flex-none flex-col rounded-3xl border border-white/[0.04] bg-[#121214]">
       <div className="flex min-h-[42px] flex-none flex-wrap items-center justify-between gap-x-3 gap-y-1.5 border-b border-gray-900 px-4 py-2">
         <div className="flex min-w-0 flex-1 items-baseline gap-2.5 overflow-hidden whitespace-nowrap font-mono tabular-nums">
           <span className="font-display text-[10px] font-bold tracking-[0.18em] text-gray-500">PRICE · USD</span>
@@ -87,7 +87,7 @@ export default function PriceChart({ fund }: { fund: FundData }) {
                 <button
                   type="button"
                   onClick={() => { setTf(k); setHov(null); setCustom(null); }}
-                  className={`border-b pb-0.5 pt-[3px] font-mono text-[11px] font-bold tracking-[0.06em] hover:text-white ${on ? "border-emerald-400 text-emerald-400 [text-shadow:0_0_8px_rgba(52,211,153,0.5)]" : "border-transparent text-gray-500"}`}
+                  className={`border-b pb-0.5 pt-[3px] font-mono text-[11px] font-bold tracking-[0.06em] hover:text-white ${on ? "border-emerald-400 text-emerald-400" : "border-transparent text-gray-500"}`}
                 >
                   {k}
                 </button>

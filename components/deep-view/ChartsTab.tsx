@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { FundData } from "./types";
 import { BREADTH, MONTHS } from "./mockData";
 
-const CARD = "rounded-[18px] border border-white/[0.04] bg-[#121214] shadow-[0_25px_50px_-12px_rgba(0,0,0,0.5)]";
+const CARD = "rounded-[18px] border border-white/[0.04] bg-[#121214]";
 
 function heat(v: number | null, wide: boolean) {
   if (v == null) return { v: "·", bg: "transparent", fg: "#4B5563", fw: 400 };
@@ -44,8 +44,8 @@ function BreadthChart() {
           <span title="Market breadth: when cap-weighted (SPY) outruns equal-weighted (RSP), gains are concentrated in a few mega-caps. A widening spread = narrow participation; a shrinking spread = healthy, broad rally." className="flex h-5 cursor-help items-center gap-[5px] border border-gray-800 px-[7px] text-[9.5px] font-bold tracking-[0.1em] text-gray-400 hover:border-gray-700 hover:text-white">ⓘ MARKET BREADTH</span>
         </div>
         <div className="flex items-center gap-4 whitespace-nowrap text-[10px] tracking-[0.08em] text-gray-400">
-          <span className="flex items-center gap-1.5"><span className="h-0.5 w-3.5 bg-emerald-400 shadow-[0_0_6px_#34D399]" />CAP-WEIGHT · SPY</span>
-          <span className="flex items-center gap-1.5"><span className="h-0.5 w-3.5 bg-cyan-400 shadow-[0_0_6px_#22D3EE]" />EQUAL-WEIGHT · RSP</span>
+          <span className="flex items-center gap-1.5"><span className="h-0.5 w-3.5 bg-emerald-400" />CAP-WEIGHT · SPY</span>
+          <span className="flex items-center gap-1.5"><span className="h-0.5 w-3.5 bg-cyan-400" />EQUAL-WEIGHT · RSP</span>
           <span className="flex items-center gap-1.5"><span className="h-2 w-3 border border-emerald-400/30 bg-emerald-400/[0.14]" />SPREAD</span>
         </div>
       </div>
@@ -59,8 +59,8 @@ function BreadthChart() {
           </defs>
           <line x1="0" x2="1000" y1={d.baseY} y2={d.baseY} stroke="#1F2937" strokeWidth="1" strokeDasharray="4 4" vectorEffect="non-scaling-stroke" />
           <path d={d.spread} fill="url(#cSpread)" stroke="none" />
-          <path d={d.eq} fill="none" stroke="#22D3EE" strokeWidth="1.6" vectorEffect="non-scaling-stroke" strokeLinejoin="round" style={{ filter: "drop-shadow(0 0 3px rgba(34,211,238,0.8))" }} />
-          <path d={d.cap} fill="none" stroke="#34D399" strokeWidth="1.8" vectorEffect="non-scaling-stroke" strokeLinejoin="round" style={{ filter: "drop-shadow(0 0 4px rgba(52,211,153,0.85))" }} />
+          <path d={d.eq} fill="none" stroke="#22D3EE" strokeWidth="1.6" vectorEffect="non-scaling-stroke" strokeLinejoin="round" />
+          <path d={d.cap} fill="none" stroke="#34D399" strokeWidth="1.8" vectorEffect="non-scaling-stroke" strokeLinejoin="round" />
         </svg>
         <span className="absolute right-0 mt-[3px] text-[9px] text-gray-600" style={{ top: d.baseTop }}>BASE 100</span>
         <span className="absolute left-full -mt-[9px] ml-2 bg-emerald-400 px-[5px] py-px text-[10px] font-bold text-black" style={{ top: d.capTop }}>{d.capEnd}</span>

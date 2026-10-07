@@ -17,7 +17,7 @@ const NAV = [
 /* Swap for your own logo: put logo.svg in /public and use <img src="/logo.svg" />. */
 function LogoMark() {
   return (
-    <svg width="30" height="30" viewBox="0 0 32 32" aria-hidden="true" className="flex-none drop-shadow-[0_0_10px_rgba(239,68,68,0.45)]">
+    <svg width="30" height="30" viewBox="0 0 32 32" aria-hidden="true" className="flex-none drop-">
       <defs>
         <linearGradient id="inferno-flame" x1="0" y1="1" x2="0" y2="0">
           <stop offset="0" stopColor="#b91c1c" />
@@ -92,7 +92,7 @@ function SearchBox() {
       </div>
 
       {open && results.length > 0 && (
-        <div className="absolute inset-x-0 top-12 z-[60] overflow-hidden rounded-xl border border-white/[0.08] bg-[#121214] p-1 shadow-[0_25px_50px_-12px_#000]">
+        <div className="absolute inset-x-0 top-12 z-[60] overflow-hidden rounded-xl border border-white/[0.08] bg-[#121214] p-1">
           {results.map((r, i) => (
             <button
               key={r.ticker}
@@ -167,7 +167,7 @@ export default function SiteHeader() {
               href={n.href}
               className={`whitespace-nowrap rounded-lg border px-3.5 py-1.5 text-[12px] font-semibold tracking-[0.08em] transition-colors ${
                 active
-                  ? "border-red-500/40 bg-red-500/[0.12] text-red-400 shadow-[0_0_18px_rgba(239,68,68,0.18)]"
+                  ? "border-red-500/40 bg-red-500/[0.12] text-red-400"
                   : "border-transparent text-zinc-400 hover:text-white"
               }`}
             >

@@ -42,7 +42,7 @@ function HoldingsMap({ fund }: { fund: FundData }) {
         <span className="font-display text-xs font-bold tracking-[0.18em] text-neutral-300">COMPOSITION MAP</span>
         <span className="text-[10px] tracking-[0.08em] text-gray-500">{tf} PERFORMANCE · TOP {items.length} HOLDINGS · {items.reduce((a, z) => a + z.w, 0).toFixed(1)}% OF FUND</span>
       </div>
-      <div className="relative h-[560px] overflow-hidden rounded-[18px] border border-white/[0.04] bg-[#0a0a0c] shadow-[0_25px_50px_-12px_rgba(0,0,0,0.5)]">
+      <div className="relative h-[560px] overflow-hidden rounded-[18px] border border-white/[0.04] bg-[#0a0a0c]">
         {tiles.map(({ item: it, x, y, w, h }) => {
           const m = Math.min(w, h), big = w > 150 && h > 100, fs = Math.max(9, Math.min(46, m / 5.2));
           return (
@@ -72,15 +72,15 @@ function HoldingsMap({ fund }: { fund: FundData }) {
 
 const LEVEL_STYLE = {
   CRITICAL: {
-    box: "border-[#ff6a00] bg-[#ff6a00]/[0.06] shadow-[0_0_16px_rgba(255,106,0,0.22),inset_0_0_12px_rgba(255,106,0,0.06)]",
-    icon: "text-[#ff6a00] [text-shadow:0_0_8px_rgba(255,106,0,0.8)]", text: "text-[#ffb27a]", label: "text-[#ff8a3d]",
+    box: "border-[#ff6a00] bg-[#ff6a00]/[0.06] shadow-[inset_0_0_12px_rgba(255,106,0,0.06)]",
+    icon: "text-[#ff6a00]", text: "text-[#ffb27a]", label: "text-[#ff8a3d]",
   },
   ELEVATED: {
-    box: "border-amber-500/70 bg-amber-500/[0.05] shadow-[0_0_14px_rgba(245,158,11,0.15)]",
+    box: "border-amber-500/70 bg-amber-500/[0.05]",
     icon: "text-amber-400", text: "text-amber-200/80", label: "text-amber-400",
   },
   LOW: {
-    box: "border-emerald-400/50 bg-emerald-400/[0.05] shadow-[0_0_14px_rgba(52,211,153,0.12)]",
+    box: "border-emerald-400/50 bg-emerald-400/[0.05]",
     icon: "text-emerald-400", text: "text-emerald-200/80", label: "text-emerald-400",
   },
 } as const;
@@ -154,11 +154,11 @@ function HoldingsTable({ fund }: { fund: FundData }) {
               {subs.map((s) => <option key={s} value={s}>{s}</option>)}
             </select>
           </label>
-          <button type="button" onClick={exportCsv} className="flex h-8 items-center whitespace-nowrap border border-emerald-400 px-3 text-[10.5px] font-bold tracking-[0.1em] text-emerald-400 hover:bg-emerald-400 hover:text-black hover:shadow-[0_0_14px_rgba(52,211,153,0.5)]">[ ↓ EXPORT .CSV ]</button>
+          <button type="button" onClick={exportCsv} className="flex h-8 items-center whitespace-nowrap border border-emerald-400 px-3 text-[10.5px] font-bold tracking-[0.1em] text-emerald-400 hover:bg-emerald-400 hover:text-black">[ ↓ EXPORT .CSV ]</button>
         </div>
       </div>
 
-      <div className="max-h-[600px] overflow-y-auto rounded-[18px] border border-white/[0.04] bg-[#121214] shadow-[0_25px_50px_-12px_rgba(0,0,0,0.5)]">
+      <div className="max-h-[600px] overflow-y-auto rounded-[18px] border border-white/[0.04] bg-[#121214]">
         <div className={`sticky top-0 z-[2] h-8 border-b border-gray-700 bg-[#0a0a0a] text-[9.5px] font-bold tracking-[0.14em] text-gray-500 ${GRID}`}>
           {HEAD.map(([l, k, al]) => (
             <button key={k} type="button" onClick={() => sortBy(k)} className={`cursor-pointer whitespace-nowrap hover:text-white ${al === "right" ? "text-right" : "text-left"} ${sortKey === k ? "text-emerald-400" : ""}`}>
@@ -174,7 +174,7 @@ function HoldingsTable({ fund }: { fund: FundData }) {
             <span className="overflow-hidden text-ellipsis whitespace-nowrap text-[10.5px] tracking-[0.04em] text-gray-400">{r.sub}</span>
             <div className="flex min-w-0 items-center gap-2.5">
               <span className="w-[46px] flex-none text-right font-semibold text-neutral-100">{r.w.toFixed(2)}%</span>
-              <div className="h-[3px] flex-1 bg-gray-900"><div className="h-full bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.5)]" style={{ width: ((r.w / mx) * 100).toFixed(1) + "%" }} /></div>
+              <div className="h-[3px] flex-1 bg-gray-900"><div className="h-full bg-emerald-400" style={{ width: ((r.w / mx) * 100).toFixed(1) + "%" }} /></div>
             </div>
             <span className="text-right text-gray-300">{capF(r.cap)}</span>
           </div>

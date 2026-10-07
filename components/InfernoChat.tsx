@@ -19,7 +19,10 @@ export default function InfernoChat() {
 
   // "Ask AI" from the scanner opens /chat?etf=TICKER — prefill a question.
   useEffect(() => {
-    const etf = new URLSearchParams(window.location.search).get("etf");
+    const params = new URLSearchParams(window.location.search);
+    const q = params.get("q");
+    if (q) { setInput(q); return; }
+    const etf = params.get("etf");
     if (etf) setInput(`Opowiedz mi o ETF ${etf.toUpperCase()}: co zawiera, ile kosztuje (TER) i jakie ma ryzyka?`);
   }, []);
 
@@ -68,7 +71,7 @@ export default function InfernoChat() {
 
   return (
     <div className="mx-auto flex min-h-[480px] w-full max-w-[1100px] flex-1 flex-col gap-4 px-6 py-6">
-      <section className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-3xl border border-white/[0.04] bg-[#0a0a0c] shadow-[0_25px_50px_-12px_rgba(0,0,0,0.8)]">
+      <section className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-3xl border border-white/[0.04] bg-[#0a0a0c]">
         <div className="flex items-center justify-between border-b border-white/[0.04] px-5 py-4">
           <span className="text-[11px] font-semibold tracking-[0.1em] text-[#A78BFA]">✦ INFERNO AI</span>
           {messages.length > 0 && (

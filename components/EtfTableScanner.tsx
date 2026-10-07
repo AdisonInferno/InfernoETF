@@ -81,7 +81,7 @@ function PctBadge({ v }: { v: number }) {
   );
 }
 
-const card = "rounded-3xl border border-white/[0.04] bg-[#0a0a0c] shadow-[0_25px_50px_-12px_rgba(0,0,0,0.8)]";
+const card = "rounded-3xl border border-white/[0.04] bg-[#0a0a0c]";
 
 /* ───────────────────────────── Component ───────────────────────────── */
 
@@ -171,7 +171,7 @@ export default function EtfTableScanner() {
       <aside className={`row-span-2 flex min-h-0 flex-col overflow-hidden ${card} max-lg:row-span-1`}>
         <div className="flex min-h-0 flex-1 flex-col overflow-y-auto p-5">
           <div className="mb-4 flex items-center gap-2 font-mono text-[12px] font-bold tracking-[0.14em] text-zinc-100">
-            <span className="h-2 w-2 rounded-[1px] bg-emerald-400 shadow-[0_0_8px_#34d399]" />[ FILTER DECK ]
+            <span className="h-2 w-2 rounded-[1px] bg-emerald-400" />[ FILTER DECK ]
           </div>
 
           <div className="flex flex-col">
@@ -269,7 +269,7 @@ export default function EtfTableScanner() {
 
       {/* ── Table card ── */}
       <section className={`flex min-h-0 min-w-0 flex-col overflow-hidden ${card}`}>
-        <div className="flex flex-none gap-2 overflow-x-auto px-5 pb-3 pt-4">
+        <div className="flex flex-none flex-wrap gap-2 px-5 pb-3 pt-4">
           {CATEGORIES.map((c) => {
             const active = tab === c.id;
             const count = base.filter((e) => inTab(e, c.id)).length;
@@ -279,7 +279,7 @@ export default function EtfTableScanner() {
                 type="button"
                 onClick={() => { setTab(c.id); setSort("default"); }}
                 className={`flex flex-none items-center gap-2 rounded-full px-3.5 py-1.5 font-mono text-[11.5px] font-bold tracking-[0.06em] transition-colors ${
-                  active ? "bg-red-500/[0.12] text-red-400 shadow-[0_0_16px_rgba(239,68,68,0.2)]" : "bg-white/[0.04] text-zinc-400 hover:bg-white/[0.08] hover:text-zinc-200"
+                  active ? "bg-red-500/[0.12] text-red-400 shadow-[inset_0_0_0_1px_rgba(239,68,68,0.35)]" : "bg-white/[0.04] text-zinc-400 hover:bg-white/[0.08] hover:text-zinc-200"
                 }`}
               >
                 <span className="text-[11px]">{c.icon}</span>
@@ -292,7 +292,7 @@ export default function EtfTableScanner() {
 
         {/* Sub-categories of the active tab */}
         {subs.length > 0 && (
-          <div className="flex flex-none items-center gap-1.5 overflow-x-auto px-5 pb-3">
+          <div className="flex flex-none flex-wrap items-center gap-1.5 px-5 pb-3">
             <span className="mr-1 font-mono text-[11px] text-zinc-600">└</span>
             {[{ id: "all", label: `ALL ${tabLabel}`, tickers: [] as string[] }, ...subs].map((sc) => {
               const on = sub === sc.id;

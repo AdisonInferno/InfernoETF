@@ -10,7 +10,7 @@
 }
 
 @theme {
-  --animate-ticker: ticker 70s linear infinite;
+  --animate-ticker: ticker 160s linear infinite;
 
   @keyframes ticker {
     from { transform: translateX(0); }

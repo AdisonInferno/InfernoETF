@@ -291,7 +291,7 @@ export default function InfernoEtfScanner() {
   return (
     <div className="absolute inset-0 grid grid-cols-[260px_minmax(0,1fr)] grid-rows-[minmax(0,1fr)] gap-4 overflow-hidden bg-[#030303] p-4 font-sans text-[#E5E5E5]">
       {/* ── Sidebar ── */}
-      <aside className="flex min-h-0 flex-col gap-5 self-stretch overflow-y-auto rounded-3xl border border-white/[0.04] bg-[#121214] p-5 shadow-[0_25px_50px_-12px_rgba(0,0,0,0.8)]">
+      <aside className="flex min-h-0 flex-col gap-5 self-stretch overflow-y-auto rounded-3xl border border-white/[0.04] bg-[#121214] p-5">
         <div className="flex flex-col gap-1">
           <span className="text-lg font-semibold tracking-[-0.02em] text-[#FAFAFA]">ETF Market Map</span>
           <span className="text-xs text-[#71717A]">1-day performance · {count} funds</span>
@@ -397,7 +397,7 @@ export default function InfernoEtfScanner() {
                   <div
                     key={etf.ticker}
                     {...hoverHandlers(etf)}
-                    className="absolute box-border flex cursor-pointer flex-col items-center justify-center gap-0.5 overflow-hidden rounded-[1px] border-b border-r border-[#030303] transition-[transform,filter] duration-200 hover:z-20 hover:scale-[1.03] hover:brightness-125 hover:shadow-[0_8px_24px_rgba(0,0,0,0.6)]"
+                    className="absolute box-border flex cursor-pointer flex-col items-center justify-center gap-0.5 overflow-hidden rounded-[1px] border-b border-r border-[#030303] transition-[transform,filter] duration-200 hover:z-20 hover:scale-[1.03] hover:brightness-125"
                     style={{ left: x, top: y, width: w, height: h, background: tileBg(etf.change1d) }}
                   >
                     <span
@@ -426,7 +426,7 @@ export default function InfernoEtfScanner() {
         </div>
 
         {/* Macro baseline */}
-        <div className="mt-2 box-border flex w-full flex-none flex-wrap items-center justify-between gap-4 rounded-2xl border border-white/[0.04] bg-[#0a0a0c] px-6 py-4 shadow-[0_25px_50px_-12px_#000]">
+        <div className="mt-2 box-border flex w-full flex-none flex-wrap items-center justify-between gap-4 rounded-2xl border border-white/[0.04] bg-[#0a0a0c] px-6 py-4">
           <span className={`${MONO} text-[11px] font-semibold tracking-[0.14em] text-[#71717A]`}>[ MACRO BASELINE ]</span>
           <div className="flex flex-wrap items-center gap-2.5">
             {MACRO.map((m) => {
@@ -456,7 +456,7 @@ export default function InfernoEtfScanner() {
       {/* ── Tooltip ── */}
       {tip && spark && (
         <div
-          className="pointer-events-none fixed z-[100] box-border flex w-72 flex-col gap-3 rounded-xl border border-white/10 bg-[#121214] p-4 shadow-[0_25px_50px_-12px_#000]"
+          className="pointer-events-none fixed z-[100] box-border flex w-72 flex-col gap-3 rounded-xl border border-white/10 bg-[#121214] p-4"
           style={{ left: Math.min(tip.x + 18, vw - 304), top: Math.max(8, Math.min(tip.y + 18, vh - 340)) }}
         >
           <div className="flex flex-col gap-0.5">

@@ -7,7 +7,7 @@ import { COUNTRY_CODE } from "./mockData";
 import { aumFmt, pctOf, squarify } from "./utils";
 import PriceChart from "./PriceChart";
 
-const CARD = "rounded-3xl border border-white/[0.04] bg-[#121214] shadow-[0_25px_50px_-12px_rgba(0,0,0,0.5)]";
+const CARD = "rounded-3xl border border-white/[0.04] bg-[#121214]";
 const H_LABEL = "font-display text-[10.5px] font-bold tracking-[0.18em] text-neutral-300";
 const SECTOR_RGB: Record<string, string> = {
   Technology: "16,185,129", Materials: "251,191,36", "Cash & Other": "148,163,184", Other: "113,113,122",
@@ -85,7 +85,7 @@ function SectorBreakdown({ fund }: { fund: FundData }) {
                 <div
                   key={sb.name}
                   onMouseMove={showTip(sc.parent, sb.name, sb.v, sb.lc)}
-                  className="absolute box-border cursor-crosshair overflow-hidden border border-[#0c0c0e] bg-[image:var(--bg)] transition-[background,box-shadow] duration-100 hover:z-[2] hover:bg-[image:var(--bgh)] hover:shadow-[inset_0_0_0_1px_var(--bc),0_0_14px_var(--bc)]"
+                  className="absolute box-border cursor-crosshair overflow-hidden border border-[#0c0c0e] bg-[image:var(--bg)] transition-[background,box-shadow] duration-100 hover:z-[2] hover:bg-[image:var(--bgh)] hover:shadow-[inset_0_0_0_1px_var(--bc)]"
                   style={{ left: sb.x, top: sb.y, width: sb.w, height: sb.h, "--bg": sb.bg, "--bgh": sb.bgh, "--bc": sb.bc } as CSSProperties}
                 >
                   {sb.show && (
@@ -100,7 +100,7 @@ function SectorBreakdown({ fund }: { fund: FundData }) {
           </div>
         ))}
         {tip && (
-          <div className="pointer-events-none absolute z-[5] min-w-[170px] border border-gray-700 bg-black px-[11px] py-[9px] shadow-[0_8px_24px_rgba(0,0,0,0.7)]" style={{ left: tip.x, top: tip.y }}>
+          <div className="pointer-events-none absolute z-[5] min-w-[170px] border border-gray-700 bg-black px-[11px] py-[9px]" style={{ left: tip.x, top: tip.y }}>
             <div className="text-[9px] tracking-[0.16em] text-gray-500">{tip.sector}</div>
             <div className="mb-1.5 mt-[3px] text-[12.5px] font-bold text-white">{tip.name}</div>
             <div className="flex justify-between gap-4 text-[11px]"><span className="text-gray-400">{tip.usd}</span><span className="font-bold" style={{ color: tip.col }}>{tip.pct}</span></div>
@@ -158,7 +158,7 @@ function GeoAllocation({ fund }: { fund: FundData }) {
           return (
             <div
               key={name}
-              className="box-border flex min-w-0 items-center rounded-xl border border-white/[0.03] bg-black/30 px-[18px] py-4 transition-[border-color,box-shadow] hover:border-emerald-400 hover:shadow-[0_0_16px_rgba(52,211,153,0.28),inset_0_0_18px_rgba(52,211,153,0.05)]"
+              className="box-border flex min-w-0 items-center rounded-xl border border-white/[0.03] bg-black/30 px-[18px] py-4 transition-[border-color,box-shadow] hover:border-emerald-400 hover:shadow-[inset_0_0_18px_rgba(52,211,153,0.05)]"
               style={{ flex: `${Math.max(1, Math.round(v))} 1 ${big ? "100%" : "150px"}`, minHeight: Math.round(56 + v * 1.1), gap: big ? 24 : 12 }}
             >
               {cc ? (
@@ -182,9 +182,9 @@ function AiOversight({ note, onUpgrade }: { note: string; onUpgrade?: () => void
   return (
     <div className={`flex h-full min-w-0 flex-col justify-center ${CARD}`}>
       <div className="px-6 py-4">
-        <div className="relative flex flex-col gap-2 rounded-sm border border-purple-900/45 bg-[#0a0510] p-3 shadow-[0_0_18px_rgba(147,51,234,0.14),inset_0_0_24px_rgba(147,51,234,0.06)]">
+        <div className="relative flex flex-col gap-2 rounded-sm border border-purple-900/45 bg-[#0a0510] p-3 shadow-[inset_0_0_24px_rgba(147,51,234,0.06)]">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="text-[13px] leading-none text-purple-400 [text-shadow:0_0_8px_rgba(192,132,252,0.7)]">✦</span>
+            <span className="text-[13px] leading-none text-purple-400">✦</span>
             <span className="whitespace-nowrap font-mono text-[10.5px] font-bold tracking-[0.12em] text-purple-200">AI OVERSIGHT // GEN-Z ALPHA</span>
             <span className="ml-auto whitespace-nowrap border border-[#ff2a2a] bg-[#ff2a2a]/[0.12] px-1.5 py-0.5 font-mono text-[9px] font-bold tracking-[0.08em] text-[#ff4d4d]">[ LIMIT REACHED: 10/10 ]</span>
           </div>
@@ -195,7 +195,7 @@ function AiOversight({ note, onUpgrade }: { note: string; onUpgrade?: () => void
             <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 px-2 text-center">
               <span className="font-display text-sm font-bold tracking-[0.16em] text-white">UPGRADE TO INFERNO PRO</span>
               <span className="max-w-[260px] text-pretty font-display text-[11px] leading-[1.3] text-violet-300">Unlock unlimited AI insights and deep overlap analysis.</span>
-              <button type="button" onClick={onUpgrade} className="mt-0.5 flex h-7 items-center border border-emerald-400 bg-emerald-400/[0.08] px-3.5 font-mono text-[11px] font-bold tracking-[0.14em] text-emerald-400 shadow-[0_0_14px_rgba(52,211,153,0.35)] hover:bg-emerald-400 hover:text-black hover:shadow-[0_0_24px_rgba(52,211,153,0.6)]">
+              <button type="button" onClick={onUpgrade} className="mt-0.5 flex h-7 items-center border border-emerald-400 bg-emerald-400/[0.08] px-3.5 font-mono text-[11px] font-bold tracking-[0.14em] text-emerald-400 hover:bg-emerald-400 hover:text-black">
                 [ INITIATE UPGRADE ]
               </button>
             </div>
