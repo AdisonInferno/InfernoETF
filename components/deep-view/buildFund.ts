@@ -65,15 +65,19 @@ export function buildFund(rawTicker: string): FundData | null {
   const perf: Record<Tf, number> = {
     "1D": etf.chg1d,
     "1W": clampPct(etf.chg1d * 1.6 + (h("1w") - 0.5) * 2.4 * V * levF),
+    "2W": clampPct(etf.chg1d * 2.2 + (h("2w") - 0.5) * 3.4 * V * levF),
     "1M": clampPct(etf.ytd / 9 + (h("1m") - 0.5) * 5 * V * levF),
+    "3M": clampPct(etf.ytd / 3.2 + (h("3m") - 0.5) * 9 * V * levF),
     YTD: etf.ytd,
     "1Y": clampPct(etf.ytd * 1.25 + (h("1y") - 0.5) * 8 * V),
+    "3Y": clampPct(lev < 0 ? -72 - h("3y") * 12 : etf.ytd * 2.2 + 16 * V * levF * (0.6 + h("3y"))),
     "5Y": clampPct(lev < 0 ? -88 - h("5y") * 6 : etf.ytd * 3.4 + 28 * V * levF * (0.6 + h("5y"))),
   };
 
   /* ── Risk tiles ── */
   const dd = -Math.min(95, (14 + 16 * V) * levF + h("dd") * 6);
   const beta = profile.beta * lev + (h("beta") - 0.5) * 0.1;
+  const vol30d = 15.5 * V * levF * (0.85 + h("vol") * 0.3);
   const sharpe = Math.max(-1.5, Math.min(3.2, (etf.ytd / 100) / (0.14 * V * levF) + 0.2));
 
   /* ── Cheaper peers with the same composition ── */
@@ -126,6 +130,16 @@ export function buildFund(rawTicker: string): FundData | null {
       ["SHARPE RATIO", sharpe.toFixed(2)],
       ["DIV YIELD", etf.dividendYield.toFixed(2) + "%"],
     ],
+    stats: {
+      aumB: etf.aum,
+      ter,
+      divYield: etf.dividendYield,
+      navPrem: premium,
+      beta: +beta.toFixed(2),
+      vol30d: +vol30d.toFixed(1),
+      sharpe: +sharpe.toFixed(2),
+      maxDD: +dd.toFixed(1),
+    },
     alts,
     seasonality,
     perf,

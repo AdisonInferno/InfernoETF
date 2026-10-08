@@ -7,7 +7,7 @@ import { COUNTRY_CODE } from "./mockData";
 import { aumFmt, pctOf, squarify } from "./utils";
 import PriceChart from "./PriceChart";
 
-const CARD = "rounded-3xl border border-white/[0.04] bg-[#121214]";
+const CARD = "rounded-2xl border border-white/[0.05] bg-[#0a0a0c]";
 const H_LABEL = "font-display text-[10.5px] font-bold tracking-[0.18em] text-neutral-300";
 const SECTOR_RGB: Record<string, string> = {
   Technology: "16,185,129", Materials: "251,191,36", "Cash & Other": "148,163,184", Other: "113,113,122",
@@ -17,19 +17,6 @@ const SECTOR_RGB: Record<string, string> = {
 };
 
 interface Tip { sector: string; name: string; usd: string; pct: string; col: string; x: number; y: number }
-
-function RiskTiles({ fund }: { fund: FundData }) {
-  return (
-    <div className="grid flex-none grid-cols-[repeat(auto-fit,minmax(170px,1fr))] gap-4">
-      {fund.risk.map(([l, v, neg]) => (
-        <div key={l} className={`flex flex-col gap-2.5 px-[22px] py-5 ${CARD}`}>
-          <span className="font-sans text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-500">{l}</span>
-          <span className={`font-geist text-[26px] font-medium tabular-nums tracking-[-0.01em] ${neg ? "text-red-500" : "text-neutral-100"}`}>{v}</span>
-        </div>
-      ))}
-    </div>
-  );
-}
 
 function SectorBreakdown({ fund }: { fund: FundData }) {
   const ref = useRef<HTMLDivElement>(null);
@@ -210,7 +197,6 @@ export default function Overview({ fund, onUpgrade }: { fund: FundData; onUpgrad
   return (
     <div className="flex flex-none flex-col gap-6 px-5 pb-12 pt-6">
       <PriceChart fund={fund} />
-      <RiskTiles fund={fund} />
       <div className="grid grid-cols-1 items-stretch gap-6 lg:grid-cols-12">
         <div className="min-w-0 lg:col-span-8"><SectorBreakdown fund={fund} /></div>
         <div className="min-w-0 lg:col-span-4"><TopHoldings fund={fund} /></div>

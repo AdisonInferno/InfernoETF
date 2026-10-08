@@ -9,7 +9,7 @@ import CompositionMap from "./CompositionMap";
 import ChartsTab from "./ChartsTab";
 
 const TABS: [SubTab, string][] = [
-  ["OV", "OVERVIEW"], ["MAP", "COMPOSITION MAP"], ["SEAS", "CHARTS"], ["DIV", "DIVIDEND RADAR"], ["BT", "BACKTESTER"],
+  ["OV", "OVERVIEW"], ["MAP", "COMPOSITION MAP"], ["SEAS", "CHARTS"],
 ];
 
 interface Props {
@@ -26,7 +26,7 @@ export default function DeepView({ fund, onBack, onSelectAlt }: Props) {
   const up = fund.dayPct >= 0;
 
   return (
-    <div key={fund.tic} className="animate-inf-take flex min-h-full min-w-0 flex-col bg-[#09090b] font-display text-[#e6e6e6]">
+    <div key={fund.tic} className="animate-inf-take flex min-h-full min-w-0 flex-col bg-[#030303] font-display text-[#e6e6e6]">
       <header className="flex flex-col gap-3.5 border-b border-white/[0.06] px-5 pt-3.5">
         <div className="flex items-center justify-between gap-3">
           <button type="button" onClick={back} className="font-mono text-[11px] font-semibold tracking-[0.14em] text-gray-500 hover:text-white">[ ← BACK TO SCANNER ]</button>
@@ -87,12 +87,6 @@ export default function DeepView({ fund, onBack, onSelectAlt }: Props) {
       {tab === "OV" && <Overview fund={fund} />}
       {tab === "MAP" && <CompositionMap fund={fund} />}
       {tab === "SEAS" && <ChartsTab fund={fund} />}
-      {(tab === "DIV" || tab === "BT") && (
-        <div className="m-3 mt-6 flex min-h-[320px] flex-1 flex-col items-center justify-center gap-2 border border-dashed border-gray-800 font-mono">
-          <span className="text-xs font-bold tracking-[0.16em] text-gray-400">{tab === "DIV" ? "DIVIDEND RADAR" : "BACKTESTER"}</span>
-          <span className="text-[10px] tracking-[0.12em] text-gray-600">MODULE NOT YET BUILT</span>
-        </div>
-      )}
     </div>
   );
 }

@@ -1,11 +1,23 @@
-export type Tf = "1D" | "1W" | "1M" | "YTD" | "1Y" | "5Y";
-export type SubTab = "OV" | "MAP" | "SEAS" | "DIV" | "BT";
+export type Tf = "1D" | "1W" | "2W" | "1M" | "3M" | "YTD" | "1Y" | "3Y" | "5Y";
+export type SubTab = "OV" | "MAP" | "SEAS";
 
 export interface Holding { tic: string; name: string; w: number }            // w = weight in fund, %
 export interface HoldingMeta { sector: string; capB: number }                // capB = market cap, USD bn
 export interface TfDef { points: number; changePct: number; vol: number; axis: string[] }
 export interface Alt { tic: string; name: string; ter: number }              // cheaper alternative, ter in %
 export type RiskTile = [label: string, value: string, negative?: boolean];
+
+/** Numbers shown in the Chart Overview metrics grid. */
+export interface FundStats {
+  aumB: number;        // USD bn
+  ter: number;         // %
+  divYield: number;    // %
+  navPrem: number;     // premium (+) / discount (-) to NAV, %
+  beta: number;        // vs S&P 500
+  vol30d: number;      // annualised 30-day volatility, %
+  sharpe: number;
+  maxDD: number;       // %, negative
+}
 
 export interface FundData {
   tic: string;
@@ -22,6 +34,7 @@ export interface FundData {
   sectors: [subSector: string, pct: number][];
   sectorParent: Record<string, string>; // sub-sector -> parent sector
   risk: RiskTile[];
+  stats: FundStats;
   alts: Alt[];
   seasonality: [year: number, monthly: (number | null)[]][];
   /** % change per chart timeframe */

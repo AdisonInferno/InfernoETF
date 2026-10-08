@@ -4,16 +4,20 @@ import { seeded } from "./utils";
 export const TF: Record<Tf, TfDef> = {
   "1D":  { points: 78,  changePct: 1.37,   vol: 0.006, axis: ["09:30", "11:00", "12:30", "14:00", "16:00"] },
   "1W":  { points: 70,  changePct: 2.14,   vol: 0.014, axis: ["MON", "TUE", "WED", "THU", "FRI"] },
+  "2W":  { points: 70,  changePct: 1.86,   vol: 0.02,  axis: ["SEP 14", "SEP 17", "SEP 22", "SEP 25"] },
   "1M":  { points: 66,  changePct: -3.42,  vol: 0.03,  axis: ["AUG 28", "SEP 04", "SEP 11", "SEP 18", "SEP 25"] },
+  "3M":  { points: 90,  changePct: 6.9,    vol: 0.04,  axis: ["JUL 01", "JUL 29", "AUG 26", "SEP 25"] },
   "YTD": { points: 140, changePct: 28.61,  vol: 0.05,  axis: ["JAN", "MAR", "MAY", "JUL", "SEP"] },
   "1Y":  { points: 150, changePct: 41.18,  vol: 0.06,  axis: ["OCT '25", "JAN '26", "APR", "JUL", "SEP"] },
+  "3Y":  { points: 165, changePct: 78.3,   vol: 0.085, axis: ["OCT '23", "2024", "2025", "2026"] },
   "5Y":  { points: 180, changePct: 212.4,  vol: 0.1,   axis: ["2021", "2022", "2023", "2024", "2025", "2026"] },
 };
 export const TF_KEYS = Object.keys(TF) as Tf[];
 
 /** Default RANGE-slider window (fractions of the 5Y series) per timeframe. */
 export const BRUSH_PRESET: Record<Tf, [number, number]> = {
-  "1D": [0.998, 1], "1W": [0.995, 1], "1M": [0.983, 1], "YTD": [0.855, 1], "1Y": [0.8, 1], "5Y": [0, 1],
+  "1D": [0.998, 1], "1W": [0.995, 1], "2W": [0.99, 1], "1M": [0.983, 1], "3M": [0.95, 1],
+  "YTD": [0.855, 1], "1Y": [0.8, 1], "3Y": [0.4, 1], "5Y": [0, 1],
 };
 
 /** Placeholder price series (seeded random walk). Replace with real history from your API. */
