@@ -55,7 +55,7 @@ function FlagIcon({ flag }: { flag: Flag }) {
           <rect width="18" height="12" fill="#003399" />
           {Array.from({ length: 12 }, (_, i) => {
             const a = (i / 12) * Math.PI * 2;
-            return <circle key={i} cx={9 + Math.cos(a) * 3.6} cy={6 + Math.sin(a) * 3.6} r="0.55" fill="#ffcc00" />;
+            return <circle key={i} cx={(9 + Math.cos(a) * 3.6).toFixed(3)} cy={(6 + Math.sin(a) * 3.6).toFixed(3)} r="0.55" fill="#ffcc00" />;
           })}
         </svg>
       );

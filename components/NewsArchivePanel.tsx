@@ -1,13 +1,15 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import EtfNewsPanel from "@/components/EtfNewsPanel";
+import { ETFS } from "@/lib/etfs";
 
 /* Archive control room: how much history we have, the background jobs, and a search over it. */
 
-interface Article { id: string; provider: string; ts: number; headline: string; summary: string; source: string; url: string; tickers: string[] }
+interface Article { id: string; provider: string; ts: number; headline: string; summary: string; source: string; url: string; tickers: string[]; relevant: string[]; quality: "high" | "low"; reasons: string[]; dupes: number }
 interface Job { kind: string | null; running: boolean; done: number; total: number; added: number; errors: number; log: string[]; lastCollectAt: number | null; nextCollectAt: number | null }
 interface Payload {
-  stats: { total: number; oldest: number | null; newest: number | null; bytes: number; perProvider: Record<string, number>; perMonth: [string, number][]; topTickers: [string, number][] };
+  stats: { total: number; unique: number; high: number; low: number; oldest: number | null; newest: number | null; bytes: number; perProvider: Record<string, number>; perMonth: [string, number][]; topTickers: [string, number][] };
   job: Job;
   finnhub: boolean;
   universe: string[];
@@ -28,6 +30,14 @@ export default function NewsArchivePanel() {
   const [ticker, setTicker] = useState("");
   const [q, setQ] = useState("");
   const [days, setDays] = useState(365);
+  const [showLow, setShowLow] = useState(false);
+  const [etfQuery, setEtfQuery] = useState("");
+  const [etf, setEtf] = useState<string | null>(null);
+  const etfMatches = useMemo(() => {
+    const needle = etfQuery.trim().toLowerCase();
+    if (!needle) return [];
+    return ETFS.filter((e) => e.ticker.toLowerCase().startsWith(needle) || e.name.toLowerCase().includes(needle)).slice(0, 8);
+  }, [etfQuery]);
   const [msg, setMsg] = useState<string | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -35,9 +45,10 @@ export default function NewsArchivePanel() {
     const p = new URLSearchParams({ limit: "60" });
     if (ticker) p.set("ticker", ticker);
     if (q) p.set("q", q);
+    if (showLow) p.set("all", "1");
     const res = await fetch(`/api/news-archive?${p}`, { cache: "no-store" });
     if (res.ok) setData(await res.json());
-  }, [ticker, q]);
+  }, [ticker, q, showLow]);
 
   // Initial load + refresh on filter change (debounced); poll every 2 s while a job runs.
   useEffect(() => {
@@ -65,9 +76,10 @@ export default function NewsArchivePanel() {
   return (
     <div className="flex flex-col gap-4 font-mono tabular-nums">
       {/* KPIs */}
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-6">
         {[
-          ["ARTICLES", s ? s.total.toLocaleString("en-US") : "—"],
+          ["USEFUL ARTICLES", s ? s.high.toLocaleString("en-US") : "—"],
+          ["FILTERED OUT", s ? `${(s.total - s.high).toLocaleString("en-US")}` : "—"],
           ["HISTORY", s?.oldest ? `${spanDays} D` : "—"],
           ["OLDEST", fmtDate(s?.oldest ?? null)],
           ["NEWEST", fmtDate(s?.newest ?? null)],
@@ -144,12 +156,57 @@ export default function NewsArchivePanel() {
         </section>
       </div>
 
+      {/* ETF news: company + sector news mapped through the ETF's holdings and sectors */}
+      <section className={`${card} flex flex-col gap-3 p-4`}>
+        <div className="flex flex-wrap items-center gap-2">
+          <span className={`${label} mr-2 text-zinc-300`}>ETF NEWS</span>
+          <div className="relative min-w-[220px] flex-[0_1_340px]">
+            <input
+              value={etfQuery}
+              onChange={(e) => setEtfQuery(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && etfMatches[0]) { setEtf(etfMatches[0].ticker); setEtfQuery(""); }
+                if (e.key === "Escape") setEtfQuery("");
+              }}
+              placeholder="Search ETF… (ticker or name)"
+              className="h-8 w-full rounded-md border border-white/[0.06] bg-[#030303] px-2.5 text-[11.5px] text-zinc-100 outline-none focus:border-zinc-600"
+            />
+            {etfMatches.length > 0 && (
+              <ul className="absolute left-0 right-0 top-[calc(100%+4px)] z-20 m-0 list-none overflow-hidden rounded-lg border border-white/[0.08] bg-[#0a0a0c] p-0 shadow-[0_12px_32px_rgba(0,0,0,0.6)]">
+                {etfMatches.map((e) => (
+                  <li key={e.ticker}>
+                    <button type="button" onClick={() => { setEtf(e.ticker); setEtfQuery(""); }} className="flex w-full items-baseline gap-3 px-3 py-2 text-left hover:bg-white/[0.05]">
+                      <span className="w-14 text-[12px] font-bold text-zinc-100">{e.ticker}</span>
+                      <span className="truncate font-sans text-[12px] text-zinc-400">{e.name}</span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+          {["SPY", "QQQ", "SOXX", "ITA", "URA", "XLE", "XLF"].map((t) => (
+            <button key={t} type="button" onClick={() => { setEtf(etf === t ? null : t); setEtfQuery(""); }} className={`h-7 rounded-md px-2 text-[10.5px] font-bold ${etf === t ? "bg-white/[0.1] text-white" : "text-zinc-500 hover:text-zinc-200"}`}>{t}</button>
+          ))}
+          {etf && <button type="button" onClick={() => setEtf(null)} className="ml-auto text-[10px] font-bold tracking-[0.1em] text-zinc-500 hover:text-white">[ CLOSE ]</button>}
+        </div>
+        {etf && <EtfNewsPanel key={etf} ticker={etf} />}
+      </section>
+
       {/* Browse */}
       <section className={`${card} flex flex-col`}>
         <div className="flex flex-wrap items-center gap-2 border-b border-white/[0.05] px-4 py-3">
           <span className={`${label} mr-2 text-zinc-300`}>BROWSE</span>
           <input value={ticker} onChange={(e) => setTicker(e.target.value.toUpperCase())} placeholder="TICKER" className="h-8 w-28 rounded-md border border-white/[0.06] bg-[#030303] px-2.5 text-[11.5px] text-zinc-100 outline-none focus:border-zinc-600" />
           <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search headlines…" className="h-8 min-w-0 flex-1 rounded-md border border-white/[0.06] bg-[#030303] px-2.5 text-[11.5px] text-zinc-100 outline-none focus:border-zinc-600" />
+          <button
+            type="button"
+            onClick={() => setShowLow((v) => !v)}
+            aria-pressed={showLow}
+            title="Duplicates are always merged. This shows clickbait, promo and off-topic items too."
+            className={`h-8 rounded-md border px-2.5 text-[10.5px] font-bold tracking-[0.1em] ${showLow ? "border-amber-400/50 text-amber-400" : "border-white/[0.06] text-zinc-500 hover:text-zinc-200"}`}
+          >
+            {showLow ? "SHOWING ALL" : `+ FILTERED (${s?.low ?? 0})`}
+          </button>
           <div className="hidden flex-wrap gap-1 lg:flex">
             {(s?.topTickers ?? []).slice(0, 8).map(([t, n]) => (
               <button key={t} type="button" onClick={() => setTicker(ticker === t ? "" : t)} className={`h-7 rounded-md px-2 text-[10.5px] font-bold ${ticker === t ? "bg-white/[0.1] text-white" : "text-zinc-500 hover:text-zinc-200"}`}>
@@ -160,14 +217,16 @@ export default function NewsArchivePanel() {
         </div>
         <ul className="m-0 max-h-[560px] list-none overflow-auto p-0 [scrollbar-width:thin]">
           {(data?.articles ?? []).map((a) => (
-            <li key={a.id} className="grid grid-cols-[52px_minmax(0,1fr)] gap-3 border-b border-white/[0.04] px-4 py-2.5 last:border-b-0">
+            <li key={a.id} className={`grid grid-cols-[52px_minmax(0,1fr)] gap-3 border-b border-white/[0.04] px-4 py-2.5 last:border-b-0 ${a.quality === "low" ? "opacity-45" : ""}`}>
               <span className="pt-0.5 text-[10.5px] text-zinc-600" title={new Date(a.ts * 1000).toLocaleString("pl-PL")}>{ago(a.ts)}</span>
               <div className="min-w-0">
                 <a href={a.url || undefined} target="_blank" rel="noreferrer" className="font-sans text-[13px] text-zinc-100 hover:text-white hover:underline">{a.headline}</a>
-                <div className="mt-0.5 flex flex-wrap gap-x-3 text-[10px] text-zinc-500">
+                {a.summary && <p className="m-0 mt-1 line-clamp-2 font-sans text-[12px] leading-snug text-zinc-400">{a.summary}</p>}
+                <div className="mt-1 flex flex-wrap gap-x-3 text-[10px] text-zinc-500">
                   <span>{a.source}</span>
-                  <span className="text-zinc-700">{a.provider.toUpperCase()}</span>
-                  {a.tickers.slice(0, 6).map((t) => <span key={t} className="text-zinc-400">{t}</span>)}
+                  <span className="text-zinc-700">{a.provider.toUpperCase()}{a.dupes ? ` +${a.dupes} COPY` : ""}</span>
+                  {a.relevant.slice(0, 6).map((t) => <span key={t} className="font-bold text-emerald-400/90">{t}</span>)}
+                  {a.quality === "low" && <span className="text-amber-400" title={a.reasons.join(" · ")}>FILTERED: {a.reasons[0]}</span>}
                 </div>
               </div>
             </li>

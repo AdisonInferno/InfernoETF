@@ -14,6 +14,7 @@ export async function GET(req: Request) {
     q: u.searchParams.get("q") || undefined,
     from: days > 0 ? Math.floor(Date.now() / 1000) - days * 86400 : undefined,
     limit: Number(u.searchParams.get("limit") ?? 50),
+    includeLow: u.searchParams.get("all") === "1",
   });
   return Response.json({ stats: await archiveStats(), job: jobState(), finnhub: hasFinnhub(), universe: newsUniverse(), articles });
 }

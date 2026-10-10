@@ -10,6 +10,7 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { createHash } from "node:crypto";
+import { cleanArticles, type CleanArticle } from "./quality";
 
 export const ARCHIVE_DIR = path.join(process.cwd(), "data", "news-archive");
 
@@ -40,6 +41,12 @@ const monthKey = (ts: number) => new Date(ts * 1000).toISOString().slice(0, 7); 
 /* ── In-memory index of known ids (built lazily from disk once per server process) ── */
 let known: Map<string, ArchivedArticle> | null = null;
 let loading: Promise<Map<string, ArchivedArticle>> | null = null;
+/** Cleaned view (deduped, relevance-checked, quality-flagged); rebuilt after new saves. */
+let cleaned: CleanArticle[] | null = null;
+async function cleanView(): Promise<CleanArticle[]> {
+  cleaned ??= cleanArticles((await loadIndex()).values());
+  return cleaned;
+}
 
 async function loadIndex(): Promise<Map<string, ArchivedArticle>> {
   if (known) return known;
@@ -88,18 +95,20 @@ export async function saveArticles(items: ArchivedArticle[]): Promise<{ added: n
       (byFile.get(file) ?? byFile.set(file, []).get(file)!).push(JSON.stringify(line));
     }
   }
+  if (added || tagged) cleaned = null;
   for (const [file, lines] of byFile) await fs.appendFile(path.join(ARCHIVE_DIR, file), lines.join("\n") + "\n", "utf8");
   return { added, tagged };
 }
 
-export interface ArchiveQuery { ticker?: string; from?: number; to?: number; q?: string; limit?: number }
+export interface ArchiveQuery { ticker?: string; from?: number; to?: number; q?: string; limit?: number; includeLow?: boolean }
 
-export async function queryArchive({ ticker, from, to, q, limit = 100 }: ArchiveQuery = {}): Promise<ArchivedArticle[]> {
-  const index = await loadIndex();
+/** Cleaned articles, newest first. Ticker filter uses genuine relevance, not the provider's tags. */
+export async function queryArchive({ ticker, from, to, q, limit = 100, includeLow = false }: ArchiveQuery = {}): Promise<CleanArticle[]> {
   const t = ticker?.toUpperCase(), needle = q?.toLowerCase();
-  const out: ArchivedArticle[] = [];
-  for (const a of index.values()) {
-    if (t && !a.tickers.includes(t)) continue;
+  const out: CleanArticle[] = [];
+  for (const a of await cleanView()) {
+    if (!includeLow && a.quality === "low") continue;
+    if (t && !a.relevant.includes(t)) continue;
     if (from && a.ts < from) continue;
     if (to && a.ts > to) continue;
     if (needle && !(a.headline + " " + a.summary).toLowerCase().includes(needle)) continue;
@@ -110,18 +119,23 @@ export async function queryArchive({ ticker, from, to, q, limit = 100 }: Archive
 
 export async function archiveStats() {
   const index = await loadIndex();
+  const view = await cleanView();
+  const high = view.filter((a) => a.quality === "high");
   let oldest = Infinity, newest = 0;
   const perProvider: Record<string, number> = {}, perMonth: Record<string, number> = {}, perTicker: Record<string, number> = {};
   for (const a of index.values()) {
     oldest = Math.min(oldest, a.ts); newest = Math.max(newest, a.ts);
     perProvider[a.provider] = (perProvider[a.provider] ?? 0) + 1;
     const m = monthKey(a.ts); perMonth[m] = (perMonth[m] ?? 0) + 1;
-    for (const t of a.tickers) perTicker[t] = (perTicker[t] ?? 0) + 1;
   }
+  for (const a of high) for (const t of a.relevant) perTicker[t] = (perTicker[t] ?? 0) + 1;
   let bytes = 0;
   try { for (const f of await fs.readdir(ARCHIVE_DIR)) bytes += (await fs.stat(path.join(ARCHIVE_DIR, f))).size; } catch { /* empty */ }
   return {
     total: index.size,
+    unique: view.length,
+    high: high.length,
+    low: view.length - high.length,
     oldest: Number.isFinite(oldest) ? oldest : null,
     newest: newest || null,
     bytes,

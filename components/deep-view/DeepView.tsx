@@ -7,9 +7,10 @@ import { sg, usd } from "./utils";
 import Overview from "./Overview";
 import CompositionMap from "./CompositionMap";
 import ChartsTab from "./ChartsTab";
+import EtfNewsPanel from "@/components/EtfNewsPanel";
 
 const TABS: [SubTab, string][] = [
-  ["OV", "OVERVIEW"], ["MAP", "COMPOSITION MAP"], ["SEAS", "CHARTS"],
+  ["OV", "OVERVIEW"], ["MAP", "COMPOSITION MAP"], ["SEAS", "CHARTS"], ["NEWS", "NEWS"],
 ];
 
 interface Props {
@@ -87,6 +88,7 @@ export default function DeepView({ fund, onBack, onSelectAlt }: Props) {
       {tab === "OV" && <Overview fund={fund} />}
       {tab === "MAP" && <CompositionMap fund={fund} />}
       {tab === "SEAS" && <ChartsTab fund={fund} />}
+      {tab === "NEWS" && <div className="flex flex-none flex-col px-5 pb-12 pt-6"><EtfNewsPanel ticker={fund.tic} /></div>}
     </div>
   );
 }

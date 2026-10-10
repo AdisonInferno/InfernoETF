@@ -7,6 +7,10 @@
 
 import { PROFILE_OF } from "@/lib/fund-profiles";
 import { articleId, type ArchivedArticle } from "./store";
+import { TICKER_SUB, parentOf } from "./sectors";
+
+/** Holdings that are futures, coins, cash or T-bills — no company news exists for them. */
+const NOT_A_COMPANY = new Set(["Commodities", "Crypto", "Govt Bonds", "Cash & Other"]);
 
 const FINNHUB = process.env.FINNHUB_BASE_URL ?? "https://finnhub.io/api/v1";
 const YAHOO = process.env.YAHOO_BASE_URL ?? "https://query1.finance.yahoo.com";
@@ -18,22 +22,27 @@ export const hasFinnhub = () => Boolean(process.env.FINNHUB_API_KEY);
 /* ── Ticker universe: the most important stocks inside our ETFs ── */
 
 // Finnhub's free company-news covers North American listings; skip clearly non-US tickers.
-const NON_US = new Set(["RHM", "NESN", "ROG", "SAP", "NOVN", "MC", "SIE", "ASML.AS", "AIR", "SAF", "BA.", "HO", "LDO"]);
+const NON_US = new Set([
+  "RHM", "NESN", "ROG", "SAP", "NOVN", "MC", "SIE", "AIR", "SAF", "HO", "LDO", "HSBA", "ULVR", "ABBN", "MTX", "KOG", "HAG",
+  "AM", "CHG", "IBE", "VWS", "SSE", "KAP", "IVN", "LUN", "ANTO", "ADYEN", "ALV", "BAE", "SAAB", "THALES", "HENS",
+]);
 
-/** Top `n` stock tickers by summed weight across all ETF profiles (override with NEWS_TICKERS="AAPL,MSFT,…"). */
-export function newsUniverse(n = 40): string[] {
+/** Tickers to collect: the top `n` stocks by summed ETF weight, plus the top `perEtf` US-listed
+    holdings of every ETF so thematic funds (defense, uranium, …) get company news too.
+    Override everything with NEWS_TICKERS="AAPL,MSFT,…". */
+export function newsUniverse(n = 40, perEtf = 5): string[] {
   const env = process.env.NEWS_TICKERS?.split(",").map((s) => s.trim().toUpperCase()).filter(Boolean);
   if (env?.length) return env;
+  const ok = (t: string) => /^[A-Z]{1,5}$/.test(t) && !NON_US.has(t) && !NOT_A_COMPANY.has(parentOf(TICKER_SUB[t] ?? ""));
   const score: Record<string, number> = {};
+  const picked = new Set<string>();
   for (const prof of new Set(Object.values(PROFILE_OF))) {
-    for (const line of prof.holdings) {
-      const [t, , w] = line.split("|");
-      const tic = t === "GOOG" ? "GOOGL" : t;
-      if (!/^[A-Z]{1,5}$/.test(tic) || NON_US.has(tic)) continue;
-      score[tic] = (score[tic] ?? 0) + Number(w);
-    }
+    const lines = prof.holdings.map((l) => l.split("|")).map(([t, , w]) => [t === "GOOG" ? "GOOGL" : t, Number(w)] as const).filter(([t]) => ok(t));
+    lines.forEach(([t, w]) => (score[t] = (score[t] ?? 0) + w));
+    [...lines].sort((a, b) => b[1] - a[1]).slice(0, perEtf).forEach(([t]) => picked.add(t));
   }
-  return Object.entries(score).sort((a, b) => b[1] - a[1]).slice(0, n).map(([t]) => t);
+  Object.entries(score).sort((a, b) => b[1] - a[1]).slice(0, n).forEach(([t]) => picked.add(t));
+  return [...picked];
 }
 
 /* ── Finnhub ── */

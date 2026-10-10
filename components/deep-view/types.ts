@@ -1,5 +1,5 @@
 export type Tf = "1D" | "1W" | "2W" | "1M" | "3M" | "YTD" | "1Y" | "3Y" | "5Y";
-export type SubTab = "OV" | "MAP" | "SEAS";
+export type SubTab = "OV" | "MAP" | "SEAS" | "NEWS";
 
 export interface Holding { tic: string; name: string; w: number }            // w = weight in fund, %
 export interface HoldingMeta { sector: string; capB: number }                // capB = market cap, USD bn
