@@ -1,6 +1,6 @@
 "use client";
+
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
 
 /* ─────────────────────────────── Types ─────────────────────────────── */
 
@@ -107,7 +107,7 @@ const PROVIDERS: Provider[] = ["BlackRock", "Vanguard", "State Street", "Invesco
 
 const SECTOR_GAP = 8; // half-gutter between sector cards
 const HEADER_H = 28; // sector card title bar
-const MONO = "font-mono";
+const MONO = "font-['JetBrains_Mono',ui-monospace,monospace]";
 
 const fmtPct = (c: number) =>
   (c > 0 ? "+" : c < 0 ? "−" : "") + Math.abs(c).toFixed(2) + "%";
@@ -199,10 +199,10 @@ const ToggleButton: React.FC<{ active: boolean; onClick: () => void; children: R
     type="button"
     onClick={onClick}
     className={[
-      "flex-1 cursor-pointer rounded-lg px-1 py-[9px] text-center text-xs font-semibold transition-colors",
+      "flex-1 cursor-pointer rounded-sm border px-1 py-[9px] text-center text-xs font-semibold transition-colors",
       active
-        ? "bg-white/[0.14] text-[#FAFAFA] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.14)] hover:bg-white/[0.18]"
-        : "bg-white/[0.05] text-[#A1A1AA] hover:bg-white/10",
+        ? "border-white/[0.14] bg-white/[0.10] text-[#FAFAFA] hover:bg-white/[0.14]"
+        : "border-white/[0.05] bg-white/[0.03] text-[#A1A1AA] hover:bg-white/[0.08]",
     ].join(" ")}
   >
     {children}
@@ -212,7 +212,6 @@ const ToggleButton: React.FC<{ active: boolean; onClick: () => void; children: R
 /* ───────────────────────────── Component ───────────────────────────── */
 
 export default function InfernoEtfScanner() {
-  const router = useRouter();
   const [equalWeight, setEqualWeight] = useState(true);
   const [sort, setSort] = useState<SortKey>("aum");
   const [disabled, setDisabled] = useState<Partial<Record<Provider, boolean>>>({});
@@ -277,7 +276,6 @@ export default function InfernoEtfScanner() {
   }, []);
 
   const hoverHandlers = (etf: Etf) => ({
-    onClick: () => router.push(`/etf/${etf.ticker}`),
     onMouseEnter: (e: React.MouseEvent) => setTip({ etf, x: e.clientX, y: e.clientY }),
     onMouseMove: (e: React.MouseEvent) => setTip({ etf, x: e.clientX, y: e.clientY }),
     onMouseLeave: () => setTip(null),
@@ -289,12 +287,11 @@ export default function InfernoEtfScanner() {
   const tipColor = tip ? trendColor(tip.etf.change1d) : "#34D399";
 
   return (
-    <div className="absolute inset-0 grid grid-cols-[260px_minmax(0,1fr)] grid-rows-[minmax(0,1fr)] gap-4 overflow-hidden bg-[#030303] p-4 font-sans text-[#E5E5E5]">
+    <div className="absolute inset-0 grid grid-cols-[260px_minmax(0,1fr)] grid-rows-[minmax(0,1fr)] gap-4 overflow-hidden bg-[#030303] p-4 font-['Space_Grotesk',ui-sans-serif,system-ui,sans-serif] text-[#E5E5E5]">
       {/* ── Sidebar ── */}
-      <aside className="flex min-h-0 flex-col gap-5 self-stretch overflow-y-auto rounded-3xl border border-white/[0.04] bg-[#121214] p-5">
+      <aside className="flex min-h-0 flex-col gap-5 self-stretch overflow-y-auto rounded-sm border border-white/[0.05] bg-[#0a0a0c] p-5">
         <div className="flex flex-col gap-1">
-          <span className="text-lg font-semibold tracking-[-0.02em] text-[#FAFAFA]">ETF Market Map</span>
-          <span className="text-xs text-[#71717A]">1-day performance · {count} funds</span>
+          <span className={`${MONO} text-[13px] font-semibold tracking-[0.12em] text-[#FAFAFA]`}>[ ETF MARKET MAP ]</span>
         </div>
 
         <div className="flex flex-col gap-2.5">
@@ -331,12 +328,12 @@ export default function InfernoEtfScanner() {
                   key={p}
                   type="button"
                   onClick={() => setDisabled((d) => ({ ...d, [p]: on }))}
-                  className={`flex cursor-pointer items-center gap-2.5 rounded-lg px-3 py-[9px] text-left hover:bg-white/10 ${
+                  className={`flex cursor-pointer items-center gap-2.5 rounded-sm px-3 py-[9px] text-left hover:bg-white/10 ${
                     on ? "bg-white/[0.05]" : "bg-transparent"
                   }`}
                 >
                   <span
-                    className={`flex h-4 w-4 flex-none items-center justify-center rounded-[5px] border text-[10px] font-bold text-[#031] ${
+                    className={`flex h-4 w-4 flex-none items-center justify-center rounded-[2px] border text-[10px] font-bold text-[#031] ${
                       on ? "border-[#34D399] bg-[#34D399]" : "border-white/[0.18] bg-transparent"
                     }`}
                   >
@@ -352,7 +349,7 @@ export default function InfernoEtfScanner() {
 
         <div className="flex flex-col gap-2.5">
           <SectionLabel>COLOR SCALE</SectionLabel>
-          <div className="h-2.5 rounded-full bg-[linear-gradient(90deg,#7f1d1d,#b91c1c_22%,#334155_50%,#047857_78%,#065f46)]" />
+          <div className="h-2 rounded-sm bg-[linear-gradient(90deg,#7f1d1d,#b91c1c_22%,#334155_50%,#047857_78%,#065f46)]" />
           <div className={`${MONO} flex justify-between text-[11px] text-[#71717A]`}>
             <span>−3%</span>
             <span>0%</span>
@@ -368,7 +365,7 @@ export default function InfernoEtfScanner() {
             EQUITY ETF MAP · {equalWeight ? "EQUAL WEIGHT" : "MARKET WEIGHT"} ·{" "}
             {sort === "aum" ? "BY AUM" : "BY % CHANGE"}
           </span>
-          <span className={`${MONO} text-[11px] text-[#52525B]`}>hover a tile for AI oversight · click for deep view</span>
+          <span className={`${MONO} text-[11px] text-[#52525B]`}>{count} ETF</span>
         </div>
 
         {/* Treemap */}
@@ -378,7 +375,7 @@ export default function InfernoEtfScanner() {
               key={s.title}
               onMouseEnter={() => setHoverSector(s.title)}
               onMouseLeave={() => setHoverSector(null)}
-              className="absolute box-border overflow-hidden rounded-2xl border border-white/[0.04] bg-[#0a0a0c]"
+              className="absolute box-border overflow-hidden rounded-sm border border-white/[0.05] bg-[#0a0a0c]"
               style={{ left: s.x, top: s.y, width: s.w, height: s.h, zIndex: hoverSector === s.title ? 5 : 1 }}
             >
               <div className="absolute inset-x-0 top-0 flex h-7 items-center justify-between gap-2 overflow-hidden px-3.5">
@@ -397,7 +394,7 @@ export default function InfernoEtfScanner() {
                   <div
                     key={etf.ticker}
                     {...hoverHandlers(etf)}
-                    className="absolute box-border flex cursor-pointer flex-col items-center justify-center gap-0.5 overflow-hidden rounded-[1px] border-b border-r border-[#030303] transition-[transform,filter] duration-200 hover:z-20 hover:scale-[1.03] hover:brightness-125"
+                    className="absolute box-border flex cursor-pointer flex-col items-center justify-center gap-0.5 overflow-hidden rounded-[1px] border-b border-r border-[#030303] transition-[filter] duration-150 hover:z-20 hover:brightness-125"
                     style={{ left: x, top: y, width: w, height: h, background: tileBg(etf.change1d) }}
                   >
                     <span
@@ -426,7 +423,7 @@ export default function InfernoEtfScanner() {
         </div>
 
         {/* Macro baseline */}
-        <div className="mt-2 box-border flex w-full flex-none flex-wrap items-center justify-between gap-4 rounded-2xl border border-white/[0.04] bg-[#0a0a0c] px-6 py-4">
+        <div className="mt-2 box-border flex w-full flex-none flex-wrap items-center justify-between gap-4 rounded-sm border border-white/[0.05] bg-[#0a0a0c] px-6 py-4">
           <span className={`${MONO} text-[11px] font-semibold tracking-[0.14em] text-[#71717A]`}>[ MACRO BASELINE ]</span>
           <div className="flex flex-wrap items-center gap-2.5">
             {MACRO.map((m) => {
@@ -435,12 +432,12 @@ export default function InfernoEtfScanner() {
                 <div
                   key={m.ticker}
                   {...hoverHandlers(m)}
-                  className="flex cursor-pointer items-center gap-2.5 rounded-full bg-white/[0.05] px-3.5 py-2 transition-colors duration-150 hover:bg-white/10"
+                  className="flex cursor-pointer items-center gap-2.5 rounded-sm border border-white/[0.05] bg-white/[0.03] px-3.5 py-2 transition-colors duration-150 hover:bg-white/10"
                 >
                   <span className={`${MONO} text-[13px] font-bold text-[#FAFAFA]`}>{m.ticker}</span>
-                  <span className="text-[11px] text-[#71717A]">{m.tag}</span>
+                  <span className="text-[11px] uppercase tracking-[0.06em] text-[#71717A]">{m.tag}</span>
                   <span
-                    className={`${MONO} rounded-lg px-2 py-0.5 text-xs font-bold ${
+                    className={`${MONO} rounded-sm px-2 py-0.5 text-xs font-bold ${
                       up ? "bg-emerald-500/10 text-[#34D399]" : "bg-rose-500/10 text-[#FB7185]"
                     }`}
                   >
@@ -456,7 +453,7 @@ export default function InfernoEtfScanner() {
       {/* ── Tooltip ── */}
       {tip && spark && (
         <div
-          className="pointer-events-none fixed z-[100] box-border flex w-72 flex-col gap-3 rounded-xl border border-white/10 bg-[#121214] p-4"
+          className="pointer-events-none fixed z-[100] box-border flex w-72 flex-col gap-3 rounded-sm border border-white/[0.08] bg-[#0a0a0c] p-4"
           style={{ left: Math.min(tip.x + 18, vw - 304), top: Math.max(8, Math.min(tip.y + 18, vh - 340)) }}
         >
           <div className="flex flex-col gap-0.5">
@@ -483,12 +480,12 @@ export default function InfernoEtfScanner() {
           <div className={`${MONO} flex items-baseline justify-between`}>
             <span className="text-lg font-semibold text-[#FAFAFA]">${tip.etf.price.toFixed(2)}</span>
             <span className="text-[13px] font-bold" style={{ color: tipColor }}>
-              {fmtPct(tip.etf.change1d)} today
+              {fmtPct(tip.etf.change1d)} 1D
             </span>
           </div>
-          <div className="flex flex-col gap-1.5 rounded-lg border border-violet-400/[0.15] bg-violet-500/[0.08] px-3 py-2.5">
-            <span className="text-[10px] font-semibold tracking-[0.1em] text-[#A78BFA]">✦ AI OVERSIGHT</span>
-            <span className="text-xs leading-normal text-[#C4B5FD]">AI Note: {tip.etf.note}</span>
+          <div className="flex flex-col gap-1.5 rounded-sm border border-violet-400/[0.15] bg-violet-500/[0.08] px-3 py-2.5">
+            <span className="text-[10px] font-semibold tracking-[0.1em] text-[#A78BFA]">[ AI OVERSIGHT ]</span>
+            <span className="text-xs leading-normal text-[#C4B5FD]">{tip.etf.note}</span>
           </div>
         </div>
       )}

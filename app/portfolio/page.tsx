@@ -4,7 +4,8 @@ import Link from "next/link";
 import { AnimatePresence, LayoutGroup, motion, useReducedMotion, type Variants } from "framer-motion";
 import { useEffect, useMemo, useRef, useState } from "react";
 import PortfolioDeepView, { SEG_COLORS } from "@/components/PortfolioDeepView";
-import PortfolioPerformance from "@/components/PortfolioPerformance";
+import PortfolioPerformance, { type RangeTf } from "@/components/PortfolioPerformance";
+import PortfolioFlows from "@/components/PortfolioFlows";
 import {
   PRESETS,
   assetClass,
@@ -185,6 +186,8 @@ export default function PortfolioPage() {
   const [loaded, setLoaded] = useState(false);
   const [editing, setEditing] = useState(false);
   const [view, setView] = useState<View>("overview");
+  /** Timeframe shared by the performance chart and the capital-flow bars. */
+  const [perfTf, setPerfTf] = useState<RangeTf>("YTD");
   /** Second phase of the transition: the card grows a beat after the bottom cards start falling. */
   const [expanded, setExpanded] = useState(false);
   const timers = useRef<number[]>([]);
@@ -221,6 +224,14 @@ export default function PortfolioPage() {
   const ytdPct = parsed.positions.reduce((a, p) => a + (p.weight / 100) * p.asset.ytd, 0);
   const allTimePct = parsed.positions.reduce((a, p) => a + (p.weight / 100) * allTimeOf(p.asset.ytd), 0);
   const todayUsd = (MODEL_BALANCE * todayPct) / 100;
+
+  const METRICS = [
+    { k: "TODAY P&L", v: fmtP(todayPct), sub: (todayUsd >= 0 ? "+" : "") + usd(todayUsd), tone: todayPct >= 0 ? "up" : "down" },
+    { k: "YTD RETURN", v: fmtP(ytdPct), sub: "since Jan 1", tone: ytdPct >= 0 ? "up" : "down" },
+    { k: "TOTAL BALANCE", v: usd(MODEL_BALANCE, 2), sub: "model account", tone: "flat" },
+    { k: "ALL-TIME GAIN", v: (allTimePct >= 0 ? "+" : "") + allTimePct.toFixed(1) + "%", sub: (allTimePct >= 0 ? "+" : "") + usd(MODEL_BALANCE - MODEL_BALANCE / (1 + allTimePct / 100)), tone: allTimePct >= 0 ? "up" : "down" },
+  ] as const;
+  const toneTxt = (t: string, dim = false) => (t === "up" ? (dim ? "text-emerald-400/70" : "text-emerald-400") : t === "down" ? (dim ? "text-rose-400/70" : "text-rose-400") : dim ? "text-zinc-600" : "text-zinc-50");
 
   /* "Compare with my portfolio" — same scenarios applied to the saved portfolio. */
   const mine = useMemo(() => {
@@ -308,12 +319,12 @@ export default function PortfolioPage() {
         <span className="font-mono text-[10px] text-zinc-600">4 presets · model</span>
       </div>
       <div>
-        <h2 className="text-[17px] font-semibold text-zinc-50">Build from scratch</h2>
-        <p className="mt-1 text-[12.5px] text-zinc-500">Pick a risk profile and preview how it would have held up.</p>
+        <h2 className="text-[17px] font-semibold text-zinc-50 xl:text-[15px]">Build from scratch</h2>
+        <p className="mt-1 text-[12.5px] text-zinc-500 xl:hidden">Pick a risk profile and preview how it would have held up.</p>
       </div>
 
       {/* Preset picker */}
-      <div className="grid grid-cols-2 gap-2">
+      <div className="grid grid-cols-2 gap-2 xl:grid-cols-4">
         {BUILD_PRESETS.map((b) => {
           const on = b.id === presetId;
           const hot = b.id === "max";
@@ -322,14 +333,14 @@ export default function PortfolioPage() {
               key={b.id}
               type="button"
               onClick={() => { setPresetId(b.id); setComparing(false); }}
-              className={`flex flex-col items-start gap-0.5 rounded-lg border px-3 py-2 text-left transition-colors ${
+              className={`flex min-w-0 flex-col items-start gap-0.5 rounded-lg border px-2.5 py-1.5 text-left transition-colors ${
                 on
                   ? hot ? "border-red-500/50 bg-red-500/[0.08]" : "border-emerald-400/40 bg-emerald-400/[0.06]"
                   : "border-white/[0.05] bg-[#030303]/60 hover:border-white/[0.12]"
               }`}
             >
               <span className={`font-mono text-[11px] font-bold tracking-[0.08em] ${on ? (hot ? "text-red-300" : "text-emerald-300") : "text-zinc-300"}`}>{b.name}</span>
-              <span className="font-mono text-[9.5px] tracking-[0.08em] text-zinc-500">{b.tag}</span>
+              <span className="truncate font-mono text-[9px] tracking-[0.06em] text-zinc-500">{b.tag}</span>
             </button>
           );
         })}
@@ -374,10 +385,10 @@ export default function PortfolioPage() {
           })}
         </div>
       ) : (
-        <div className="flex flex-col gap-3 rounded-lg border border-white/[0.05] bg-[#030303]/60 p-3">
+        <div className="flex flex-col gap-2.5 rounded-lg border border-white/[0.05] bg-[#030303]/60 p-3">
           <div className="flex items-baseline justify-between">
             <span className={label}>3Y ANNUALIZED RETURN</span>
-            <span className="font-mono text-[22px] font-semibold tabular-nums text-emerald-400">+{preset.cagr.toFixed(1)}%<span className="ml-1 text-[11px] text-emerald-400/70">CAGR</span></span>
+            <span className="font-mono text-[20px] font-semibold tabular-nums text-emerald-400">+{preset.cagr.toFixed(1)}%<span className="ml-1 text-[11px] text-emerald-400/70">CAGR</span></span>
           </div>
           {([["2022 Drawdown Replay", preset.dd2022], ["2020 Flash Crash", preset.crash2020]] as const).map(([k, v]) => (
             <div key={k} className="flex flex-col gap-1">
@@ -390,12 +401,12 @@ export default function PortfolioPage() {
               </div>
             </div>
           ))}
-          <span className="font-mono text-[9px] tracking-[0.1em] text-zinc-600">MODEL BACKTEST · PLACEHOLDER DATA</span>
+          <span className="font-mono text-[9px] tracking-[0.1em] text-zinc-600 xl:hidden">MODEL BACKTEST · PLACEHOLDER DATA</span>
         </div>
       )}
 
       {/* Bottom action bar */}
-      <div className="mt-auto flex items-center justify-between gap-2 border-t border-white/[0.05] pt-4">
+      <div className="mt-auto flex items-center justify-between gap-2 border-t border-white/[0.05] pt-3">
         <button type="button" onClick={() => applyPrompt(preset.prompt)} className="font-mono text-[11px] tracking-[0.06em] text-zinc-500 transition-colors hover:text-white" title={preset.prompt}>
           Use preset
         </button>
@@ -418,8 +429,8 @@ export default function PortfolioPage() {
         <span className="font-mono text-[10px] text-zinc-600">13F · Q2 2026</span>
       </div>
       <div>
-        <h2 className="text-[17px] font-semibold text-zinc-50">Clone smart money</h2>
-        <p className="mt-1 text-[12.5px] text-zinc-500">Latest filings. Clone the proportions in one click.</p>
+        <h2 className="text-[17px] font-semibold text-zinc-50 xl:text-[15px]">Clone smart money</h2>
+        <p className="mt-1 text-[12.5px] text-zinc-500 xl:hidden">Latest filings. Clone the proportions in one click.</p>
       </div>
       <div className="flex flex-col">
         <div className="grid grid-cols-[minmax(0,1fr)_56px_64px_56px] gap-2 border-b border-white/[0.04] pb-2 font-mono text-[9.5px] tracking-[0.12em] text-zinc-600">
@@ -431,7 +442,7 @@ export default function PortfolioPage() {
             type="button"
             onClick={() => applyPrompt(w.prompt)}
             title={`Clone: ${w.prompt}`}
-            className="group grid grid-cols-[minmax(0,1fr)_56px_64px_56px] items-center gap-2 border-b border-white/[0.04] py-2.5 text-left transition-colors hover:bg-white/[0.02]"
+            className="group grid grid-cols-[minmax(0,1fr)_56px_64px_56px] items-center gap-2 border-b border-white/[0.04] py-2 text-left transition-colors hover:bg-white/[0.02]"
           >
             <span className="min-w-0">
               <span className="block truncate text-[13px] font-semibold text-zinc-100">{w.name}</span>
@@ -482,7 +493,7 @@ export default function PortfolioPage() {
   return (
     // flex-none: the page grows with its content (never squeezed to the viewport);
     // falling cards are clipped by <main> while its scroll is locked during the transition.
-    <div className="relative mx-auto flex min-h-full w-full max-w-[1560px] flex-none flex-col gap-5 overflow-x-clip bg-[#030303] px-6 pb-10 pt-5">
+    <div className="relative mx-auto flex min-h-full w-full max-w-[1560px] flex-none flex-col gap-3 overflow-x-clip bg-[#030303] px-6 pb-5 pt-3">
       <motion.div layout="position" className="font-mono text-[10px] tracking-[0.14em] text-zinc-600">
         [ DASHBOARD / <span className={isDeep ? "" : "text-zinc-300"}>PORTFOLIO</span>
         {isDeep && <> / <span className="text-zinc-300">DEEP VIEW</span></>} ]
@@ -497,7 +508,8 @@ export default function PortfolioPage() {
             layout
             transition={{ layout: reduceMotion ? { duration: 0 } : LAYOUT_SPRING }}
             onClick={onCardClick}
-            className={`${card} flex flex-none flex-col gap-6 p-7 ${isExpanded ? "min-h-[calc(100dvh-230px)]" : isDeep ? "" : "cursor-pointer transition-colors hover:border-white/[0.09]"}`}
+            title={isDeep ? undefined : "Click for the full portfolio deep view"}
+            className={`${card} flex flex-none flex-col gap-3 p-5 ${isExpanded ? "min-h-[calc(100dvh-230px)]" : isDeep ? "" : "cursor-pointer transition-colors hover:border-white/[0.09]"}`}
           >
             <motion.div layout="position" className="flex flex-wrap items-end justify-between gap-4">
               <div className="flex flex-col gap-3">
@@ -516,17 +528,35 @@ export default function PortfolioPage() {
                   )}
                 </AnimatePresence>
                 <div>
-                  <h1 className="text-[30px] font-semibold tracking-tight text-zinc-50">
+                  <h1 className="text-[22px] font-semibold tracking-tight text-zinc-50">
                     My portfolio{isDeep && <span className="ml-3 align-middle font-mono text-[12px] font-bold tracking-[0.14em] text-red-400">DEEP VIEW</span>}
                   </h1>
-                  <p className="mt-1 font-mono text-[11px] text-zinc-500">
+                  <p className="mt-0.5 font-mono text-[11px] text-zinc-500">
                     {parsed.positions.length} positions · created {new Date(saved!.createdAt).toLocaleDateString("pl-PL")} · <span className="text-zinc-400">{saved!.prompt}</span>
                   </p>
                 </div>
               </div>
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap items-end gap-2">
                 {isDeep ? (
-                  <Link href="/portfolio/holdings" className={ghostBtn}>Holdings table →</Link>
+                  <>
+                    {/* Headline metrics move up here in the deep view */}
+                    <motion.div
+                      initial={{ opacity: 0, y: -6 }}
+                      animate={{ opacity: 1, y: 0, transition: { delay: 0.2 } }}
+                      className="grid grid-cols-2 gap-2 md:grid-cols-4"
+                    >
+                      {METRICS.map((m) => (
+                        <div key={m.k} className="min-w-[150px] rounded-lg border border-white/[0.05] bg-[#030303]/60 px-3 py-1.5">
+                          <div className="font-mono text-[9px] font-semibold tracking-[0.14em] text-zinc-500">{m.k}</div>
+                          <div className="flex items-baseline gap-1.5">
+                            <span className={`font-mono text-[15px] font-semibold tabular-nums ${toneTxt(m.tone)}`}>{m.v}</span>
+                            <span className={`font-mono text-[10px] tabular-nums ${toneTxt(m.tone, true)}`}>{m.sub}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </motion.div>
+                    <Link href="/portfolio/holdings" className={ghostBtn}>Holdings table →</Link>
+                  </>
                 ) : (
                   <>
                     <button type="button" onClick={() => setEditing(true)} className={ghostBtn}>Edit</button>
@@ -538,75 +568,84 @@ export default function PortfolioPage() {
               </div>
             </motion.div>
 
-            <motion.div layout="position" className="grid grid-cols-2 gap-3 md:grid-cols-4">
-              {([
-                { k: "TODAY P&L", v: fmtP(todayPct), sub: (todayUsd >= 0 ? "+" : "") + usd(todayUsd), tone: todayPct >= 0 ? "up" : "down" },
-                { k: "YTD RETURN", v: fmtP(ytdPct), sub: "since Jan 1", tone: ytdPct >= 0 ? "up" : "down" },
-                { k: "TOTAL BALANCE", v: usd(MODEL_BALANCE, 2), sub: "model account", tone: "flat" },
-                { k: "ALL-TIME GAIN", v: (allTimePct >= 0 ? "+" : "") + allTimePct.toFixed(1) + "%", sub: (allTimePct >= 0 ? "+" : "") + usd(MODEL_BALANCE - MODEL_BALANCE / (1 + allTimePct / 100)), tone: allTimePct >= 0 ? "up" : "down" },
-              ] as const).map((m) => (
-                <div key={m.k} className="rounded-xl border border-white/[0.05] bg-[#030303]/60 px-4 py-3">
-                  <div className={label}>{m.k}</div>
-                  <div className={`mt-1 font-mono text-[20px] font-semibold tabular-nums ${m.tone === "up" ? "text-emerald-400" : m.tone === "down" ? "text-rose-400" : "text-zinc-50"}`}>{m.v}</div>
-                  <div className={`mt-0.5 font-mono text-[11px] tabular-nums ${m.tone === "up" ? "text-emerald-400/70" : m.tone === "down" ? "text-rose-400/70" : "text-zinc-600"}`}>{m.sub}</div>
-                </div>
-              ))}
-            </motion.div>
-
             <motion.div layout="position">
               <AllocationBar positions={parsed.positions} />
             </motion.div>
 
-            <motion.div layout="position" onClick={(e) => e.stopPropagation()}>
-              <PortfolioPerformance positions={parsed.positions} />
-            </motion.div>
+            {/* Chart (left) · metrics + positions (right) — side by side on wide screens */}
+            <motion.div layout="position" className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1.45fr)_minmax(0,1fr)]">
+              <div onClick={(e) => e.stopPropagation()} className="min-w-0">
+                <PortfolioPerformance positions={parsed.positions} chartHeight={isExpanded ? 200 : 128} tf={perfTf} onTfChange={setPerfTf} />
+              </div>
+              <div className="flex min-w-0 flex-col gap-2.5">
+                {isExpanded ? (
+                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1, transition: { delay: 0.2 } }} className="h-full" onClick={(e) => e.stopPropagation()}>
+                    <PortfolioFlows positions={parsed.positions} tf={perfTf} />
+                  </motion.div>
+                ) : (
+                  <div className="grid grid-cols-2 gap-2 md:grid-cols-4 xl:grid-cols-2">
+                    {METRICS.map((m) => (
+                      <div key={m.k} className="rounded-xl border border-white/[0.05] bg-[#030303]/60 px-3.5 py-2">
+                        <div className={label}>{m.k}</div>
+                        <div className="mt-0.5 flex flex-wrap items-baseline gap-x-2">
+                          <span className={`font-mono text-[18px] font-semibold tabular-nums ${toneTxt(m.tone)}`}>{m.v}</span>
+                          <span className={`font-mono text-[10.5px] tabular-nums ${toneTxt(m.tone, true)}`}>{m.sub}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
 
-            <AnimatePresence mode="wait" initial={false}>
-              {isExpanded ? (
-                <motion.div key="deep" layout="position">
-                  <PortfolioDeepView positions={parsed.positions} />
-                </motion.div>
-              ) : (
-                /* Big rows — the doorway into each ETF's Deep View */
-                <motion.div
-                  key="rows"
-                  layout="position"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1, transition: { delay: 0.15 } }}
-                  exit={{ opacity: 0, transition: { duration: 0.15 } }}
-                  className="flex flex-col gap-2"
-                >
+                <AnimatePresence initial={false}>
+                  {!isExpanded && (
+                    /* Compact rows — the doorway into each ETF's Deep View */
+                    <motion.div
+                      key="rows"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1, transition: { delay: 0.15 } }}
+                      exit={{ opacity: 0, transition: { duration: 0.15 } }}
+                      className="flex min-h-0 flex-col gap-1.5 xl:max-h-[176px] xl:overflow-y-auto xl:pr-1"
+                    >
                   {parsed.positions.map((p, i) => {
                     const color = SEG_COLORS[i % SEG_COLORS.length];
                     const isEtf = p.asset.kind === "etf";
                     const body = (
                       <>
-                        <span className="h-12 w-1 flex-none rounded-full" style={{ background: color }} />
-                        <div className="flex w-[220px] min-w-0 flex-none flex-col">
+                        <span className="h-7 w-1 flex-none rounded-full" style={{ background: color }} />
+                        <div className="flex w-[150px] min-w-0 flex-none flex-col">
                           <span className="flex items-center gap-2">
-                            <span className="font-mono text-[22px] font-bold text-zinc-50">{p.asset.ticker}</span>
+                            <span className="font-mono text-[16px] font-bold text-zinc-50">{p.asset.ticker}</span>
                             <span className="rounded bg-white/[0.06] px-1.5 py-0.5 font-mono text-[9px] font-bold tracking-[0.1em] text-zinc-400">{isEtf ? "ETF" : "STOCK"}</span>
                           </span>
-                          <span className="truncate text-[12px] text-zinc-500">{p.asset.name}</span>
+                          <span className="truncate text-[11px] text-zinc-500">{p.asset.name}</span>
                         </div>
-                        <div className="flex min-w-[140px] flex-1 flex-col gap-1.5">
-                          <span className="font-mono text-[11px] text-zinc-500">WEIGHT <span className="ml-1 text-[15px] font-semibold text-zinc-100">{p.weight}%</span></span>
+                        <div className="flex min-w-[90px] flex-1 flex-col gap-1">
+                          <span className="font-mono text-[11px] text-zinc-500">WEIGHT <span className="ml-1 text-[13px] font-semibold text-zinc-100">{p.weight}%</span></span>
                           <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/[0.06]"><div className="h-full rounded-full" style={{ width: `${p.weight}%`, background: color }} /></div>
                         </div>
-                        <span className="hidden w-[90px] text-right font-mono text-[14px] text-zinc-200 md:block">${p.asset.price.toFixed(2)}</span>
-                        <span className={`w-[80px] rounded-md px-2 py-1 text-center font-mono text-[12px] font-bold ${p.asset.chg1d >= 0 ? "bg-emerald-500/10 text-emerald-400" : "bg-rose-500/10 text-rose-400"}`}>{fmtP(p.asset.chg1d)}</span>
-                        <span className={`hidden w-[86px] rounded-md px-2 py-1 text-center font-mono text-[12px] font-bold sm:block ${p.asset.ytd >= 0 ? "bg-emerald-500/10 text-emerald-400" : "bg-rose-500/10 text-rose-400"}`}>{fmtP(p.asset.ytd)}</span>
-                        <span className={`w-[110px] text-right font-mono text-[11px] tracking-[0.08em] ${isEtf ? "text-zinc-400 group-hover:text-white" : "text-zinc-700"}`}>{isEtf ? "DEEP VIEW →" : "SINGLE STOCK"}</span>
+                        <span className="hidden w-[80px] text-right font-mono text-[13px] text-zinc-200 md:block xl:hidden 2xl:block">${p.asset.price.toFixed(2)}</span>
+                        <span className={`w-[70px] flex-none rounded-md px-1.5 py-0.5 text-center font-mono text-[11.5px] font-bold ${p.asset.chg1d >= 0 ? "bg-emerald-500/10 text-emerald-400" : "bg-rose-500/10 text-rose-400"}`}>{fmtP(p.asset.chg1d)}</span>
+                        <span className={`hidden w-[78px] flex-none rounded-md px-1.5 py-0.5 text-center font-mono text-[11.5px] font-bold sm:block ${p.asset.ytd >= 0 ? "bg-emerald-500/10 text-emerald-400" : "bg-rose-500/10 text-rose-400"}`}>{fmtP(p.asset.ytd)}</span>
+                        <span className={`w-[22px] flex-none text-right font-mono text-[13px] ${isEtf ? "text-zinc-500 group-hover:text-white" : "text-zinc-800"}`} title={isEtf ? "ETF deep view" : "Single stock"}>{isEtf ? "→" : "·"}</span>
                       </>
                     );
-                    const cls = "group flex items-center gap-5 rounded-xl border border-white/[0.04] bg-black/30 px-5 py-4 transition-colors";
+                    const cls = "group flex items-center gap-3.5 rounded-xl border border-white/[0.04] bg-black/30 px-3.5 py-1.5 transition-colors";
                     return isEtf ? (
                       <Link key={p.asset.ticker} href={`/etf/${p.asset.ticker}`} className={`${cls} hover:border-white/[0.12] hover:bg-white/[0.03]`}>{body}</Link>
                     ) : (
                       <div key={p.asset.ticker} className={cls}>{body}</div>
                     );
                   })}
-                  <p className="pt-1 text-center font-mono text-[10px] tracking-[0.12em] text-zinc-600">CLICK THE CARD FOR THE FULL PORTFOLIO DEEP VIEW</p>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            </motion.div>
+
+            <AnimatePresence initial={false}>
+              {isExpanded && (
+                <motion.div key="deep" layout="position" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, transition: { duration: 0.15 } }}>
+                  <PortfolioDeepView positions={parsed.positions} />
                 </motion.div>
               )}
             </AnimatePresence>
@@ -677,7 +716,7 @@ export default function PortfolioPage() {
         )}
 
         {/* ── Bottom cards: tumble off-screen in deep view, spring back on return ── */}
-        <div className="relative grid grid-cols-1 gap-5 lg:grid-cols-3">
+        <div className={`relative grid grid-cols-1 gap-3 lg:grid-cols-3 ${isDeep ? "" : "flex-1"}`}>
           <AnimatePresence mode="popLayout" initial={false}>
             {!isDeep &&
               bottomCards.map((content, i) => (
@@ -690,7 +729,7 @@ export default function PortfolioPage() {
                   animate="show"
                   exit="fall"
                   style={{ transformOrigin: i === 0 ? "70% 30%" : i === 2 ? "30% 30%" : "50% 30%", willChange: "transform, opacity" }}
-                  className={`${card} flex flex-col gap-5 p-7`}
+                  className={`${card} flex flex-col gap-4 p-6 xl:gap-3 xl:p-5`}
                 >
                   {content}
                 </motion.section>

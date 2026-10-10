@@ -98,7 +98,7 @@ export function parsePortfolio(input: string): ParseResult {
 }
 
 /** Underlying single-name exposure (look-through) in % of the portfolio. */
-function lookThrough(positions: Position[]): Record<string, number> {
+export function lookThrough(positions: Position[]): Record<string, number> {
   const out: Record<string, number> = {};
   for (const { asset, weight } of positions) {
     if (asset.kind === "stock") { out[asset.ticker] = (out[asset.ticker] ?? 0) + weight; continue; }

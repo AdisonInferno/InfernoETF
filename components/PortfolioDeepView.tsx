@@ -9,6 +9,7 @@ import {
   SCENARIOS,
   drawdownPath,
   drillDown,
+  lookThrough,
   scenarioLoss,
   sectorExposure,
   type Position,
@@ -55,7 +56,6 @@ function SectorOverlap({ positions, onClose }: { positions: Position[]; onClose?
       <div className="flex items-center justify-between gap-2">
         <span className={`${label} truncate text-zinc-300`}>SECTOR OVERLAP BREAKDOWN</span>
         <div className="flex min-w-0 items-center gap-2">
-          <span className="hidden truncate font-mono text-[10px] text-zinc-600 2xl:inline">LOOK-THROUGH · % OF PORTFOLIO</span>
           <CloseBtn onClick={onClose} title="Sector Overlap Breakdown" />
         </div>
       </div>
@@ -122,8 +122,7 @@ function DrawdownSim({ positions, onClose }: { positions: Position[]; onClose?: 
         </div>
       </div>
 
-      {/* Grows with the row so both panels end at the same height. */}
-      <div className="relative min-h-[180px] flex-1">
+      <div className="relative h-[220px]">
         <svg viewBox="0 0 1000 180" preserveAspectRatio="none" className="absolute inset-0 h-full w-full">
           <defs>
             <linearGradient id="ddFill" x1="0" y1="0" x2="0" y2="1">
@@ -132,18 +131,14 @@ function DrawdownSim({ positions, onClose }: { positions: Position[]; onClose?: 
             </linearGradient>
           </defs>
           <line x1="0" x2="1000" y1={y(100)} y2={y(100)} stroke="rgba(255,255,255,0.12)" strokeDasharray="4 4" vectorEffect="non-scaling-stroke" />
-          <motion.polygon key={`f-${sc}`} initial={{ opacity: 0 }} animate={{ opacity: 1 }} points={`0,${y(100)} ${line} 1000,${y(100)}`} fill="url(#ddFill)" />
-          <motion.polyline
-            key={sc}
-            initial={{ pathLength: 0 }}
-            animate={{ pathLength: 1 }}
-            transition={{ duration: 0.9, ease: "easeInOut" }}
-            points={line}
-            fill="none"
-            stroke="#f87171"
-            strokeWidth="1.8"
-            vectorEffect="non-scaling-stroke"
-          />
+          {/* Left-to-right reveal via clip (pathLength breaks on a stretched viewBox). */}
+          <clipPath id="ddReveal">
+            <motion.rect key={`clip-${sc}`} x="0" y="0" height="180" initial={{ width: 0 }} animate={{ width: 1000 }} transition={{ duration: 0.9, ease: "easeInOut" }} />
+          </clipPath>
+          <g clipPath="url(#ddReveal)">
+            <polygon points={`0,${y(100)} ${line} 1000,${y(100)}`} fill="url(#ddFill)" />
+            <polyline points={line} fill="none" stroke="#f87171" strokeWidth="1.8" vectorEffect="non-scaling-stroke" />
+          </g>
         </svg>
         <span className="absolute right-0 top-0 font-mono text-[9.5px] text-zinc-600">START 100</span>
         <span className="absolute font-mono text-[10px] font-bold text-rose-400" style={{ left: `${(trough / 23) * 100}%`, top: `${(y(path[trough]) / 180) * 100}%`, transform: "translate(-50%, 6px)" }}>
@@ -157,31 +152,54 @@ function DrawdownSim({ positions, onClose }: { positions: Position[]; onClose?: 
         <div><div className={label}>VS {positions[0]?.asset.ticker ?? "—"} ONLY</div><div className="mt-1 font-mono text-[16px] font-semibold text-zinc-200">{pct(bench.total)}</div></div>
         <div><div className={label}>WORST LEG</div><div className="mt-1 font-mono text-[16px] font-semibold text-zinc-200">{[...loss.per].sort((a, b) => a.dd - b.dd)[0]?.ticker ?? "—"}</div></div>
       </div>
-      <p className="font-mono text-[9.5px] text-zinc-600">SIMULATION · PLACEHOLDER DATA · NOT A FORECAST</p>
     </div>
   );
 }
 
-/* ───────────────────── ETFs in the portfolio ───────────────────── */
+/* ───────────────────── ETFs in the portfolio (+ look-through) ───────────────────── */
 
 const NOTIONAL = 10_000;
+const terFmt = (ter: number) => `${ter.toFixed(Math.abs(ter * 100 - Math.round(ter * 100)) > 1e-6 ? 4 : 2)}%`;
+const normTic = (t: string) => (t === "GOOG" ? "GOOGL" : t);
 
-function PortfolioEtfs({ positions }: { positions: Position[] }) {
+/** One position's underlying stocks, share classes merged (GOOG + GOOGL → GOOGL). */
+function lookRows(p: Position, n: number) {
+  const m = new Map<string, { ticker: string; name: string; inFund: number; inPortfolio: number }>();
+  for (const r of drillDown(p, 500)) {
+    const k = normTic(r.ticker), cur = m.get(k);
+    if (cur) { cur.inFund += r.inFund; cur.inPortfolio += r.inPortfolio; cur.name = cur.name.replace(/ Class [AC]$/, ""); }
+    else m.set(k, { ...r, ticker: k });
+  }
+  return [...m.values()].sort((a, b) => b.inFund - a.inFund).slice(0, n);
+}
+
+function PortfolioEtfs({ positions, onClose }: { positions: Position[]; onClose?: () => void }) {
+  const [open, setOpen] = useState<string | null>(positions.find((p) => p.asset.kind === "etf")?.asset.ticker ?? null);
+  /** Total look-through weight of every stock across the whole portfolio, % */
+  const total = useMemo(() => lookThrough(positions), [positions]);
+  /** How many positions hold each stock */
+  const holders = useMemo(() => {
+    const n: Record<string, number> = {};
+    positions.forEach((p) => lookRows(p, 500).forEach((r) => { n[r.ticker] = (n[r.ticker] ?? 0) + 1; }));
+    return n;
+  }, [positions]);
+
   const rows = positions.map((p, i) => {
     const etf = ETFS.find((e) => e.ticker === p.asset.ticker);
     const ter = QUOTE[p.asset.ticker]?.[1] ?? 0;
     return { p, i, etf, ter };
   });
   const funds = rows.filter((r) => r.etf);
-  const fundWeight = funds.reduce((a, r) => a + r.p.weight, 0);
-  const blendedTer = funds.reduce((a, r) => a + (r.p.weight / 100) * r.ter, 0); // % of whole portfolio per year
+  const blendedTer = funds.reduce((a, r) => a + (r.p.weight / 100) * r.ter, 0);
   const yearlyCost = (NOTIONAL * blendedTer) / 100;
 
   return (
-    <div className={`${panel} flex h-full flex-col gap-4`}>
-      <div className="flex items-baseline justify-between gap-2">
-        <span className={`${label} text-zinc-300`}>ETFS IN YOUR PORTFOLIO</span>
-        <span className="font-mono text-[10px] text-zinc-600">{funds.length} FUNDS · {fundWeight.toFixed(0)}% OF PORTFOLIO</span>
+    <div className={`${panel} flex h-full min-w-0 flex-col gap-4`}>
+      <div className="flex items-center justify-between gap-2">
+        <span className={`${label} truncate text-zinc-300`}>ETFS IN YOUR PORTFOLIO</span>
+        <div className="flex min-w-0 items-center gap-2">
+          <CloseBtn onClick={onClose} title="ETFs in your portfolio" />
+        </div>
       </div>
 
       <div className="grid grid-cols-3 gap-2">
@@ -191,56 +209,98 @@ function PortfolioEtfs({ positions }: { positions: Position[] }) {
         </div>
         <div className="rounded-lg border border-white/[0.04] bg-black/20 px-3 py-2">
           <div className={label}>FEES / YEAR</div>
-          <div className="mt-1 font-mono text-[15px] font-semibold text-zinc-100">${yearlyCost.toFixed(2)}</div>
-          <div className="font-mono text-[9px] text-zinc-600">on ${NOTIONAL.toLocaleString("en-US")}</div>
+          <div className="mt-1 font-mono text-[15px] font-semibold text-zinc-100">${yearlyCost.toFixed(2)} <span className="text-[9px] font-normal text-zinc-600">/ ${NOTIONAL.toLocaleString("en-US")}</span></div>
         </div>
         <div className="rounded-lg border border-white/[0.04] bg-black/20 px-3 py-2">
           <div className={label}>PRICIEST</div>
-          <div className="mt-1 font-mono text-[15px] font-semibold text-amber-400">
-            {funds.length ? [...funds].sort((a, b) => b.ter - a.ter)[0].p.asset.ticker : "—"}
-          </div>
+          <div className="mt-1 font-mono text-[15px] font-semibold text-amber-400">{funds.length ? [...funds].sort((a, b) => b.ter - a.ter)[0].p.asset.ticker : "—"}</div>
         </div>
       </div>
 
       <div className="flex flex-col gap-2">
         {rows.map(({ p, i, etf, ter }) => {
           const color = SEG_COLORS[i % SEG_COLORS.length];
-          const body = (
-            <>
-              <span className="h-10 w-1 flex-none rounded-full" style={{ background: color }} />
-              <div className="flex min-w-0 flex-1 flex-col">
-                <span className="flex items-center gap-2">
-                  <span className="font-mono text-[15px] font-bold text-zinc-50">{p.asset.ticker}</span>
-                  <span className="rounded bg-white/[0.06] px-1.5 py-px font-mono text-[9px] font-bold tracking-[0.1em] text-zinc-400">{etf ? etf.sector : "STOCK"}</span>
-                </span>
-                <span className="truncate text-[11.5px] text-zinc-500">{etf ? `${p.asset.name} · ${etf.issuer}` : p.asset.name}</span>
-              </div>
-              <div className="hidden flex-col items-end sm:flex">
-                <span className={label}>TER</span>
-                <span className="font-mono text-[12px] text-zinc-200">{etf ? `${ter.toFixed(Math.abs(ter * 100 - Math.round(ter * 100)) > 1e-6 ? 4 : 2)}%` : "—"}</span>
-              </div>
-              <div className="hidden w-16 flex-col items-end md:flex">
-                <span className={label}>AUM</span>
-                <span className="font-mono text-[12px] text-zinc-200">{etf ? fmtAum(etf.aum) : "—"}</span>
-              </div>
-              <div className="flex w-16 flex-col items-end">
-                <span className={label}>YTD</span>
-                <span className={`font-mono text-[12px] font-semibold ${p.asset.ytd >= 0 ? "text-emerald-400" : "text-rose-400"}`}>{pct(p.asset.ytd)}</span>
-              </div>
-              <div className="flex w-14 flex-col items-end">
-                <span className={label}>WEIGHT</span>
-                <span className="font-mono text-[13px] font-semibold text-zinc-100">{p.weight}%</span>
-              </div>
-              <span className={`w-6 text-right font-mono text-[12px] ${etf ? "text-zinc-500 group-hover:text-white" : "text-transparent"}`}>→</span>
-            </>
-          );
-          const cls = "group flex items-center gap-4 rounded-lg border border-white/[0.04] bg-black/20 px-4 py-3 transition-colors";
-          return etf ? (
-            <Link key={p.asset.ticker} href={`/etf/${p.asset.ticker}`} className={`${cls} hover:border-white/[0.12] hover:bg-white/[0.03]`} title={`Open ${p.asset.ticker} Deep View`}>
-              {body}
-            </Link>
-          ) : (
-            <div key={p.asset.ticker} className={cls}>{body}</div>
+          const isOpen = open === p.asset.ticker;
+          const look = lookRows(p, 12);
+          return (
+            <div key={p.asset.ticker} className={`overflow-hidden rounded-lg border transition-colors ${isOpen ? "border-white/[0.1] bg-white/[0.015]" : "border-white/[0.04] bg-black/20"}`}>
+              <button
+                type="button"
+                onClick={() => setOpen(isOpen ? null : p.asset.ticker)}
+                aria-expanded={isOpen}
+                className="flex w-full items-center gap-4 px-4 py-3 text-left transition-colors hover:bg-white/[0.03]"
+              >
+                <span className="h-10 w-1 flex-none rounded-full" style={{ background: color }} />
+                <div className="flex min-w-0 flex-1 flex-col">
+                  <span className="flex items-center gap-2">
+                    <span className="font-mono text-[15px] font-bold text-zinc-50">{p.asset.ticker}</span>
+                    <span className="rounded bg-white/[0.06] px-1.5 py-px font-mono text-[9px] font-bold tracking-[0.1em] text-zinc-400">{etf ? etf.sector : "STOCK"}</span>
+                  </span>
+                  <span className="truncate text-[11.5px] text-zinc-500">{etf ? `${p.asset.name} · ${etf.issuer}` : p.asset.name}</span>
+                </div>
+                <div className="hidden flex-col items-end sm:flex">
+                  <span className={label}>TER</span>
+                  <span className="font-mono text-[12px] text-zinc-200">{etf ? terFmt(ter) : "—"}</span>
+                </div>
+                <div className="hidden w-16 flex-col items-end md:flex">
+                  <span className={label}>AUM</span>
+                  <span className="font-mono text-[12px] text-zinc-200">{etf ? fmtAum(etf.aum) : "—"}</span>
+                </div>
+                <div className="flex w-16 flex-col items-end">
+                  <span className={label}>YTD</span>
+                  <span className={`font-mono text-[12px] font-semibold ${p.asset.ytd >= 0 ? "text-emerald-400" : "text-rose-400"}`}>{pct(p.asset.ytd)}</span>
+                </div>
+                <div className="flex w-14 flex-col items-end">
+                  <span className={label}>WEIGHT</span>
+                  <span className="font-mono text-[13px] font-semibold text-zinc-100">{p.weight}%</span>
+                </div>
+                <motion.span animate={{ rotate: isOpen ? 90 : 0 }} className="w-4 text-center font-mono text-[11px] text-zinc-500">▶</motion.span>
+              </button>
+
+              <AnimatePresence initial={false}>
+                {isOpen && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: "auto", opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+                    className="border-t border-white/[0.05] bg-black/20"
+                  >
+                    <div className="grid grid-cols-[60px_minmax(0,1fr)_64px_84px_92px] gap-3 px-4 pb-1 pt-3 font-mono text-[9px] tracking-[0.12em] text-zinc-600">
+                      <span>STOCK</span><span />
+                      <span className="text-right">IN {p.asset.kind === "etf" ? "ETF" : "POS"}</span>
+                      <span className="text-right" title={`Weight in ETF × ${p.weight}% of portfolio`}>VIA {p.asset.ticker}</span>
+                      <span className="text-right" title="Summed across every position that holds it">TOTAL</span>
+                    </div>
+                    {look.map((r) => {
+                      const k = r.ticker, n = holders[k] ?? 1;
+                      return (
+                        <div key={r.ticker} className="grid grid-cols-[60px_minmax(0,1fr)_64px_84px_92px] items-center gap-3 px-4 py-1.5">
+                          <span className="truncate font-mono text-[12px] font-bold text-zinc-200">{r.ticker}</span>
+                          <span className="truncate text-[12px] text-zinc-500">{r.name}</span>
+                          <span className="text-right font-mono text-[12px] text-zinc-400">{r.inFund.toFixed(2)}%</span>
+                          <span className="text-right font-mono text-[12px] text-zinc-200">{r.inPortfolio.toFixed(2)}%</span>
+                          <span className="flex items-center justify-end gap-1.5 font-mono text-[12px] font-semibold text-zinc-50">
+                            {n > 1 && <span className="font-mono text-[9px] font-bold text-amber-400" title={`Held by ${n} positions`}>×{n}</span>}
+                            {(total[k] ?? r.inPortfolio).toFixed(2)}%
+                          </span>
+                        </div>
+                      );
+                    })}
+                    <div className="flex items-center justify-between gap-3 px-4 pb-3 pt-2">
+                      <span className="font-mono text-[9.5px] text-zinc-600">
+                        TOP {look.length} · {look.reduce((a, r) => a + r.inPortfolio, 0).toFixed(1)}% OF PORTFOLIO · <span className="text-amber-400">×N</span> = ALSO IN OTHER POSITIONS
+                      </span>
+                      {etf && (
+                        <Link href={`/etf/${p.asset.ticker}`} className="whitespace-nowrap font-mono text-[10.5px] tracking-[0.1em] text-zinc-400 hover:text-white">
+                          [ {p.asset.ticker} DEEP VIEW → ]
+                        </Link>
+                      )}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
           );
         })}
       </div>
@@ -248,76 +308,12 @@ function PortfolioEtfs({ positions }: { positions: Position[] }) {
   );
 }
 
-/* ───────────────────── Position drill-down ───────────────────── */
-
-function DrillDown({ positions }: { positions: Position[] }) {
-  const [open, setOpen] = useState<string | null>(positions[0]?.asset.ticker ?? null);
-  return (
-    <div className={`${panel} flex flex-col gap-2`}>
-      <div className="mb-1 flex items-baseline justify-between">
-        <span className={`${label} text-zinc-300`}>POSITION DRILL-DOWN</span>
-        <span className="font-mono text-[10px] text-zinc-600">CLICK A POSITION</span>
-      </div>
-      {positions.map((p, i) => {
-        const isOpen = open === p.asset.ticker;
-        const rows = drillDown(p);
-        const color = SEG_COLORS[i % SEG_COLORS.length];
-        return (
-          <div key={p.asset.ticker} className="overflow-hidden rounded-lg border border-white/[0.04]">
-            <button
-              type="button"
-              onClick={() => setOpen(isOpen ? null : p.asset.ticker)}
-              className="flex w-full items-center gap-4 px-4 py-3 text-left transition-colors hover:bg-white/[0.03]"
-            >
-              <span className="h-8 w-1 rounded-full" style={{ background: color }} />
-              <span className="w-16 font-mono text-[15px] font-bold text-zinc-50">{p.asset.ticker}</span>
-              <span className="min-w-0 flex-1 truncate text-[12px] text-zinc-500">{p.asset.name}</span>
-              <span className="font-mono text-[13px] font-semibold text-zinc-100">{p.weight}%</span>
-              <motion.span animate={{ rotate: isOpen ? 90 : 0 }} className="font-mono text-[11px] text-zinc-500">▶</motion.span>
-            </button>
-            <AnimatePresence initial={false}>
-              {isOpen && (
-                <motion.div
-                  initial={{ height: 0, opacity: 0 }}
-                  animate={{ height: "auto", opacity: 1 }}
-                  exit={{ height: 0, opacity: 0 }}
-                  transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
-                  className="border-t border-white/[0.04] bg-black/20"
-                >
-                  <div className="grid grid-cols-[64px_minmax(0,1fr)_80px_96px] gap-3 px-4 pb-1 pt-3 font-mono text-[9.5px] tracking-[0.12em] text-zinc-600">
-                    <span>NAME</span><span /><span className="text-right">IN FUND</span><span className="text-right">IN PORTFOLIO</span>
-                  </div>
-                  {rows.map((r) => (
-                    <div key={r.ticker} className="grid grid-cols-[64px_minmax(0,1fr)_80px_96px] items-center gap-3 px-4 py-1.5">
-                      <span className="truncate font-mono text-[12px] font-bold text-zinc-200">{r.ticker}</span>
-                      <span className="truncate text-[12px] text-zinc-500">{r.name}</span>
-                      <span className="text-right font-mono text-[12px] text-zinc-300">{r.inFund.toFixed(2)}%</span>
-                      <span className="text-right font-mono text-[12px] font-semibold text-zinc-100">{r.inPortfolio.toFixed(2)}%</span>
-                    </div>
-                  ))}
-                  {p.asset.kind === "etf" && (
-                    <div className="px-4 pb-3 pt-2">
-                      <Link href={`/etf/${p.asset.ticker}`} className="font-mono text-[11px] tracking-[0.1em] text-zinc-400 hover:text-white">
-                        [ OPEN {p.asset.ticker} DEEP VIEW → ]
-                      </Link>
-                    </div>
-                  )}
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
 /* ───────────────────── Resizable split row ───────────────────── */
 
-type PaneId = "sector" | "risk";
-const PANE_TITLE: Record<PaneId, string> = { sector: "Sector Overlap", risk: "Risk · Drawdown" };
+type PaneId = "sector" | "etfs";
+const PANE_TITLE: Record<PaneId, string> = { sector: "Sector Overlap", etfs: "ETFs in portfolio" };
 const MIN_RATIO = 0.28;
-const LAYOUT_KEY = "inferno.portfolio.split.v1";
+const LAYOUT_KEY = "inferno.portfolio.split.v2";
 
 /** Narrow "+" rail that brings a hidden panel back. */
 function AddRail({ id, onAdd }: { id: PaneId; onAdd: () => void }) {
@@ -338,13 +334,13 @@ function AddRail({ id, onAdd }: { id: PaneId; onAdd: () => void }) {
 }
 
 /**
- * Sector Overlap ⇄ Risk/Drawdown: one joined strip, equal heights, a draggable divider
+ * Sector Overlap ⇄ ETFs in portfolio: one joined strip, equal heights, a draggable divider
  * to trade width between them (double-click resets), X to hide a panel, + to bring it back.
  */
 function SplitRow({ positions }: { positions: Position[] }) {
   const rowRef = useRef<HTMLDivElement>(null);
   const [ratio, setRatio] = useState(0.5); // width share of the left (sector) panel
-  const [shown, setShown] = useState<Record<PaneId, boolean>>({ sector: true, risk: true });
+  const [shown, setShown] = useState<Record<PaneId, boolean>>({ sector: true, etfs: true });
   const [dragging, setDragging] = useState(false);
 
   // Remember the layout per browser.
@@ -355,7 +351,7 @@ function SplitRow({ positions }: { positions: Position[] }) {
         const v = JSON.parse(raw) as { ratio: number; shown: Record<PaneId, boolean> };
         /* eslint-disable react-hooks/set-state-in-effect -- one-time restore from browser storage */
         setRatio(Math.min(1 - MIN_RATIO, Math.max(MIN_RATIO, v.ratio)));
-        setShown(v.shown);
+        if (v.shown && "etfs" in v.shown) setShown(v.shown);
         /* eslint-enable react-hooks/set-state-in-effect */
       }
     } catch { /* ignore */ }
@@ -389,15 +385,15 @@ function SplitRow({ positions }: { positions: Position[] }) {
     if (e.key === "ArrowRight") setRatio((r) => Math.min(1 - MIN_RATIO, r + 0.04));
   };
 
-  const both = shown.sector && shown.risk;
+  const both = shown.sector && shown.etfs;
   const hide = (id: PaneId) => setShown((s) => ({ ...s, [id]: false }));
   const show = (id: PaneId) => setShown((s) => ({ ...s, [id]: true }));
   const spring = dragging ? { duration: 0 } : { type: "spring" as const, stiffness: 260, damping: 30 };
 
-  if (!shown.sector && !shown.risk) {
+  if (!shown.sector && !shown.etfs) {
     return (
       <div className="flex gap-3">
-        {(["sector", "risk"] as PaneId[]).map((id) => (
+        {(["sector", "etfs"] as PaneId[]).map((id) => (
           <button key={id} type="button" onClick={() => show(id)} className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-dashed border-white/[0.08] py-6 font-mono text-[11px] font-bold tracking-[0.12em] text-zinc-500 transition-colors hover:border-red-500/40 hover:text-white">
             <span className="text-[15px]">+</span> {PANE_TITLE[id].toUpperCase()}
           </button>
@@ -445,15 +441,15 @@ function SplitRow({ positions }: { positions: Position[] }) {
         </div>
       )}
 
-      {shown.risk && (
+      {shown.etfs && (
         <motion.div layout transition={spring} className="min-w-0 flex-1">
-          <DrawdownSim positions={positions} onClose={() => hide("risk")} />
+          <PortfolioEtfs positions={positions} onClose={() => hide("etfs")} />
         </motion.div>
       )}
 
-      {!shown.risk && <div className="hidden w-3 xl:block" />}
+      {!shown.etfs && <div className="hidden w-3 xl:block" />}
       <AnimatePresence initial={false}>
-        {!shown.risk && <AddRail key="add-risk" id="risk" onAdd={() => show("risk")} />}
+        {!shown.etfs && <AddRail key="add-etfs" id="etfs" onAdd={() => show("etfs")} />}
       </AnimatePresence>
     </div>
   );
@@ -468,10 +464,9 @@ export default function PortfolioDeepView({ positions }: { positions: Position[]
       <motion.div custom={0} variants={reveal} initial="hidden" animate="show">
         <SplitRow positions={positions} />
       </motion.div>
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-        <motion.div custom={1} variants={reveal} initial="hidden" animate="show"><PortfolioEtfs positions={positions} /></motion.div>
-        <motion.div custom={2} variants={reveal} initial="hidden" animate="show"><DrillDown positions={positions} /></motion.div>
-      </div>
+      <motion.div custom={1} variants={reveal} initial="hidden" animate="show">
+        <DrawdownSim positions={positions} />
+      </motion.div>
     </div>
   );
 }

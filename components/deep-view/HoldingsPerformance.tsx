@@ -7,12 +7,10 @@ import { hash01, seeded } from "./utils";
 
 /* ─────────────────────────────────────────────────────────────
    Holdings Explorer  (COMPOSITION MAP tab)
-     1. Concentration / skew alerts
-     2. Relative-performance chart  (ETF benchmark always on)
-        + dynamic legend of plotted tickers · CLEAR ALL
-     3. Toolbar: search · sector filter · export CSV
-     4. Master table — first column toggles a stock's line
-   All series are deterministic placeholder data.
+   useHoldingsExplorer() owns the shared state; <ExplorerTable> and
+   <ExplorerChart> are panel bodies laid out by CompositionMap.
+   Ticking a table row plots that stock (max 6); the ETF line is
+   always on. All series are deterministic placeholder data.
    ───────────────────────────────────────────────────────────── */
 
 const MAX_LINES = 6;
@@ -109,9 +107,10 @@ function ChartTip({ active, label, payload, etfTic }: { active?: boolean; label?
   );
 }
 
-/* ── Component ─────────────────────────────────────────────── */
+/* ── State ─────────────────────────────────────────────────── */
 
-export default function HoldingsExplorer({ fund }: { fund: FundData }) {
+/** All Composition-Map state: plotted lines, filters, sorting, alerts. Shared by the table and chart panels. */
+export function useHoldingsExplorer(fund: FundData) {
   const { all, points, etfR } = useMemo(() => buildModel(fund), [fund]);
 
   // Plotted tickers → colour. Default: two largest holdings.
@@ -176,53 +175,63 @@ export default function HoldingsExplorer({ fund }: { fund: FundData }) {
   const shown = all.filter((h) => plotted.has(h.tic));
   const dim = (k: string) => hover !== null && hover !== k;
 
-  return (
-    <section className="flex flex-none flex-col gap-3 font-mono tabular-nums">
-      {/* 1 ── Alerts */}
-      <div className={`flex items-center gap-3 border px-3.5 py-2.5 ${ls.box}`}>
-        <span className={`flex-none text-[15px] ${ls.icon}`}>{level === "LOW" ? "✓" : "⚠"}</span>
-        <span className={`text-pretty text-xs leading-[1.45] ${ls.text}`}>
-          <span className={`font-bold tracking-[0.08em] ${ls.label}`}>{level} CONCENTRATION:</span> The Top 5 holdings account for <span className="font-bold text-white">{top5.toFixed(1)}%</span> of this portfolio. {levelText}
-        </span>
-      </div>
-      <div className="flex flex-wrap gap-2">
-        {chips.map((c) => <span key={c} className="flex h-6 items-center gap-1.5 whitespace-nowrap border border-amber-500/60 bg-amber-500/[0.07] px-2.5 text-[10.5px] font-bold tracking-[0.08em] text-amber-500">⚠ {c}</span>)}
-      </div>
+  return {
+    fund, all, points, etfR, rows, subs, maxW, shown, plotted, hover, setHover, limitHit, toggle, clearAll, dim,
+    q, setQ, filter, setFilter, sortKey, dir, sortBy, exportCsv,
+    alert: { level, levelText, top5, chips, ls },
+  };
+}
 
-      {/* 2 ── Toolbar */}
-      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 pt-2">
-        <label className="flex h-8 min-w-[220px] flex-[0_1_360px] items-center gap-2 rounded-xl border border-white/[0.05] bg-[#0a0a0c] px-2.5 focus-within:border-zinc-700">
+export type Explorer = ReturnType<typeof useHoldingsExplorer>;
+
+/* ── Panel bodies ──────────────────────────────────────────── */
+
+/** Alerts + toolbar + master table. Fills its panel; only the table rows scroll. */
+export function ExplorerTable({ x }: { x: Explorer }) {
+  const { alert: a } = x;
+  return (
+    <div className="flex h-full min-h-0 flex-col gap-2 px-3 pb-2.5 pt-2 font-mono tabular-nums">
+      {/* Toolbar + alerts — one wrapping row */}
+      <div className="flex flex-none flex-wrap items-center gap-2">
+        <label className="flex h-7 min-w-[180px] flex-[0_1_280px] items-center gap-2 rounded-lg border border-white/[0.05] bg-[#030303] px-2.5 focus-within:border-zinc-700">
           <span className="text-[11px] font-bold text-zinc-500">Q</span>
-          <input type="text" value={q} onChange={(e) => setQ(e.target.value)} placeholder={`Search ${all.length} holdings...`} className="min-w-0 flex-1 border-0 bg-transparent font-mono text-[11.5px] text-neutral-200 outline-none" />
+          <input type="text" value={x.q} onChange={(e) => x.setQ(e.target.value)} placeholder={`Search ${x.all.length} holdings...`} className="min-w-0 flex-1 border-0 bg-transparent font-mono text-[11.5px] text-neutral-200 outline-none" />
         </label>
-        <div className="flex items-center gap-2">
-          <label className="relative flex h-8 items-center whitespace-nowrap rounded-xl border border-white/[0.05] bg-[#0a0a0c] pl-2.5 pr-7 text-[10.5px] font-bold tracking-[0.08em] text-zinc-300 hover:border-zinc-700">
-            <span>[ FILTER: {filter === "ALL" ? "ALL SECTORS" : filter.toUpperCase()} ]</span>
+        <span className={`flex h-7 min-w-0 items-center gap-2 border px-2.5 text-[10.5px] ${a.ls.box}`} title={a.levelText}>
+          <span className={a.ls.icon}>{a.level === "LOW" ? "✓" : "⚠"}</span>
+          <span className={`whitespace-nowrap font-bold tracking-[0.08em] ${a.ls.label}`}>{a.level} CONCENTRATION</span>
+          <span className={`whitespace-nowrap ${a.ls.text}`}>TOP 5 = <span className="font-bold text-white">{a.top5.toFixed(1)}%</span></span>
+        </span>
+        {a.chips.map((c) => (
+          <span key={c} className="flex h-7 items-center whitespace-nowrap border border-amber-500/60 bg-amber-500/[0.07] px-2.5 text-[10.5px] font-bold tracking-[0.08em] text-amber-500">⚠ {c}</span>
+        ))}
+        <span className="ml-auto flex items-center gap-2">
+          <label className="relative flex h-7 items-center whitespace-nowrap rounded-lg border border-white/[0.05] bg-[#030303] pl-2.5 pr-7 text-[10.5px] font-bold tracking-[0.08em] text-zinc-300 hover:border-zinc-700">
+            <span>[ FILTER: {x.filter === "ALL" ? "ALL SECTORS" : x.filter.toUpperCase()} ]</span>
             <span className="absolute right-2.5 text-zinc-500">▾</span>
-            <select value={filter} onChange={(e) => setFilter(e.target.value)} className="absolute inset-0 h-full w-full cursor-pointer opacity-0">
+            <select value={x.filter} onChange={(e) => x.setFilter(e.target.value)} className="absolute inset-0 h-full w-full cursor-pointer opacity-0">
               <option value="ALL">ALL SECTORS</option>
-              {subs.map((s) => <option key={s} value={s}>{s}</option>)}
+              {x.subs.map((s) => <option key={s} value={s}>{s}</option>)}
             </select>
           </label>
-          <button type="button" onClick={exportCsv} className="flex h-8 items-center whitespace-nowrap border border-emerald-400 px-3 text-[10.5px] font-bold tracking-[0.1em] text-emerald-400 hover:bg-emerald-400 hover:text-black">[ ↓ EXPORT .CSV ]</button>
-        </div>
+          <button type="button" onClick={x.exportCsv} className="flex h-7 items-center whitespace-nowrap border border-emerald-400 px-3 text-[10.5px] font-bold tracking-[0.1em] text-emerald-400 hover:bg-emerald-400 hover:text-black">[ ↓ EXPORT .CSV ]</button>
+        </span>
       </div>
 
-      {/* 3 ── Master table (scrolls; keeps the chart in view) */}
-      <div className="overflow-x-auto rounded-2xl border border-white/[0.05] bg-[#0a0a0c]">
-        <div className="max-h-[min(400px,40vh)] min-w-[860px] overflow-y-auto overscroll-contain [scrollbar-color:#27272a_transparent] [scrollbar-width:thin]">
-          <div className={`sticky top-0 z-[2] h-9 border-b border-white/[0.06] bg-[#0a0a0c] text-[9.5px] font-bold tracking-[0.14em] text-zinc-500 ${GRID}`}>
+      {/* Table — inner scroll */}
+      <div className="min-h-0 flex-1 overflow-auto overscroll-contain rounded-lg border border-white/[0.05] bg-[#030303]/40 [scrollbar-color:#27272a_transparent] [scrollbar-width:thin]">
+        <div className="min-w-[860px]">
+          <div className={`sticky top-0 z-[2] h-8 border-b border-white/[0.06] bg-[#0a0a0c] text-[9.5px] font-bold tracking-[0.14em] text-zinc-500 ${GRID}`}>
             <span className="text-center" title="Plot on chart">◫</span>
             {HEAD.map(([l, k, al]) => (
-              <button key={k} type="button" onClick={() => sortBy(k)} className={`whitespace-nowrap hover:text-white ${al === "right" ? "text-right" : "text-left"} ${sortKey === k ? "text-emerald-400" : ""}`}>
-                {l}{sortKey === k ? (dir > 0 ? " ▲" : " ▼") : ""}
+              <button key={k} type="button" onClick={() => x.sortBy(k)} className={`whitespace-nowrap hover:text-white ${al === "right" ? "text-right" : "text-left"} ${x.sortKey === k ? "text-emerald-400" : ""}`}>
+                {l}{x.sortKey === k ? (x.dir > 0 ? " ▲" : " ▼") : ""}
               </button>
             ))}
           </div>
-
-          {rows.map((r) => {
-            const c = plotted.get(r.tic), on = c !== undefined;
-            const full = !on && plotted.size >= MAX_LINES;
+          {x.rows.map((r) => {
+            const c = x.plotted.get(r.tic), on = c !== undefined;
+            const full = !on && x.plotted.size >= MAX_LINES;
             return (
               <div
                 key={r.tic}
@@ -231,18 +240,15 @@ export default function HoldingsExplorer({ fund }: { fund: FundData }) {
                 aria-disabled={full}
                 aria-label={`${on ? "Hide" : "Plot"} ${r.tic} on chart`}
                 tabIndex={0}
-                onClick={() => toggle(r.tic)}
-                onKeyDown={(e) => { if (e.key === " " || e.key === "Enter") { e.preventDefault(); toggle(r.tic); } }}
-                onMouseEnter={() => on && setHover(r.tic)}
-                onMouseLeave={() => setHover(null)}
-                className={`h-[34px] cursor-pointer border-b border-white/[0.04] text-[11.5px] transition-colors last:border-b-0 hover:bg-white/[0.03] focus-visible:bg-white/[0.04] focus-visible:outline-none ${on ? "bg-white/[0.015]" : ""} ${GRID}`}
+                onClick={() => x.toggle(r.tic)}
+                onKeyDown={(e) => { if (e.key === " " || e.key === "Enter") { e.preventDefault(); x.toggle(r.tic); } }}
+                onMouseEnter={() => on && x.setHover(r.tic)}
+                onMouseLeave={() => x.setHover(null)}
+                className={`h-[32px] cursor-pointer border-b border-white/[0.04] text-[11.5px] transition-colors last:border-b-0 hover:bg-white/[0.03] focus-visible:bg-white/[0.04] focus-visible:outline-none ${on ? "bg-white/[0.015]" : ""} ${GRID}`}
                 style={on ? { boxShadow: `inset 2px 0 0 ${c}` } : undefined}
               >
                 <span className="flex justify-center">
-                  <span
-                    className={`flex h-4 w-4 items-center justify-center rounded-[4px] border transition-colors ${full ? "opacity-30" : ""}`}
-                    style={{ borderColor: on ? c : "#3f3f46", background: on ? c : "transparent" }}
-                  >
+                  <span className={`flex h-4 w-4 items-center justify-center rounded-[4px] border transition-colors ${full ? "opacity-30" : ""}`} style={{ borderColor: on ? c : "#3f3f46", background: on ? c : "transparent" }}>
                     {on && (
                       <svg viewBox="0 0 12 12" className="h-2.5 w-2.5" aria-hidden>
                         <path d="M2.5 6.2 5 8.6 9.6 3.6" fill="none" stroke="#030303" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
@@ -256,7 +262,7 @@ export default function HoldingsExplorer({ fund }: { fund: FundData }) {
                 <span className="flex min-w-0 items-center gap-2.5">
                   <span className="w-[46px] flex-none text-right font-semibold text-neutral-100">{r.w.toFixed(2)}%</span>
                   <span className="h-[3px] flex-1 bg-white/[0.06]">
-                    <span className="block h-full" style={{ width: ((r.w / maxW) * 100).toFixed(1) + "%", background: on ? c : "#52525b" }} />
+                    <span className="block h-full" style={{ width: ((r.w / x.maxW) * 100).toFixed(1) + "%", background: on ? c : "#52525b" }} />
                   </span>
                 </span>
                 <span className="text-right text-zinc-300">{capF(r.cap)}</span>
@@ -264,114 +270,111 @@ export default function HoldingsExplorer({ fund }: { fund: FundData }) {
               </div>
             );
           })}
-          {rows.length === 0 && <div className="p-8 text-center text-[11px] tracking-[0.14em] text-zinc-600">NO MATCHING HOLDINGS</div>}
+          {x.rows.length === 0 && <div className="p-6 text-center text-[11px] tracking-[0.14em] text-zinc-600">NO MATCHING HOLDINGS</div>}
         </div>
       </div>
-      <div className="flex justify-between gap-3 text-[9.5px] tracking-[0.1em] text-zinc-600">
-        <span>{rows.length} / {all.length} ROWS · Σ WEIGHT {rows.reduce((a, x) => a + x.w, 0).toFixed(2)}% · 1Y RETURNS = PLACEHOLDER DATA</span>
-        <span>SOURCE: ISSUER FILING · 2026-09-25</span>
-      </div>
-      {/* 4 ── Chart (bottom) */}
-      <div className="mt-3 rounded-2xl border border-white/[0.05] bg-[#0a0a0c] px-2 pb-3 pt-3.5 sm:px-4">
-        <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2 px-2">
-          <span className="font-display text-xs font-bold tracking-[0.18em] text-neutral-300">RELATIVE PERFORMANCE · 1Y</span>
-          <span className="text-[10px] tracking-[0.08em] text-zinc-500">NORMALISED TO 0% · TICK A HOLDING ABOVE TO PLOT IT</span>
-        </div>
-        <div className="h-[320px] w-full">
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={points} margin={{ top: 8, right: 12, bottom: 0, left: 0 }}>
-              <defs>
-                <filter id="etfGlow" x="-5%" y="-30%" width="110%" height="160%">
-                  <feGaussianBlur stdDeviation="2.4" result="b" />
-                  <feMerge><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge>
-                </filter>
-              </defs>
-              <CartesianGrid vertical={false} stroke="rgba(255,255,255,0.04)" />
-              <XAxis
-                dataKey="t"
-                ticks={[5, 18, 31, 44].map((i) => points[i].t as string)}
-                tickLine={false}
-                axisLine={false}
-                tick={{ fill: "#52525b", fontSize: 9.5, fontFamily: "var(--font-mono)", letterSpacing: "0.08em" }}
-                tickFormatter={(v: string) => v.slice(0, 3) + " '" + v.slice(-2)}
-                dy={6}
-              />
-              <YAxis
-                orientation="right"
-                width={52}
-                tickLine={false}
-                axisLine={false}
-                tick={{ fill: "#52525b", fontSize: 9.5, fontFamily: "var(--font-mono)" }}
-                tickFormatter={(v: number) => (v > 0 ? "+" : "") + v.toFixed(0) + "%"}
-              />
-              <ReferenceLine y={0} stroke="rgba(255,255,255,0.14)" strokeDasharray="3 4" />
-              <Tooltip
-                cursor={{ stroke: "rgba(255,255,255,0.18)", strokeWidth: 1 }}
-                content={(p) => <ChartTip active={p.active} label={p.label} payload={p.payload as readonly TipEntry[]} etfTic={fund.tic} />}
-              />
-              {shown.map((h) => (
-                <Line
-                  key={h.tic}
-                  dataKey={h.tic}
-                  type="monotone"
-                  stroke={plotted.get(h.tic)}
-                  strokeWidth={hover === h.tic ? 2.4 : 1.6}
-                  strokeOpacity={dim(h.tic) ? 0.18 : 0.95}
-                  dot={false}
-                  activeDot={{ r: 3, strokeWidth: 0 }}
-                  animationDuration={450}
-                />
-              ))}
+    </div>
+  );
+}
+
+/** Relative-performance chart + dynamic legend. Chart height follows the panel. */
+export function ExplorerChart({ x }: { x: Explorer }) {
+  const { fund, points, shown, plotted, hover, dim } = x;
+  return (
+    <div className="flex h-full min-h-0 flex-col px-2 pb-2.5 pt-2 font-mono tabular-nums sm:px-3">
+      <div className="min-h-[120px] flex-1">
+        <ResponsiveContainer width="100%" height="100%">
+          <LineChart data={points} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
+            <defs>
+              <filter id="etfGlow" x="-5%" y="-30%" width="110%" height="160%">
+                <feGaussianBlur stdDeviation="2.4" result="b" />
+                <feMerge><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge>
+              </filter>
+            </defs>
+            <CartesianGrid vertical={false} stroke="rgba(255,255,255,0.04)" />
+            <XAxis
+              dataKey="t"
+              ticks={[5, 18, 31, 44].map((i) => points[i].t as string)}
+              tickLine={false}
+              axisLine={false}
+              tick={{ fill: "#52525b", fontSize: 9.5, fontFamily: "var(--font-mono)", letterSpacing: "0.08em" }}
+              tickFormatter={(v: string) => v.slice(0, 3) + " '" + v.slice(-2)}
+              dy={6}
+            />
+            <YAxis
+              orientation="right"
+              width={52}
+              tickLine={false}
+              axisLine={false}
+              tick={{ fill: "#52525b", fontSize: 9.5, fontFamily: "var(--font-mono)" }}
+              tickFormatter={(v: number) => (v > 0 ? "+" : "") + v.toFixed(0) + "%"}
+            />
+            <ReferenceLine y={0} stroke="rgba(255,255,255,0.14)" strokeDasharray="3 4" />
+            <Tooltip
+              cursor={{ stroke: "rgba(255,255,255,0.18)", strokeWidth: 1 }}
+              content={(p) => <ChartTip active={p.active} label={p.label} payload={p.payload as readonly TipEntry[]} etfTic={fund.tic} />}
+            />
+            {shown.map((h) => (
               <Line
-                dataKey={ETF_KEY}
+                key={h.tic}
+                dataKey={h.tic}
                 type="monotone"
-                stroke="#f4f4f5"
-                strokeWidth={3}
-                strokeOpacity={hover ? 0.5 : 1}
-                filter="url(#etfGlow)"
+                stroke={plotted.get(h.tic)}
+                strokeWidth={hover === h.tic ? 2.4 : 1.6}
+                strokeOpacity={dim(h.tic) ? 0.18 : 0.95}
                 dot={false}
-                activeDot={{ r: 4, fill: "#ffffff", strokeWidth: 0 }}
-                isAnimationActive={false}
+                activeDot={{ r: 3, strokeWidth: 0 }}
+                animationDuration={450}
               />
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
-
-        {/* Dynamic legend */}
-        <div className="mt-2 flex flex-wrap items-center gap-2 border-t border-white/[0.05] px-2 pt-3 text-[10.5px]">
-          <span className="flex h-6 items-center gap-1.5 rounded-md bg-white/[0.06] px-2 font-bold text-white">
-            <span className="h-[3px] w-3.5 rounded-full bg-zinc-100" />{fund.tic}
-            <span className={etfR >= 0 ? "text-emerald-400" : "text-red-400"}>{signed(etfR, 1)}</span>
-          </span>
-          {shown.map((h) => (
-            <button
-              key={h.tic}
-              type="button"
-              onClick={() => toggle(h.tic)}
-              onMouseEnter={() => setHover(h.tic)}
-              onMouseLeave={() => setHover(null)}
-              title={`Remove ${h.tic}`}
-              className="group flex h-6 items-center gap-1.5 rounded-md border border-white/[0.06] px-2 text-zinc-200 hover:border-white/20"
-            >
-              <span className="h-0.5 w-3.5 rounded-full" style={{ background: plotted.get(h.tic) }} />
-              {h.tic}
-              <span className={h.r1y >= 0 ? "text-emerald-400" : "text-red-400"}>{signed(h.r1y, 1)}</span>
-              <span className="text-zinc-600 group-hover:text-zinc-200">×</span>
-            </button>
-          ))}
-          <span className="ml-auto flex items-center gap-3">
-            <span className={`text-[10px] tracking-[0.1em] ${limitHit ? "text-amber-400" : "text-zinc-600"}`}>
-              {limitHit ? `MAX ${MAX_LINES} LINES · REMOVE ONE FIRST` : `${shown.length}/${MAX_LINES} PLOTTED`}
-            </span>
-            {shown.length > 0 && (
-              <button type="button" onClick={clearAll} className="rounded-md px-2 py-1 text-[10px] font-bold tracking-[0.1em] text-zinc-500 hover:bg-white/[0.05] hover:text-zinc-100">
-                CLEAR ALL
-              </button>
-            )}
-          </span>
-        </div>
+            ))}
+            <Line
+              dataKey={ETF_KEY}
+              type="monotone"
+              stroke="#f4f4f5"
+              strokeWidth={3}
+              strokeOpacity={hover ? 0.5 : 1}
+              filter="url(#etfGlow)"
+              dot={false}
+              activeDot={{ r: 4, fill: "#ffffff", strokeWidth: 0 }}
+              isAnimationActive={false}
+            />
+          </LineChart>
+        </ResponsiveContainer>
       </div>
 
-    </section>
+      {/* Dynamic legend — only plotted tickers */}
+      <div className="mt-1.5 flex flex-none flex-wrap items-center gap-2 border-t border-white/[0.05] px-1 pt-2 text-[10.5px]">
+        <span className="flex h-6 items-center gap-1.5 rounded-md bg-white/[0.06] px-2 font-bold text-white">
+          <span className="h-[3px] w-3.5 rounded-full bg-zinc-100" />{fund.tic}
+          <span className={x.etfR >= 0 ? "text-emerald-400" : "text-red-400"}>{signed(x.etfR, 1)}</span>
+        </span>
+        {shown.map((h) => (
+          <button
+            key={h.tic}
+            type="button"
+            onClick={() => x.toggle(h.tic)}
+            onMouseEnter={() => x.setHover(h.tic)}
+            onMouseLeave={() => x.setHover(null)}
+            title={`Remove ${h.tic}`}
+            className="group flex h-6 items-center gap-1.5 rounded-md border border-white/[0.06] px-2 text-zinc-200 hover:border-white/20"
+          >
+            <span className="h-0.5 w-3.5 rounded-full" style={{ background: plotted.get(h.tic) }} />
+            {h.tic}
+            <span className={h.r1y >= 0 ? "text-emerald-400" : "text-red-400"}>{signed(h.r1y, 1)}</span>
+            <span className="text-zinc-600 group-hover:text-zinc-200">×</span>
+          </button>
+        ))}
+        <span className="ml-auto flex items-center gap-3">
+          <span className={`text-[10px] tracking-[0.1em] ${x.limitHit ? "text-amber-400" : "text-zinc-600"}`}>
+            {x.limitHit ? `MAX ${MAX_LINES} LINES · REMOVE ONE FIRST` : `${shown.length}/${MAX_LINES} PLOTTED`}
+          </span>
+          {shown.length > 0 && (
+            <button type="button" onClick={x.clearAll} className="rounded-md px-2 py-1 text-[10px] font-bold tracking-[0.1em] text-zinc-500 hover:bg-white/[0.05] hover:text-zinc-100">
+              CLEAR ALL
+            </button>
+          )}
+        </span>
+      </div>
+    </div>
   );
 }

@@ -148,7 +148,6 @@ export default function EtfTableScanner() {
     return [...list].sort(by[sort]);
   }, [base, tab, sort, activeSub]);
 
-  const totalAum = rows.reduce((s, e) => s + e.aum, 0);
   const avgYtd = rows.length ? rows.reduce((s, e) => s + e.ytd, 0) / rows.length : 0;
 
   const th = "px-3 pb-3 pt-1 text-[10px] font-semibold tracking-[0.14em] text-zinc-500";
@@ -214,11 +213,10 @@ export default function EtfTableScanner() {
             })}
           </div>
 
+          {/* Only shown while something is filtered */}
+          {filterCount > 0 && (
           <div className="mt-5 flex flex-col gap-2">
             <span className="text-[10px] font-semibold tracking-[0.14em] text-zinc-500">ACTIVE FILTERS</span>
-            {filterCount === 0 ? (
-              <span className="text-[11px] text-zinc-600">No filters applied</span>
-            ) : (
               <div className="flex flex-wrap gap-1.5">
                 {query && (
                   <button type="button" onClick={() => router.replace("/scanner")} className="rounded-md bg-white/[0.06] px-2 py-1 text-[11px] text-zinc-300 hover:bg-white/10">
@@ -231,11 +229,10 @@ export default function EtfTableScanner() {
                   </button>
                 ))}
               </div>
-            )}
           </div>
+          )}
 
           <div className="mt-auto flex flex-col gap-2 pt-6">
-            <span className="px-1 text-[10px] font-semibold tracking-[0.14em] text-zinc-500">QUICK PRESETS</span>
             {PRESETS.map((p) => (
               <button
                 key={p.label}
@@ -254,7 +251,7 @@ export default function EtfTableScanner() {
         </div>
         <div className="flex flex-none items-center justify-between border-t border-white/[0.04] bg-white/[0.015] px-5 py-3">
           <span className="font-mono text-[10.5px] tracking-[0.12em] text-zinc-600">
-            {filterCount === 0 ? "NO FILTERS" : `${filterCount} FILTER${filterCount > 1 ? "S" : ""}`}
+            {filterCount === 0 ? "" : `${filterCount} FILTER${filterCount > 1 ? "S" : ""}`}
           </span>
           <button type="button" onClick={clearAll} className="rounded-full bg-white/[0.06] px-3.5 py-1 font-mono text-[10.5px] font-bold tracking-[0.1em] text-zinc-300 transition-colors hover:bg-white/[0.12] hover:text-white">
             CLEAR
@@ -370,8 +367,6 @@ export default function EtfTableScanner() {
         </div>
 
         <div className="flex flex-none flex-wrap items-center gap-5 border-t border-white/[0.04] bg-white/[0.015] px-6 py-3 font-mono text-[11px] tracking-[0.08em]">
-          <span className="text-zinc-500">TOTAL: <span className="text-zinc-300">{rows.length} MATCHES</span></span>
-          <span className="text-zinc-600">Σ AUM <span className="text-zinc-300">${totalAum.toFixed(0)}B</span></span>
           <span className="text-zinc-600">AVG YTD <span className={avgYtd >= 0 ? "text-emerald-400" : "text-rose-400"}>{fmtPct(avgYtd)}</span></span>
         </div>
       </section>

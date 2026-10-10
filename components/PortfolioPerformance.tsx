@@ -7,14 +7,14 @@ import { TF, makeSeries } from "@/components/deep-view/mockData";
 import type { Tf } from "@/components/deep-view/types";
 import type { Asset, Position } from "@/lib/portfolio";
 
-type RangeTf = Extract<Tf, "1M" | "YTD" | "1Y" | "5Y">;
+export type RangeTf = Extract<Tf, "1M" | "YTD" | "1Y" | "5Y">;
 const RANGES: RangeTf[] = ["1M", "YTD", "1Y", "5Y"];
 const BENCH = "SPY";
 const label = "font-mono text-[10px] font-semibold tracking-[0.14em] text-zinc-500";
 const pct = (v: number) => (v >= 0 ? "+" : "") + v.toFixed(2) + "%";
 
 /** Per-timeframe % change + volatility for any asset (ETF → its Deep View data, stock → derived from YTD). */
-function perfOf(a: Asset): { perf: Record<RangeTf, number>; volMul: number } {
+export function perfOf(a: Asset): { perf: Record<RangeTf, number>; volMul: number } {
   const fund = a.kind === "etf" ? buildFund(a.ticker) : null;
   if (fund) return { perf: { "1M": fund.perf["1M"], YTD: fund.perf.YTD, "1Y": fund.perf["1Y"], "5Y": fund.perf["5Y"] }, volMul: fund.volMul };
   return { perf: { "1M": a.ytd / 9, YTD: a.ytd, "1Y": a.ytd * 1.3, "5Y": Math.max(-90, a.ytd * 7) }, volMul: 1.9 };
@@ -32,8 +32,16 @@ function returnPath(positions: Position[], tf: RangeTf): number[] {
   return out;
 }
 
-export default function PortfolioPerformance({ positions }: { positions: Position[] }) {
-  const [tf, setTf] = useState<RangeTf>("YTD");
+export default function PortfolioPerformance({ positions, chartHeight = 200, tf: tfProp, onTfChange }: {
+  positions: Position[];
+  chartHeight?: number;
+  /** Controlled timeframe (optional) — lets sibling panels follow the chart's range. */
+  tf?: RangeTf;
+  onTfChange?: (tf: RangeTf) => void;
+}) {
+  const [tfLocal, setTfLocal] = useState<RangeTf>("YTD");
+  const tf = tfProp ?? tfLocal;
+  const setTf = (k: RangeTf) => { setTfLocal(k); onTfChange?.(k); };
   const [hover, setHover] = useState<number | null>(null);
 
   const { mine, bench } = useMemo(() => {
@@ -63,7 +71,7 @@ export default function PortfolioPerformance({ positions }: { positions: Positio
   };
 
   return (
-    <div className="flex flex-col gap-3 rounded-xl border border-white/[0.05] bg-[#030303]/60 p-4">
+    <div className="flex flex-col gap-2.5 rounded-xl border border-white/[0.05] bg-[#030303]/60 p-3.5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-4">
           <span className={`${label} text-zinc-300`}>PERFORMANCE</span>
@@ -84,7 +92,7 @@ export default function PortfolioPerformance({ positions }: { positions: Positio
         </div>
       </div>
 
-      <div onMouseMove={onMove} onMouseLeave={() => setHover(null)} className="relative h-[200px] cursor-crosshair">
+      <div onMouseMove={onMove} onMouseLeave={() => setHover(null)} className="relative cursor-crosshair" style={{ height: chartHeight }}>
         <svg viewBox="0 0 1000 200" preserveAspectRatio="none" className="absolute inset-0 h-full w-full">
           <defs>
             <linearGradient id="pfFill" x1="0" y1="0" x2="0" y2="1">
@@ -132,21 +140,20 @@ export default function PortfolioPerformance({ positions }: { positions: Positio
         {TF[tf].axis.map((a) => <span key={a}>{a}</span>)}
       </div>
 
-      <div className="grid grid-cols-3 gap-3 border-t border-white/[0.05] pt-3">
+      <div className="grid grid-cols-3 gap-3 border-t border-white/[0.05] pt-2.5">
         <div>
           <div className={label}>MY PORTFOLIO</div>
-          <div className={`mt-1 font-mono text-[16px] font-semibold tabular-nums ${myEnd >= 0 ? "text-emerald-400" : "text-rose-400"}`}>{pct(myEnd)}</div>
+          <div className={`mt-1 font-mono text-[15px] font-semibold tabular-nums ${myEnd >= 0 ? "text-emerald-400" : "text-rose-400"}`}>{pct(myEnd)}</div>
         </div>
         <div>
           <div className={label}>S&amp;P 500</div>
-          <div className={`mt-1 font-mono text-[16px] font-semibold tabular-nums ${benchEnd >= 0 ? "text-zinc-100" : "text-rose-400"}`}>{pct(benchEnd)}</div>
+          <div className={`mt-1 font-mono text-[15px] font-semibold tabular-nums ${benchEnd >= 0 ? "text-zinc-100" : "text-rose-400"}`}>{pct(benchEnd)}</div>
         </div>
         <div>
           <div className={label}>{hover === null ? (ahead ? "BEATING S&P BY" : "TRAILING S&P BY") : "DIFFERENCE"}</div>
-          <div className={`mt-1 font-mono text-[16px] font-semibold tabular-nums ${alpha >= 0 ? "text-emerald-400" : "text-rose-400"}`}>{(alpha >= 0 ? "+" : "") + alpha.toFixed(2)} pp</div>
+          <div className={`mt-1 font-mono text-[15px] font-semibold tabular-nums ${alpha >= 0 ? "text-emerald-400" : "text-rose-400"}`}>{(alpha >= 0 ? "+" : "") + alpha.toFixed(2)} pp</div>
         </div>
       </div>
-      <span className="font-mono text-[9px] tracking-[0.1em] text-zinc-600">{tf} · BUY-AND-HOLD · PLACEHOLDER DATA</span>
     </div>
   );
 }
