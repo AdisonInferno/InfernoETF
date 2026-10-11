@@ -6,6 +6,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import PortfolioDeepView, { SEG_COLORS } from "@/components/PortfolioDeepView";
 import PortfolioPerformance, { type RangeTf } from "@/components/PortfolioPerformance";
 import PortfolioFlows from "@/components/PortfolioFlows";
+import ResizableSplit from "@/components/ResizableSplit";
 import XtbImport, { type ImportResult } from "@/components/XtbImport";
 import {
   PRESETS,
@@ -528,7 +529,24 @@ export default function PortfolioPage() {
               <AllocationBar positions={parsed.positions} />
             </motion.div>
 
-            {/* Chart (left) · metrics + positions (right) — side by side on wide screens */}
+            {/* Deep view: chart ⇄ flows in resizable panes (gutter + corner grips, Windows-snap style) */}
+            {isExpanded ? (
+              <motion.div layout="position" onClick={(e) => e.stopPropagation()}>
+                <ResizableSplit
+                  storageKey="inferno.portfolio.deep.top.v1"
+                  minPx={[480, 300]}
+                  initial={0.58}
+                  height={{ initial: 420, min: 320, max: 900 }}
+                  left={(h) => <PortfolioPerformance positions={parsed.positions} chartHeight={h ? Math.max(120, h - 178) : 200} tf={perfTf} onTfChange={setPerfTf} />}
+                  right={() => (
+                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1, transition: { delay: 0.2 } }} className="h-full overflow-y-auto">
+                      <PortfolioFlows positions={parsed.positions} tf={perfTf} />
+                    </motion.div>
+                  )}
+                />
+              </motion.div>
+            ) : (
+            /* Chart (left) · metrics + positions (right) — side by side on wide screens */
             <motion.div layout="position" className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1.45fr)_minmax(0,1fr)]">
               <div onClick={(e) => e.stopPropagation()} className="min-w-0">
                 <PortfolioPerformance positions={parsed.positions} chartHeight={isExpanded ? 200 : 128} tf={perfTf} onTfChange={setPerfTf} />
@@ -597,6 +615,7 @@ export default function PortfolioPage() {
                 </AnimatePresence>
               </div>
             </motion.div>
+            )}
 
             <AnimatePresence initial={false}>
               {isExpanded && (

@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { AnimatePresence, motion, type Variants } from "framer-motion";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import ResizableSplit from "@/components/ResizableSplit";
 import { ETFS, fmtAum } from "@/lib/etfs";
 import { QUOTE } from "@/lib/fund-profiles";
 import { drillDown, loadLots, lookThrough, saveLots, sectorExposure, type Lot, type Position } from "@/lib/portfolio";
@@ -329,7 +330,6 @@ function PortfolioEtfs({ positions, onClose }: { positions: Position[]; onClose?
 
 type PaneId = "sector" | "etfs";
 const PANE_TITLE: Record<PaneId, string> = { sector: "Sector Overlap", etfs: "Open positions" };
-const MIN_RATIO = 0.28;
 const LAYOUT_KEY = "inferno.portfolio.split.v3";
 const DEFAULT_RATIO = 0.7;
 
@@ -356,57 +356,22 @@ function AddRail({ id, onAdd }: { id: PaneId; onAdd: () => void }) {
  * to trade width between them (double-click resets), X to hide a panel, + to bring it back.
  */
 function SplitRow({ positions }: { positions: Position[] }) {
-  const rowRef = useRef<HTMLDivElement>(null);
-  const [ratio, setRatio] = useState(DEFAULT_RATIO); // width share of the left (positions) panel
   const [shown, setShown] = useState<Record<PaneId, boolean>>({ sector: true, etfs: true });
-  const [dragging, setDragging] = useState(false);
 
-  // Remember the layout per browser.
+  // Remember which panels are open per browser.
   useEffect(() => {
     try {
-      const raw = window.localStorage.getItem(LAYOUT_KEY);
-      if (raw) {
-        const v = JSON.parse(raw) as { ratio: number; shown: Record<PaneId, boolean> };
-        /* eslint-disable react-hooks/set-state-in-effect -- one-time restore from browser storage */
-        setRatio(Math.min(1 - MIN_RATIO, Math.max(MIN_RATIO, v.ratio)));
-        if (v.shown && "etfs" in v.shown) setShown(v.shown);
-        /* eslint-enable react-hooks/set-state-in-effect */
-      }
+      const v = JSON.parse(window.localStorage.getItem(LAYOUT_KEY) ?? "null") as { shown?: Record<PaneId, boolean> } | null;
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time restore from browser storage
+      if (v?.shown && "etfs" in v.shown) setShown(v.shown);
     } catch { /* ignore */ }
   }, []);
   useEffect(() => {
-    try { window.localStorage.setItem(LAYOUT_KEY, JSON.stringify({ ratio, shown })); } catch { /* ignore */ }
-  }, [ratio, shown]);
+    try { window.localStorage.setItem(LAYOUT_KEY, JSON.stringify({ shown })); } catch { /* ignore */ }
+  }, [shown]);
 
-  const onPointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    const el = rowRef.current;
-    if (!el) return;
-    (e.target as HTMLElement).setPointerCapture(e.pointerId);
-    setDragging(true);
-    const rect = el.getBoundingClientRect();
-    const move = (ev: PointerEvent) => {
-      const r = (ev.clientX - rect.left) / rect.width;
-      setRatio(Math.min(1 - MIN_RATIO, Math.max(MIN_RATIO, r)));
-    };
-    const up = () => {
-      setDragging(false);
-      window.removeEventListener("pointermove", move);
-      window.removeEventListener("pointerup", up);
-    };
-    window.addEventListener("pointermove", move);
-    window.addEventListener("pointerup", up);
-  }, []);
-
-  const onKey = (e: React.KeyboardEvent) => {
-    if (e.key === "ArrowLeft") setRatio((r) => Math.max(MIN_RATIO, r - 0.04));
-    if (e.key === "ArrowRight") setRatio((r) => Math.min(1 - MIN_RATIO, r + 0.04));
-  };
-
-  const both = shown.sector && shown.etfs;
   const hide = (id: PaneId) => setShown((s) => ({ ...s, [id]: false }));
   const show = (id: PaneId) => setShown((s) => ({ ...s, [id]: true }));
-  const spring = dragging ? { duration: 0 } : { type: "spring" as const, stiffness: 260, damping: 30 };
 
   if (!shown.sector && !shown.etfs) {
     return (
@@ -420,55 +385,31 @@ function SplitRow({ positions }: { positions: Position[] }) {
     );
   }
 
+  if (shown.sector && shown.etfs) {
+    // Positions keep full rows (table is 860px wide) — the divider stops before rows would need to scroll.
+    return (
+      <ResizableSplit
+        storageKey="inferno.portfolio.split.v4"
+        minPx={[900, 380]}
+        initial={DEFAULT_RATIO}
+        left={() => <PortfolioEtfs positions={positions} onClose={() => hide("etfs")} />}
+        right={() => <SectorOverlap positions={positions} onClose={() => hide("sector")} />}
+      />
+    );
+  }
+
   return (
-    <div ref={rowRef} className={`flex flex-col items-stretch gap-4 xl:flex-row xl:gap-0 ${dragging ? "cursor-col-resize select-none" : ""}`}>
-      <AnimatePresence initial={false}>
-        {!shown.etfs && <AddRail key="add-etfs" id="etfs" onAdd={() => show("etfs")} />}
-      </AnimatePresence>
-      {!shown.etfs && <div className="hidden w-3 xl:block" />}
-
-      {shown.etfs && (
-        <motion.div
-          layout
-          transition={spring}
-          className={`min-w-0 ${both ? "xl:w-[var(--split-w)] xl:flex-none" : "flex-1"}`}
-          style={{ "--split-w": `calc(${ratio * 100}% - 6px)` } as React.CSSProperties}
-        >
-          <PortfolioEtfs positions={positions} onClose={() => hide("etfs")} />
-        </motion.div>
+    <div className="flex items-stretch gap-3">
+      {shown.etfs ? (
+        <div className="min-w-0 flex-1"><PortfolioEtfs positions={positions} onClose={() => hide("etfs")} /></div>
+      ) : (
+        <AnimatePresence initial={false}><AddRail key="add-etfs" id="etfs" onAdd={() => show("etfs")} /></AnimatePresence>
       )}
-
-      {both && (
-        <div
-          role="separator"
-          aria-orientation="vertical"
-          aria-valuenow={Math.round(ratio * 100)}
-          aria-valuemin={Math.round(MIN_RATIO * 100)}
-          aria-valuemax={Math.round((1 - MIN_RATIO) * 100)}
-          tabIndex={0}
-          onPointerDown={onPointerDown}
-          onDoubleClick={() => setRatio(DEFAULT_RATIO)}
-          onKeyDown={onKey}
-          title="Drag to resize · double-click to reset"
-          className="group relative hidden w-3 flex-none cursor-col-resize touch-none items-center justify-center outline-none xl:flex"
-        >
-          <span className={`h-full w-px transition-colors ${dragging ? "bg-red-500/70" : "bg-white/[0.06] group-hover:bg-red-500/50 group-focus-visible:bg-red-500/50"}`} />
-          <span className={`absolute flex h-10 w-2.5 flex-col items-center justify-center gap-[3px] rounded-full border transition-colors ${dragging ? "border-red-500/60 bg-[#1a0b0b]" : "border-white/[0.1] bg-[#0f0f11] group-hover:border-red-500/40"}`}>
-            {[0, 1, 2].map((d) => <span key={d} className={`h-[3px] w-[3px] rounded-full ${dragging ? "bg-red-400" : "bg-zinc-500 group-hover:bg-red-300"}`} />)}
-          </span>
-        </div>
+      {shown.sector ? (
+        <div className="min-w-0 flex-1"><SectorOverlap positions={positions} onClose={() => hide("sector")} /></div>
+      ) : (
+        <AnimatePresence initial={false}><AddRail key="add-sector" id="sector" onAdd={() => show("sector")} /></AnimatePresence>
       )}
-
-      {shown.sector && (
-        <motion.div layout transition={spring} className="min-w-0 flex-1">
-          <SectorOverlap positions={positions} onClose={() => hide("sector")} />
-        </motion.div>
-      )}
-
-      {!shown.sector && <div className="hidden w-3 xl:block" />}
-      <AnimatePresence initial={false}>
-        {!shown.sector && <AddRail key="add-sector" id="sector" onAdd={() => show("sector")} />}
-      </AnimatePresence>
     </div>
   );
 }

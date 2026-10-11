@@ -19,6 +19,7 @@ interface Commodity { id: string; ts: number; headline: string; url: string; sou
 interface Ev { source: string; code: string; at: string; title: string; allDay?: boolean }
 interface MacroNews { id: string; ts: number; headline: string; url: string; source: string }
 interface Data {
+  picks?: { filers: string[]; commodities: string[] };
   sentiment: { sectors: Sector[]; articles: number };
   filings: { filings: Filing[]; error?: string };
   commodities: { items: Commodity[]; pending: number };
@@ -89,8 +90,79 @@ function Why({ title, cls, body, foot }: { title: string; cls: string; body: str
   );
 }
 
+/* ── Quick filter: 4–5 main options + a small "+" tile to type any other ── */
+function PickBar({ options, value, onChange, placeholder, upper }: { options: string[]; value: string | null; onChange: (v: string | null) => void; placeholder: string; upper?: boolean }) {
+  const [typing, setTyping] = useState(false);
+  const [q, setQ] = useState("");
+  const chip = (on: boolean) =>
+    `h-7 rounded-md border px-2.5 text-[10.5px] font-bold tracking-[0.1em] transition-colors ${on ? "border-white/[0.2] bg-white/[0.08] text-white" : "border-white/[0.05] bg-[#030303] text-zinc-500 hover:text-zinc-200"}`;
+  const custom = value && !options.some((o) => o.toLowerCase() === value.toLowerCase()) ? value : null;
+  const submit = () => {
+    const v = q.trim();
+    if (v) onChange(upper ? v.toUpperCase() : v);
+    setQ("");
+    setTyping(false);
+  };
+  return (
+    <div className="flex flex-wrap items-center gap-1.5">
+      {options.map((o) => {
+        const on = value?.toLowerCase() === o.toLowerCase();
+        return (
+          <button key={o} type="button" aria-pressed={on} onClick={() => onChange(on ? null : o)} className={chip(on)}>
+            {o.toUpperCase()}
+          </button>
+        );
+      })}
+      {custom && (
+        <button type="button" onClick={() => onChange(null)} title="Clear" className={`${chip(true)} flex items-center gap-1.5`}>
+          {custom.toUpperCase()} <span className="text-zinc-500">×</span>
+        </button>
+      )}
+      {typing ? (
+        <form onSubmit={(e) => { e.preventDefault(); submit(); }} className="flex">
+          <input
+            autoFocus
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            onBlur={submit}
+            onKeyDown={(e) => { if (e.key === "Escape") { setQ(""); setTyping(false); } }}
+            placeholder={placeholder}
+            maxLength={24}
+            className="h-7 w-28 rounded-md border border-white/[0.2] bg-[#030303] px-2 text-[10.5px] font-bold tracking-[0.08em] text-white outline-none placeholder:font-normal placeholder:text-zinc-600"
+          />
+        </form>
+      ) : (
+        <button type="button" onClick={() => setTyping(true)} title={placeholder} aria-label={placeholder} className={`${chip(false)} w-7 px-0 text-[13px]`}>
+          +
+        </button>
+      )}
+    </div>
+  );
+}
+
+/** Fetches `url` when it changes (null = nothing to fetch). */
+function useFetch<T>(url: string | null) {
+  const [st, setSt] = useState<{ url: string | null; data: T | null; error?: string }>({ url: null, data: null });
+  useEffect(() => {
+    if (!url) return;
+    let cancelled = false;
+    fetch(url, { cache: "no-store" })
+      .then(async (r) => (r.ok ? r.json() : Promise.reject(new Error((await r.json().catch(() => ({}))).error ?? `HTTP ${r.status}`))))
+      .then((data: T) => { if (!cancelled) setSt({ url, data }); })
+      .catch((e: Error) => { if (!cancelled) setSt({ url, data: null, error: e.message }); });
+    return () => { cancelled = true; };
+  }, [url]);
+  return { data: st.url === url ? st.data : null, error: st.url === url ? st.error : undefined, loading: !!url && st.url !== url };
+}
+
 /* ── SEC filings: fetch every insight, then sort by importance or time ── */
-function FilingsPanel({ filings, error, loading }: { filings: Filing[]; error?: string; loading: boolean }) {
+function FilingsPanel({ filings: sectorFilings, error: sectorError, loading: sectorLoading, picks }: { filings: Filing[]; error?: string; loading: boolean; picks: string[] }) {
+  const [pick, setPick] = useState<string | null>(null);
+  const one = useFetch<{ filings: Filing[]; error?: string }>(pick ? `/api/intel/filings?ticker=${encodeURIComponent(pick)}` : null);
+  const pickedFilings = one.data?.filings;
+  const filings = useMemo(() => (pick ? pickedFilings ?? [] : sectorFilings), [pick, pickedFilings, sectorFilings]);
+  const loading = pick ? one.loading : sectorLoading;
+  const error = pick ? one.error ?? one.data?.error : sectorError;
   const [insights, setInsights] = useState<Record<string, Insight>>({});
   const [sort, setSort] = useState<"weight" | "time">("weight");
 
@@ -124,6 +196,7 @@ function FilingsPanel({ filings, error, loading }: { filings: Filing[]; error?: 
           ))}
         </div>
       </div>
+      <PickBar options={picks} value={pick} onChange={setPick} placeholder="Any ticker…" upper />
       {loading && [0, 1, 2].map((i) => <div key={i} className="h-[74px] animate-pulse rounded-xl bg-white/[0.03]" />)}
       {error && <p className="m-0 text-[11px] text-amber-400">⚠ SEC unavailable ({error}). Check SEC_USER_AGENT in .env.local.</p>}
       {!loading && rows.map((f) => {
@@ -150,8 +223,50 @@ function FilingsPanel({ filings, error, loading }: { filings: Filing[]; error?: 
           </a>
         );
       })}
-      {!loading && !error && rows.length === 0 && <p className="m-0 text-[11px] text-zinc-600">No SEC filers tracked for this sector in this region.</p>}
+      {!loading && !error && rows.length === 0 && <p className="m-0 text-[11px] text-zinc-600">{pick ? `No SEC filings for ${pick} (not an SEC-registered ticker?).` : "No SEC filers tracked for this sector in this region."}</p>}
     </section>
+  );
+}
+
+/* ── Commodities: sector-relevant by default, or one commodity picked from the tiles ── */
+function CommoditiesPanel({ items: sectorItems, loading: sectorLoading, ready, picks }: { items: Commodity[]; loading: boolean; ready: boolean; picks: string[] }) {
+  const [pick, setPick] = useState<string | null>(null);
+  const one = useFetch<{ items: Commodity[] }>(pick ? `/api/intel/commodity?name=${encodeURIComponent(pick)}` : null);
+  const items = pick ? one.data?.items ?? [] : sectorItems;
+  const loading = pick ? one.loading : sectorLoading;
+  return (
+        <section className={`${card} flex min-w-0 flex-col gap-3 p-4`}>
+          <div className="flex items-baseline justify-between">
+            <h2 className="m-0 font-sans text-[17px] font-semibold text-zinc-50">Commodities</h2>
+            <span className={label}>{pick ? "14D · ALL SECTORS" : "7D"}</span>
+          </div>
+          <PickBar options={picks} value={pick} onChange={setPick} placeholder="Any commodity…" />
+          {loading && [0, 1, 2].map((i) => <div key={i} className="h-[66px] animate-pulse rounded-xl bg-white/[0.03]" />)}
+          {!loading && items.map((c) => {
+            const all = c.tag.sectors.includes("all");
+            return (
+              <a key={c.id} href={c.url || undefined} target="_blank" rel="noreferrer" className="group relative flex flex-col gap-1.5 rounded-xl border border-white/[0.04] bg-black/30 px-3.5 py-3 transition-colors hover:border-white/[0.12]">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="flex items-center gap-2">
+                    <span className="rounded-md bg-amber-400/10 px-2 py-0.5 text-[11px] font-bold text-amber-300">{c.commodity.toUpperCase()}</span>
+                    <Weight n={c.tag.importance} />
+                  </span>
+                  <span className="text-[10.5px] text-zinc-500">{when(c.ts * 1000)}</span>
+                </div>
+                <span className="line-clamp-2 font-sans text-[13px] text-zinc-200 group-hover:text-white">{c.headline}</span>
+                <span className="flex items-center gap-2">
+                  <span className="min-w-0 truncate text-[11px] text-zinc-400">{c.tag.why}</span>
+                  <span className="ml-auto flex flex-none gap-1">
+                    {all ? <SectorChip s="ALL SECTORS" /> : c.tag.sectors.map((s) => <SectorChip key={s} s={s === "tech" ? "Technology" : "Defense"} />)}
+                  </span>
+                </span>
+                <Why title={`IMPACT · IMPORTANCE ${c.tag.importance}/5`} cls="text-amber-300" body={`${c.tag.why}. Source: ${c.source}.`} foot={c.tag.basis === "ai" ? "Sector impact judged by AI from the headline/summary" : "Sector impact from keyword rules (add GEMINI_API_KEY for AI tagging)"} />
+              </a>
+            );
+          })}
+          {one.error && <p className="m-0 text-[11px] text-amber-400">⚠ {one.error}</p>}
+          {!loading && (ready || pick) && items.length === 0 && <p className="m-0 text-[11px] text-zinc-600">{pick ? `No news about ${pick} in 14 days.` : "No commodity news affecting this sector in 7 days."}</p>}
+        </section>
   );
 }
 
@@ -236,38 +351,9 @@ export default function MarketIntel() {
 
       {/* Three pillars */}
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
-        <FilingsPanel filings={filings} error={loading ? undefined : d?.filings.error} loading={loading} />
+        <FilingsPanel key={`f-${key}`} filings={filings} error={loading ? undefined : d?.filings.error} loading={loading} picks={d?.picks?.filers ?? []} />
 
-        <section className={`${card} flex min-w-0 flex-col gap-3 p-4`}>
-          <div className="flex items-baseline justify-between">
-            <h2 className="m-0 font-sans text-[17px] font-semibold text-zinc-50">Commodities</h2>
-            <span className={label}>7D</span>
-          </div>
-          {loading && [0, 1, 2].map((i) => <div key={i} className="h-[66px] animate-pulse rounded-xl bg-white/[0.03]" />)}
-          {!loading && d?.commodities.items.map((c) => {
-            const all = c.tag.sectors.includes("all");
-            return (
-              <a key={c.id} href={c.url || undefined} target="_blank" rel="noreferrer" className="group relative flex flex-col gap-1.5 rounded-xl border border-white/[0.04] bg-black/30 px-3.5 py-3 transition-colors hover:border-white/[0.12]">
-                <div className="flex items-center justify-between gap-2">
-                  <span className="flex items-center gap-2">
-                    <span className="rounded-md bg-amber-400/10 px-2 py-0.5 text-[11px] font-bold text-amber-300">{c.commodity.toUpperCase()}</span>
-                    <Weight n={c.tag.importance} />
-                  </span>
-                  <span className="text-[10.5px] text-zinc-500">{when(c.ts * 1000)}</span>
-                </div>
-                <span className="line-clamp-2 font-sans text-[13px] text-zinc-200 group-hover:text-white">{c.headline}</span>
-                <span className="flex items-center gap-2">
-                  <span className="min-w-0 truncate text-[11px] text-zinc-400">{c.tag.why}</span>
-                  <span className="ml-auto flex flex-none gap-1">
-                    {all ? <SectorChip s="ALL SECTORS" /> : c.tag.sectors.map((s) => <SectorChip key={s} s={s === "tech" ? "Technology" : "Defense"} />)}
-                  </span>
-                </span>
-                <Why title={`IMPACT · IMPORTANCE ${c.tag.importance}/5`} cls="text-amber-300" body={`${c.tag.why}. Source: ${c.source}.`} foot={c.tag.basis === "ai" ? "Sector impact judged by AI from the headline/summary" : "Sector impact from keyword rules (add GEMINI_API_KEY for AI tagging)"} />
-              </a>
-            );
-          })}
-          {!loading && d && d.commodities.items.length === 0 && <p className="m-0 text-[11px] text-zinc-600">No commodity news affecting this sector in 7 days.</p>}
-        </section>
+        <CommoditiesPanel key={`c-${key}`} items={d?.commodities.items ?? []} loading={loading} ready={!!d} picks={d?.picks?.commodities ?? []} />
 
         <section className={`${card} flex min-w-0 flex-col gap-3 p-4`}>
           <div className="flex items-baseline justify-between">

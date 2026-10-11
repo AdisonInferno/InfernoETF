@@ -132,6 +132,29 @@ export async function commodityNews(sector: SectorId, days = 7, limit = 10): Pro
   return { items, pending: pool.filter((x) => !tags[x.a.id]).length };
 }
 
+/** Main commodities offered as quick filters (names match WORDS above). */
+export const MAIN_COMMODITIES = ["Gold", "Oil", "Gas", "Silver", "Copper"];
+
+const esc = (x: string) => x.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+/** News about one commodity, any sector. `name` is one of WORDS (uses its regex) or free text (whole-word match). */
+export async function commodityByName(name: string, days = 14, limit = 12): Promise<{ items: CommodityItem[] }> {
+  const q = name.trim().slice(0, 40);
+  if (!q) return { items: [] };
+  const known = WORDS.find(([w]) => w.toLowerCase() === q.toLowerCase());
+  const re = known ? known[1] : new RegExp(`\\b${esc(q)}`, "i");
+  const label = known ? known[0] : q.replace(/\b\w/g, (c) => c.toUpperCase());
+  const from = Math.floor(Date.now() / 1000) - days * 86400;
+  const tags = await loadTags();
+  const items = (await queryArchive({ from, limit: 3000 }))
+    .filter((a) => re.test(`${a.headline} ${a.summary}`))
+    .slice(0, 200)
+    .map((a) => ({ id: a.id, ts: a.ts, headline: a.headline, url: a.url, source: a.source, commodity: label, tag: tags[a.id] ?? heuristic(a, label) }))
+    .sort((p, q2) => q2.tag.importance - p.tag.importance || q2.ts - p.ts)
+    .slice(0, limit);
+  return { items };
+}
+
 /** Macro headlines (rates, inflation, broad market) — shown for every sector. */
 export async function macroNews(days = 7, limit = 6) {
   const from = Math.floor(Date.now() / 1000) - days * 86400;

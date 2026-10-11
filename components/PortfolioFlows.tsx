@@ -81,9 +81,12 @@ export default function PortfolioFlows({ positions, tf }: { positions: Position[
   }, [positions, tf]);
 
   return (
-    <div className="grid h-full min-w-0 grid-cols-1 gap-2.5 sm:grid-cols-2">
-      <Bars title="CAPITAL FLOW" rows={posRows} />
-      <Bars title="SECTOR SHIFT" rows={secRows} />
+    <div className="@container h-full min-w-0">
+      {/* side by side once the pane is ≥ 32rem wide (works inside resizable panes, not just by viewport) */}
+      <div className="grid h-full min-w-0 grid-cols-1 gap-2.5 @lg:grid-cols-2">
+        <Bars title="CAPITAL FLOW" rows={posRows} />
+        <Bars title="SECTOR SHIFT" rows={secRows} />
+      </div>
     </div>
   );
 }

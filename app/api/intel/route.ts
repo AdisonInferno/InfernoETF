@@ -1,7 +1,7 @@
 import { focusSentiment, type Region } from "@/lib/intel/sentiment";
 import { recentFilings } from "@/lib/intel/sec";
 import { upcoming } from "@/lib/intel/calendar";
-import { commodityNews, macroNews } from "@/lib/intel/commodities";
+import { MAIN_COMMODITIES, commodityNews, macroNews } from "@/lib/intel/commodities";
 import { focusById } from "@/lib/intel/focus";
 import { newsUniverse } from "@/lib/news-archive/sources";
 
@@ -22,5 +22,5 @@ export async function GET(req: Request) {
     upcoming(newsUniverse(), 14),
     macroNews(7, 6),
   ]);
-  return Response.json({ region, sector: sector.id, sentiment, filings, commodities, macro: { calendar, news } });
+  return Response.json({ region, sector: sector.id, picks: { filers: sector.filers[region].slice(0, 5), commodities: MAIN_COMMODITIES }, sentiment, filings, commodities, macro: { calendar, news } });
 }
