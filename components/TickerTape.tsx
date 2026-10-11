@@ -1,4 +1,4 @@
-/* Scrolling market ticker under the main menu. Pure CSS animation (see globals.css). */
+/* Static market strip under the main menu. */
 
 type Flag = "us" | "de" | "eu" | "jp";
 
@@ -19,9 +19,6 @@ const ITEMS: TickerItem[] = [
   { label: "US 10Y", value: "4.28%", icon: "🏛️" },
   { label: "VIX", value: "14.50", chg: -2.1, icon: "⚠️" },
   { label: "USD", value: "103.50", chg: 0.15, icon: "💲" },
-  { label: "NVDA", value: "$128.40", chg: 3.1, icon: "🏢" },
-  { label: "AAPL", value: "$226.50", chg: 0.4, icon: "🏢" },
-  { label: "TSLA", value: "$248.10", chg: -1.8, icon: "🏢" },
   { label: "S&P 500", value: "$582.40", chg: 0.84, flag: "us" },
   { label: "NASDAQ", value: "$498.20", chg: 1.42, flag: "us" },
   { label: "DAX", value: "€19,210", chg: 0.45, flag: "de" },
@@ -88,16 +85,10 @@ function Item({ it }: { it: TickerItem }) {
 
 export default function TickerTape() {
   return (
-    <div className="ticker-mask group relative h-9 w-full overflow-hidden border-y border-white/[0.04] bg-[#0a0a0c]">
-      {/* TV-style crawl: two identical halves slide left forever; -50% lands exactly on the copy.
-          Each half repeats the list twice so it is wider than even ultra-wide screens. */}
-      <div className="animate-ticker flex h-full w-max items-center will-change-transform group-hover:[animation-play-state:paused]">
-        {[0, 1].map((half) => (
-          <div key={half} aria-hidden={half === 1} className="flex flex-none items-center">
-            {[...ITEMS, ...ITEMS].map((it, i) => (
-              <Item key={i} it={it} />
-            ))}
-          </div>
+    <div className="relative h-9 w-full overflow-x-auto border-y border-white/[0.04] bg-[#0a0a0c] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      <div className="mx-auto flex h-full w-max items-center">
+        {ITEMS.map((it) => (
+          <Item key={it.label} it={it} />
         ))}
       </div>
     </div>

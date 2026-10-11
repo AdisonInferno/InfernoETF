@@ -1,26 +1,26 @@
-import { sectorSentiment, type Region } from "@/lib/intel/sentiment";
+import { focusSentiment, type Region } from "@/lib/intel/sentiment";
 import { recentFilings } from "@/lib/intel/sec";
 import { upcoming } from "@/lib/intel/calendar";
+import { commodityNews, macroNews } from "@/lib/intel/commodities";
+import { focusById } from "@/lib/intel/focus";
 import { newsUniverse } from "@/lib/news-archive/sources";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-/** Companies whose SEC filings we follow per region (EU/Asia = US-listed ADRs filing 6-K/20-F). */
-const SEC_TICKERS: Record<Region, string[]> = {
-  us: ["NVDA", "MSFT", "AAPL", "AMZN", "META", "GOOGL", "AVGO", "TSLA", "JPM", "LMT", "RTX", "NOC", "GD", "XOM", "CVX", "LLY", "UNH", "CCJ", "PLTR", "AMD"],
-  eu: ["ASML", "SHEL", "AZN", "TTE", "SAP", "NVO", "UL", "BP", "HSBC", "GSK", "ARM", "SPOT"],
-  asia: ["TSM", "BABA", "PDD", "NTES", "TCOM", "INFY", "IBN", "HDB", "JD", "BIDU", "SONY", "TM"],
-};
-
-/** GET /api/intel?region=us → { sentiment, filings, calendar } */
+/** GET /api/intel?region=us&sector=defense
+    → { sentiment (focus sectors), filings (sector filers), commodities (sector + all), macro { calendar, news } } */
 export async function GET(req: Request) {
-  const r = new URL(req.url).searchParams.get("region");
+  const p = new URL(req.url).searchParams;
+  const r = p.get("region");
   const region: Region = r === "eu" || r === "asia" ? r : "us";
-  const [sentiment, filings, calendar] = await Promise.all([
-    sectorSentiment(region, 7),
-    recentFilings(SEC_TICKERS[region], 8),
+  const sector = focusById(p.get("sector") ?? "tech");
+  const [sentiment, filings, commodities, calendar, news] = await Promise.all([
+    focusSentiment(region, 7),
+    recentFilings(sector.filers[region], 10),
+    commodityNews(sector.id, 7, 10),
     upcoming(newsUniverse(), 14),
+    macroNews(7, 6),
   ]);
-  return Response.json({ region, sentiment, filings, calendar });
+  return Response.json({ region, sector: sector.id, sentiment, filings, commodities, macro: { calendar, news } });
 }

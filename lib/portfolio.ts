@@ -37,12 +37,65 @@ const DD2022: Record<string, number> = {
 };
 const DD_BY_VOL = { Low: -18, Medium: -28, High: -42 } as const;
 
+/* ── Custom assets: positions imported from a broker that aren't in our ETF list ── */
+
+const CUSTOM_KEY = "inferno.portfolio.custom.v1";
+let customCache: Record<string, Asset> | null = null;
+
+function customAssets(): Record<string, Asset> {
+  if (customCache) return customCache;
+  if (typeof window === "undefined") return {}; // SSR: don't cache, the browser will fill it in
+  try {
+    customCache = JSON.parse(window.localStorage.getItem(CUSTOM_KEY) ?? "{}") as Record<string, Asset>;
+  } catch {
+    customCache = {};
+  }
+  return customCache;
+}
+
+export function saveCustomAssets(add: Record<string, Asset>) {
+  customCache = { ...customAssets(), ...add };
+  try { window.localStorage.setItem(CUSTOM_KEY, JSON.stringify(customCache)); } catch { /* ignore */ }
+}
+
+/** True when the ticker resolves without a custom (imported) entry. */
+export function isKnownTicker(ticker: string) {
+  const t = ticker.toUpperCase();
+  return STOCKS.some((s) => s.ticker === t) || (ETFS.some((x) => x.ticker === t) && !!QUOTE[t]);
+}
+
+/* ── Lots: what the user actually holds (quantity, average open price, broker numbers) ── */
+
+export interface Lot {
+  qty: number;
+  /** Average open price, instrument currency */
+  avg: number;
+  /** Market price from the broker, instrument currency (falls back to our quote) */
+  price?: number;
+  /** Market value from the broker, account currency */
+  value?: number;
+  /** Unrealised profit from the broker, account currency */
+  pl?: number;
+  /** Account currency, e.g. "PLN" */
+  ccy?: string;
+}
+
+const LOTS_KEY = "inferno.portfolio.lots.v1";
+
+export function loadLots(): Record<string, Lot> {
+  try { return JSON.parse(window.localStorage.getItem(LOTS_KEY) ?? "{}") as Record<string, Lot>; } catch { return {}; }
+}
+
+export function saveLots(lots: Record<string, Lot>) {
+  try { window.localStorage.setItem(LOTS_KEY, JSON.stringify(lots)); } catch { /* ignore */ }
+}
+
 export function getAsset(ticker: string): Asset | null {
   const t = ticker.toUpperCase();
   const stock = STOCKS.find((s) => s.ticker === t);
   if (stock) return stock;
   const e = ETFS.find((x) => x.ticker === t);
-  if (!e || !QUOTE[t]) return null;
+  if (!e || !QUOTE[t]) return customAssets()[t] ?? null;
   const lev = e.leverage === "3x" ? 3 : 1;
   return {
     ticker: t,

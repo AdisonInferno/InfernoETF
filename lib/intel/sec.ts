@@ -42,7 +42,7 @@ g.__infernoSec ??= { subs: new Map() };
 const box = g.__infernoSec;
 
 export const sec = async (url: string) => {
-  const res = await fetch(url, { headers: { "User-Agent": UA, Accept: "application/json" }, cache: "no-store" });
+  const res = await fetch(url, { headers: { "User-Agent": UA, Accept: "application/json" }, cache: "no-store", signal: AbortSignal.timeout(12_000) });
   if (!res.ok) throw new Error(`SEC ${res.status}`);
   return res.json();
 };
@@ -67,7 +67,8 @@ function describe(form: string, items: string): string {
 
 async function filingsFor(ticker: string, cik: number, title: string): Promise<Filing[]> {
   const hit = box.subs.get(ticker);
-  if (hit && Date.now() - hit.at < TTL) return hit.data;
+  // `cik` check: entries cached by an older version lack the ids the insight endpoint needs
+  if (hit && Date.now() - hit.at < TTL && hit.data.every((f) => f.cik && f.accession)) return hit.data;
   const pad = String(cik).padStart(10, "0");
   const j = await sec(`${process.env.SEC_DATA_BASE_URL ?? "https://data.sec.gov"}/submissions/CIK${pad}.json`);
   const r = j?.filings?.recent;

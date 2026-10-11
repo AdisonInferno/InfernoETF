@@ -6,13 +6,15 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import PortfolioDeepView, { SEG_COLORS } from "@/components/PortfolioDeepView";
 import PortfolioPerformance, { type RangeTf } from "@/components/PortfolioPerformance";
 import PortfolioFlows from "@/components/PortfolioFlows";
+import XtbImport, { type ImportResult } from "@/components/XtbImport";
 import {
   PRESETS,
   assetClass,
   clearPortfolio,
   loadPortfolio,
   parsePortfolio,
-  roastPortfolio,
+  saveCustomAssets,
+  saveLots,
   savePortfolio,
   scenarioLoss,
   type Position,
@@ -142,35 +144,7 @@ const MOVE_STYLE: Record<string, string> = {
 
 /* ───────────────────────────── Small pieces ───────────────────────────── */
 
-function Gauge({ score }: { score: number }) {
-  const r = 34, c = 2 * Math.PI * r, arc = c * 0.75; // 270° arc, open at the bottom
-  return (
-    <div className="relative h-[92px] w-[92px] flex-none">
-      <svg viewBox="0 0 92 92" className="h-full w-full -rotate-[225deg]">
-        <circle cx="46" cy="46" r={r} fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="5" strokeDasharray={`${arc} ${c}`} strokeLinecap="round" />
-        <circle cx="46" cy="46" r={r} fill="none" stroke="#ef4444" strokeWidth="5" strokeLinecap="round" strokeDasharray={`${(arc * score) / 100} ${c}`} className="transition-[stroke-dasharray] duration-500" />
-      </svg>
-      <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <span className="font-mono text-[28px] font-medium leading-none text-white">{score}</span>
-        <span className="mt-1 font-mono text-[9px] text-zinc-600">/ 100</span>
-      </div>
-    </div>
-  );
-}
 
-function MeterBar({ title, pct, display }: { title: string; pct: number; display: string }) {
-  return (
-    <div className="flex flex-col gap-2 border-t border-white/[0.04] pt-3">
-      <div className="flex items-baseline justify-between">
-        <span className="text-[13px] text-zinc-300">{title}</span>
-        <span className="font-mono text-[13px] font-semibold text-zinc-100">{display}</span>
-      </div>
-      <div className="h-1 w-full overflow-hidden rounded-full bg-white/[0.06]">
-        <div className="h-full rounded-full bg-red-500 transition-[width] duration-500" style={{ width: `${Math.min(100, Math.max(2, pct))}%` }} />
-      </div>
-    </div>
-  );
-}
 
 const ghostBtn = "rounded-lg border border-white/[0.1] px-3 py-1.5 text-[12px] font-semibold text-zinc-100 transition-colors hover:bg-white/[0.06]";
 
@@ -185,6 +159,7 @@ export default function PortfolioPage() {
   const [saved, setSaved] = useState<SavedPortfolio | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [editing, setEditing] = useState(false);
+  const [importing, setImporting] = useState(false);
   const [view, setView] = useState<View>("overview");
   /** Timeframe shared by the performance chart and the capital-flow bars. */
   const [perfTf, setPerfTf] = useState<RangeTf>("YTD");
@@ -216,7 +191,6 @@ export default function PortfolioPage() {
   const isDeep = showMine && view === "deep-view"; // bottom cards gone
   const isExpanded = showMine && expanded; // card grown + analytics shown
   const parsed = useMemo(() => parsePortfolio(prompt), [prompt]);
-  const roast = useMemo(() => roastPortfolio(parsed.positions), [parsed]);
   const preset = BUILD_PRESETS.find((b) => b.id === presetId)!;
 
   /* Headline money metrics for the model account. */
@@ -288,6 +262,17 @@ export default function PortfolioPage() {
     setEditing(false);
   };
 
+  /** XTB screenshot → positions, lots (qty / avg price / broker P&L) and any instruments outside our database. */
+  const importXtb = (r: ImportResult) => {
+    saveCustomAssets(r.customs);
+    saveLots(r.lots);
+    savePortfolio(r.prompt);
+    setPrompt(r.prompt);
+    setSaved({ prompt: r.prompt, createdAt: new Date().toISOString() });
+    setImporting(false);
+    setEditing(false);
+  };
+
   const resetPortfolio = () => {
     clearPortfolio();
     setSaved(null);
@@ -298,8 +283,6 @@ export default function PortfolioPage() {
   };
 
 
-  const tickers = parsed.positions.map((p) => p.asset.ticker).join(" · ");
-  const roastQuestion = `Zrób roast mojego portfela: ${parsed.positions.map((p) => `${p.asset.ticker} ${p.weight}%`).join(", ")}. Oceń dywersyfikację, nakładanie się funduszy i ryzyko.`;
 
   /** Click anywhere on the My-portfolio card (except its buttons/links) to open the deep view. */
   const onCardClick = (e: React.MouseEvent) => {
@@ -459,33 +442,6 @@ export default function PortfolioPage() {
       </div>
       <Link href={`/chat?q=${encodeURIComponent("Pokaż mi portfele największych inwestorów (Buffett, Dalio, BlackRock) i jak odwzorować je ETF-ami.")}`} className={`${ghostBtn} mt-auto self-start`}>
         Explore gurus →
-      </Link>
-    </>,
-
-    /* Live roast */
-    <>
-      <div className="flex items-baseline justify-between">
-        <span className={`${label} text-zinc-300`}>LIVE PORTFOLIO ROAST</span>
-        <span className="flex items-center gap-1.5 font-mono text-[10px] text-zinc-400"><span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-400" />Live</span>
-      </div>
-      <div className="flex items-center gap-6">
-        <Gauge score={roast.score} />
-        <div className="flex min-w-0 flex-col gap-2">
-          <span className="truncate font-mono text-[12px] text-zinc-400">{tickers || "—"}</span>
-          <span className="self-start rounded border border-red-500/40 bg-red-500/10 px-2 py-0.5 font-mono text-[11px] font-semibold text-red-400">{roast.tier}</span>
-          {roast.nextTier && <span className="font-mono text-[11px] text-zinc-500"><span className="text-zinc-200">+{roast.toNext}</span> to {roast.nextTier}</span>}
-        </div>
-      </div>
-      <div className="flex flex-col gap-3">
-        <MeterBar title={`Overlap ${roast.overlap.pair}`} pct={roast.overlap.pct} display={`${roast.overlap.pct.toFixed(1)}%`} />
-        <MeterBar title="Top-10 concentration" pct={roast.top10} display={`${roast.top10.toFixed(1)}%`} />
-        <MeterBar title="2022 drawdown replay" pct={Math.abs(roast.drawdown)} display={`${roast.drawdown.toFixed(1)}%`} />
-      </div>
-      <Link
-        href={`/chat?q=${encodeURIComponent(roastQuestion)}`}
-        className={`${ghostBtn} mt-auto self-start ${parsed.positions.length ? "" : "pointer-events-none opacity-40"}`}
-      >
-        Roast mine <span className="text-red-400">→</span>
       </Link>
     </>,
   ];
@@ -705,7 +661,14 @@ export default function PortfolioPage() {
               {parsed.errors.length > 0 && <p className="font-mono text-[11px] text-amber-400">⚠ {parsed.errors.join(" · ")}</p>}
             </div>
 
+            {importing && <XtbImport onImport={importXtb} onClose={() => setImporting(false)} />}
+
             <div className="flex flex-wrap justify-end gap-2">
+              {!importing && (
+                <button type="button" onClick={() => setImporting(true)} className="mr-auto rounded-sm border border-white/[0.12] bg-white/[0.04] px-3 py-1 font-mono text-[11px] tracking-[0.06em] text-zinc-200 transition-colors hover:bg-white/[0.1] hover:text-white">
+                  [ IMPORT FROM XTB SCREENSHOT ]
+                </button>
+              )}
               {([["VOO QQQ NVDA", PRESETS.classic], ["retire 2045", PRESETS.retire2045], ["Clone Dalio", PRESETS.dalio]] as const).map(([l, p]) => (
                 <button key={l} type="button" onClick={() => applyPrompt(p)} className="rounded-full border border-white/[0.06] bg-white/[0.03] px-3 py-1 font-mono text-[11px] text-zinc-400 transition-colors hover:bg-white/[0.08] hover:text-white">
                   {l}
@@ -716,7 +679,7 @@ export default function PortfolioPage() {
         )}
 
         {/* ── Bottom cards: tumble off-screen in deep view, spring back on return ── */}
-        <div className={`relative grid grid-cols-1 gap-3 lg:grid-cols-3 ${isDeep ? "" : "flex-1"}`}>
+        <div className={`relative grid grid-cols-1 gap-3 lg:grid-cols-2 ${isDeep ? "" : "flex-1"}`}>
           <AnimatePresence mode="popLayout" initial={false}>
             {!isDeep &&
               bottomCards.map((content, i) => (

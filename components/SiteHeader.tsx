@@ -9,9 +9,7 @@ import { ETFS, fmtPct } from "@/lib/etfs";
 const NAV = [
   { href: "/scanner", label: "SCANNER" },
   { href: "/portfolio", label: "PORTFOLIO" },
-  { href: "/tools", label: "ETF TOOLS" },
   { href: "/news", label: "NEWS" },
-  { href: "/academy", label: "ACADEMY" },
 ];
 
 /* Swap for your own logo: put logo.svg in /public and use <img src="/logo.svg" />. */

@@ -34,7 +34,7 @@ const ASIA_TICKERS = new Set(["TSM", "BABA", "PDD", "NTES", "TCOM", "TCEHY", "IN
 const EU_WORDS = /\b(europe(an)?|eu|euro ?zone|ecb|lagarde|germany|german|france|french|britain|british|uk|london|italy|spain|netherlands|dutch|swiss|switzerland|nordic|sweden|norway|poland|polish|brussels|stoxx|dax|ftse|cac)\b/i;
 const ASIA_WORDS = /\b(asia(n)?|china|chinese|beijing|shanghai|hong kong|japan(ese)?|tokyo|boj|nikkei|korea(n)?|seoul|kospi|taiwan(ese)?|india(n)?|mumbai|sensex|nifty|singapore|indonesia|vietnam|australia(n)?|asx)\b/i;
 
-function regionsOf(a: CleanArticle): Set<Region> {
+export function regionsOf(a: CleanArticle): Set<Region> {
   const r = new Set<Region>();
   const text = `${a.headline} ${a.summary}`;
   for (const t of a.relevant) { if (EU_TICKERS.has(t)) r.add("eu"); else if (ASIA_TICKERS.has(t)) r.add("asia"); else r.add("us"); }
@@ -48,7 +48,7 @@ function regionsOf(a: CleanArticle): Set<Region> {
 const POS = /\b(beats?|beat estimates|tops?|raises?d?|raising|upgrades?d?|record|surges?d?|soars?|jumps?e?d?|rall(y|ies|ied)|gains?e?d?|wins?|won|awarded|contracts? worth|approv(al|ed|es)|strong(er)?|growth|expands?|boosts?|accelerat(es|ing)|outperform|bullish|higher|rebounds?|recover(y|s)|demand (surge|boom)|orders? (rise|jump)|profit (rises|jumps)|buyback|dividend (hike|increase))\b/gi;
 const NEG = /\b(miss(es|ed)?|cuts?|cutting|downgrades?d?|plunges?d?|slumps?|tumbles?d?|falls?|fell|drops?|dropped|sinks?|slides?|lawsuits?|probe|investigation|recalls?|layoffs?|job cuts|weak(er|ness)?|warns?|warning|delays?e?d?|bans?|sanctions?|tariffs?|fines?d?|losses|loss|bearish|lower|shortfall|halts?|bankrupt(cy)?|default|downturn|slowdown|underperform|selloff|sell-off)\b/gi;
 
-function score(a: CleanArticle): number {
+export function score(a: CleanArticle): number {
   const text = `${a.headline} ${a.headline} ${a.summary}`; // headline counts double
   const p = text.match(POS)?.length ?? 0, n = text.match(NEG)?.length ?? 0;
   return p + n ? (p - n) / (p + n) : 0;
@@ -86,4 +86,23 @@ export async function sectorSentiment(region: Region, days = 7): Promise<{ secto
   });
   // Most-covered sectors first
   return { sectors: sectors.sort((a, b) => b.articles - a.articles), articles: all.length };
+}
+
+/* ── Focus sectors only (Market Intel tiles) ── */
+import { FOCUS } from "./focus";
+
+export async function focusSentiment(region: Region, days = 7): Promise<{ sectors: SectorSentiment[]; articles: number }> {
+  const from = Math.floor(Date.now() / 1000) - days * 86400;
+  const all = (await queryArchive({ from, limit: 1000 })).filter((a) => a.kind !== "macro" && regionsOf(a).has(region));
+  let used = 0;
+  const sectors = FOCUS.map((f) => {
+    const pool = all.filter((a) => a.subs.some((s) => f.subs.includes(s)));
+    used += pool.length;
+    const sum = pool.reduce((acc, a) => acc + score(a), 0);
+    const index = pool.length ? Math.max(-100, Math.min(100, Math.round((100 * sum) / (pool.length + 3)))) : 0;
+    const dir = Math.sign(index);
+    const driver = pool.filter((a) => dir !== 0 && Math.sign(score(a)) === dir).sort((p, q) => Math.abs(score(q)) - Math.abs(score(p)) || q.ts - p.ts)[0] ?? pool.sort((p, q) => q.ts - p.ts)[0];
+    return { id: f.id, label: f.label, index, articles: pool.length, driver: driver ? { headline: driver.headline, url: driver.url, source: driver.source } : null };
+  });
+  return { sectors, articles: used };
 }

@@ -5,16 +5,7 @@ import { AnimatePresence, motion, type Variants } from "framer-motion";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ETFS, fmtAum } from "@/lib/etfs";
 import { QUOTE } from "@/lib/fund-profiles";
-import {
-  SCENARIOS,
-  drawdownPath,
-  drillDown,
-  lookThrough,
-  scenarioLoss,
-  sectorExposure,
-  type Position,
-  type ScenarioId,
-} from "@/lib/portfolio";
+import { drillDown, loadLots, lookThrough, saveLots, sectorExposure, type Lot, type Position } from "@/lib/portfolio";
 
 export const SEG_COLORS = ["#4ade80", "#60a5fa", "#a78bfa", "#f59e0b", "#f472b6", "#22d3ee", "#f87171", "#a3e635"];
 const panel = "rounded-xl border border-white/[0.04] bg-black/30 p-5";
@@ -59,7 +50,7 @@ function SectorOverlap({ positions, onClose }: { positions: Position[]; onClose?
           <CloseBtn onClick={onClose} title="Sector Overlap Breakdown" />
         </div>
       </div>
-      <div className="flex flex-1 flex-col justify-around gap-2.5">
+      <div className="flex flex-col gap-3">
         {rows.map((r) => {
           const contributors = Object.keys(r.by).length;
           return (
@@ -90,75 +81,59 @@ function SectorOverlap({ positions, onClose }: { positions: Position[]; onClose?
   );
 }
 
-/* ───────────────────── Risk / drawdown simulation ───────────────────── */
+/* ───────────────────── ETFs in the portfolio (+ look-through) ───────────────────── */
 
-function DrawdownSim({ positions, onClose }: { positions: Position[]; onClose?: () => void }) {
-  const [sc, setSc] = useState<ScenarioId>("rates");
-  const scenario = SCENARIOS.find((s) => s.id === sc)!;
-  const loss = useMemo(() => scenarioLoss(positions, sc), [positions, sc]);
-  const bench = useMemo(() => scenarioLoss([{ asset: positions[0]?.asset, weight: 100 }].filter((p) => p.asset) as Position[], sc), [positions, sc]);
-  const path = drawdownPath(loss.total, scenario.months);
-  const lo = Math.min(...path, 60), hi = 102;
-  const y = (v: number) => 8 + (1 - (v - lo) / (hi - lo)) * 164;
-  const line = path.map((v, i) => `${(i / (path.length - 1)) * 1000},${y(v).toFixed(1)}`).join(" ");
-  const trough = path.indexOf(Math.min(...path));
+const NOTIONAL = 124_580; // same model account as the page header
+const CCY_SIGN: Record<string, string> = { USD: "$", EUR: "€", GBP: "£", PLN: "zł " };
+const money = (v: number, ccy = "USD") => {
+  const n = Math.abs(v).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const sign = CCY_SIGN[ccy] ?? `${ccy} `;
+  return (v < 0 ? "-" : "") + sign + n;
+};
+const signMoney = (v: number, ccy?: string) => (v > 0 ? "+" : "") + money(v, ccy);
+const tone = (v: number) => (v > 0 ? "text-emerald-400" : v < 0 ? "text-rose-400" : "text-zinc-300");
+const qtyFmt = (q: number) => q.toLocaleString("en-US", { maximumFractionDigits: 4 });
 
+/** Default lot when the user hasn't entered one: the model account split by target weight, bought on Jan 1 (price before YTD move). */
+const defaultLot = (p: Position): Lot => ({
+  qty: +((NOTIONAL * p.weight) / 100 / p.asset.price).toFixed(4),
+  avg: +(p.asset.price / (1 + p.asset.ytd / 100)).toFixed(2),
+});
+
+function useLots() {
+  const [lots, setLots] = useState<Record<string, Lot>>({});
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time restore from browser storage
+    setLots(loadLots());
+  }, []);
+  const save = (ticker: string, lot: Lot | null) =>
+    setLots((cur) => {
+      const next = { ...cur };
+      if (lot) next[ticker] = lot; else delete next[ticker];
+      saveLots(next);
+      return next;
+    });
+  return { lots, save };
+}
+
+/** Inline editor for quantity + average price (XTB-style "open position"). */
+function LotEditor({ lot, custom, onSave }: { lot: Lot; custom: boolean; onSave: (l: Lot | null) => void }) {
+  const [qty, setQty] = useState(String(lot.qty));
+  const [avg, setAvg] = useState(String(lot.avg));
+  const q = Number(qty.replace(",", ".")), a = Number(avg.replace(",", "."));
+  const ok = q > 0 && a > 0;
+  const input = "h-8 w-28 rounded-sm border border-white/[0.08] bg-[#030303] px-2 font-mono text-[12px] text-zinc-100 outline-none focus:border-white/[0.2]";
   return (
-    <div className={`${panel} flex h-full min-w-0 flex-col gap-4`}>
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <span className={`${label} truncate text-zinc-300`}>RISK · DRAWDOWN SIMULATION</span>
-        <div className="flex flex-wrap items-center gap-1">
-          {SCENARIOS.map((s) => (
-            <button
-              key={s.id}
-              type="button"
-              onClick={() => setSc(s.id)}
-              className={`rounded-md px-2.5 py-1 font-mono text-[10.5px] font-bold transition-colors ${sc === s.id ? "bg-red-500/15 text-red-300 shadow-[inset_0_0_0_1px_rgba(239,68,68,0.35)]" : "bg-white/[0.04] text-zinc-500 hover:text-zinc-200"}`}
-            >
-              {s.label}
-            </button>
-          ))}
-          <CloseBtn onClick={onClose} title="Risk · Drawdown Simulation" />
-        </div>
-      </div>
-
-      <div className="relative h-[220px]">
-        <svg viewBox="0 0 1000 180" preserveAspectRatio="none" className="absolute inset-0 h-full w-full">
-          <defs>
-            <linearGradient id="ddFill" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0" stopColor="#ef4444" stopOpacity="0" />
-              <stop offset="1" stopColor="#ef4444" stopOpacity="0.18" />
-            </linearGradient>
-          </defs>
-          <line x1="0" x2="1000" y1={y(100)} y2={y(100)} stroke="rgba(255,255,255,0.12)" strokeDasharray="4 4" vectorEffect="non-scaling-stroke" />
-          {/* Left-to-right reveal via clip (pathLength breaks on a stretched viewBox). */}
-          <clipPath id="ddReveal">
-            <motion.rect key={`clip-${sc}`} x="0" y="0" height="180" initial={{ width: 0 }} animate={{ width: 1000 }} transition={{ duration: 0.9, ease: "easeInOut" }} />
-          </clipPath>
-          <g clipPath="url(#ddReveal)">
-            <polygon points={`0,${y(100)} ${line} 1000,${y(100)}`} fill="url(#ddFill)" />
-            <polyline points={line} fill="none" stroke="#f87171" strokeWidth="1.8" vectorEffect="non-scaling-stroke" />
-          </g>
-        </svg>
-        <span className="absolute right-0 top-0 font-mono text-[9.5px] text-zinc-600">START 100</span>
-        <span className="absolute font-mono text-[10px] font-bold text-rose-400" style={{ left: `${(trough / 23) * 100}%`, top: `${(y(path[trough]) / 180) * 100}%`, transform: "translate(-50%, 6px)" }}>
-          {pct(loss.total)}
-        </span>
-      </div>
-      <div className="flex justify-between font-mono text-[9.5px] text-zinc-600"><span>M0</span><span>M6</span><span>M12</span><span>M18</span><span>M24</span></div>
-
-      <div className="grid grid-cols-3 gap-2 border-t border-white/[0.04] pt-3">
-        <div><div className={label}>PORTFOLIO</div><div className="mt-1 font-mono text-[16px] font-semibold text-rose-400">{pct(loss.total)}</div></div>
-        <div><div className={label}>VS {positions[0]?.asset.ticker ?? "—"} ONLY</div><div className="mt-1 font-mono text-[16px] font-semibold text-zinc-200">{pct(bench.total)}</div></div>
-        <div><div className={label}>WORST LEG</div><div className="mt-1 font-mono text-[16px] font-semibold text-zinc-200">{[...loss.per].sort((a, b) => a.dd - b.dd)[0]?.ticker ?? "—"}</div></div>
-      </div>
+    <div className="flex flex-wrap items-end gap-3 px-4 pb-3 pt-3">
+      <label className="flex flex-col gap-1"><span className={label}>QTY</span><input value={qty} onChange={(e) => setQty(e.target.value)} inputMode="decimal" className={input} /></label>
+      <label className="flex flex-col gap-1"><span className={label}>AVG OPEN PRICE $</span><input value={avg} onChange={(e) => setAvg(e.target.value)} inputMode="decimal" className={input} /></label>
+      <button type="button" disabled={!ok} onClick={() => onSave({ qty: q, avg: a, price: lot.price, ccy: lot.price != null ? lot.ccy : undefined })} className="h-8 rounded-sm border border-white/[0.12] px-3 font-mono text-[10.5px] tracking-[0.1em] text-zinc-200 hover:bg-white/[0.06] disabled:opacity-40">[ SAVE ]</button>
+      {custom && <button type="button" onClick={() => onSave(null)} className="h-8 px-1 font-mono text-[10.5px] tracking-[0.1em] text-zinc-500 hover:text-white">[ RESET ]</button>}
+      <span className="ml-auto self-center font-mono text-[10px] text-zinc-600">{custom ? "YOUR ENTRY" : "DEFAULT · MODEL ACCOUNT, BOUGHT JAN 1"}</span>
     </div>
   );
 }
 
-/* ───────────────────── ETFs in the portfolio (+ look-through) ───────────────────── */
-
-const NOTIONAL = 10_000;
 const terFmt = (ter: number) => `${ter.toFixed(Math.abs(ter * 100 - Math.round(ter * 100)) > 1e-6 ? 4 : 2)}%`;
 const normTic = (t: string) => (t === "GOOG" ? "GOOGL" : t);
 
@@ -174,7 +149,8 @@ function lookRows(p: Position, n: number) {
 }
 
 function PortfolioEtfs({ positions, onClose }: { positions: Position[]; onClose?: () => void }) {
-  const [open, setOpen] = useState<string | null>(positions.find((p) => p.asset.kind === "etf")?.asset.ticker ?? null);
+  const [open, setOpen] = useState<string | null>(null);
+  const { lots, save } = useLots();
   /** Total look-through weight of every stock across the whole portfolio, % */
   const total = useMemo(() => lookThrough(positions), [positions]);
   /** How many positions hold each stock */
@@ -184,125 +160,166 @@ function PortfolioEtfs({ positions, onClose }: { positions: Position[]; onClose?
     return n;
   }, [positions]);
 
-  const rows = positions.map((p, i) => {
+  const base = positions.map((p, i) => {
     const etf = ETFS.find((e) => e.ticker === p.asset.ticker);
-    const ter = QUOTE[p.asset.ticker]?.[1] ?? 0;
-    return { p, i, etf, ter };
+    const ter = etf ? QUOTE[p.asset.ticker]?.[1] ?? 0 : 0;
+    const custom = !!lots[p.asset.ticker];
+    const lot = lots[p.asset.ticker] ?? defaultLot(p);
+    // Broker numbers (imported) win over our own quotes; they're already in the account currency.
+    const price = lot.price ?? p.asset.price;
+    const value = lot.value ?? lot.qty * price;
+    const cost = lot.pl != null ? value - lot.pl : lot.qty * lot.avg;
+    const pl = value - cost;
+    const today = value - value / (1 + p.asset.chg1d / 100);
+    return { p, i, etf, ter, lot, custom, price, cost, value, pl, plPct: cost ? (pl / cost) * 100 : 0, today };
   });
-  const funds = rows.filter((r) => r.etf);
-  const blendedTer = funds.reduce((a, r) => a + (r.p.weight / 100) * r.ter, 0);
-  const yearlyCost = (NOTIONAL * blendedTer) / 100;
+  const ccy = base.find((r) => r.lot.ccy)?.lot.ccy ?? "USD";
+  const M = (v: number) => money(v, ccy);
+  const SM = (v: number) => signMoney(v, ccy);
+  const sum = (f: (r: (typeof base)[number]) => number) => base.reduce((a, r) => a + f(r), 0);
+  const mv = sum((r) => r.value), invested = sum((r) => r.cost), pl = mv - invested, today = sum((r) => r.today);
+  const rows = base.map((r) => ({ ...r, actualW: mv ? (r.value / mv) * 100 : 0 }));
+  const blendedTer = mv ? sum((r) => r.value * r.ter) / mv : 0;
+  const yearlyCost = (mv * blendedTer) / 100;
+
+  const stats: [string, string, string, string?][] = [
+    ["MARKET VALUE", M(mv), "text-zinc-50"],
+    ["INVESTED", M(invested), "text-zinc-200"],
+    ["UNREALIZED P/L", SM(pl), tone(pl), invested ? pct((pl / invested) * 100, 2) : ""],
+    ["TODAY", SM(today), tone(today), mv ? pct((today / (mv - today)) * 100, 2) : ""],
+    ["FEES / YEAR", M(yearlyCost), "text-zinc-200", `TER ${blendedTer.toFixed(3)}%`],
+  ];
+  const cols = "grid grid-cols-[minmax(130px,1.6fr)_repeat(7,minmax(64px,1fr))_16px] items-center gap-3";
 
   return (
     <div className={`${panel} flex h-full min-w-0 flex-col gap-4`}>
       <div className="flex items-center justify-between gap-2">
-        <span className={`${label} truncate text-zinc-300`}>ETFS IN YOUR PORTFOLIO</span>
-        <div className="flex min-w-0 items-center gap-2">
-          <CloseBtn onClick={onClose} title="ETFs in your portfolio" />
-        </div>
+        <span className={`${label} truncate text-zinc-300`}>[ OPEN POSITIONS · {positions.length} ]</span>
+        <CloseBtn onClick={onClose} title="Open positions" />
       </div>
 
-      <div className="grid grid-cols-3 gap-2">
-        <div className="rounded-lg border border-white/[0.04] bg-black/20 px-3 py-2">
-          <div className={label}>BLENDED TER</div>
-          <div className="mt-1 font-mono text-[15px] font-semibold text-zinc-100">{blendedTer.toFixed(3)}%</div>
-        </div>
-        <div className="rounded-lg border border-white/[0.04] bg-black/20 px-3 py-2">
-          <div className={label}>FEES / YEAR</div>
-          <div className="mt-1 font-mono text-[15px] font-semibold text-zinc-100">${yearlyCost.toFixed(2)} <span className="text-[9px] font-normal text-zinc-600">/ ${NOTIONAL.toLocaleString("en-US")}</span></div>
-        </div>
-        <div className="rounded-lg border border-white/[0.04] bg-black/20 px-3 py-2">
-          <div className={label}>PRICIEST</div>
-          <div className="mt-1 font-mono text-[15px] font-semibold text-amber-400">{funds.length ? [...funds].sort((a, b) => b.ter - a.ter)[0].p.asset.ticker : "—"}</div>
-        </div>
+      <div className="grid grid-cols-2 gap-2 md:grid-cols-5">
+        {stats.map(([k, v, c, sub]) => (
+          <div key={k} className="rounded-sm border border-white/[0.05] bg-[#0a0a0c] px-3 py-2">
+            <div className={label}>{k}</div>
+            <div className={`mt-1 font-mono text-[15px] font-semibold tabular-nums ${c}`}>{v}</div>
+            {sub && <div className={`font-mono text-[10px] tabular-nums ${k === "FEES / YEAR" ? "text-zinc-600" : c}`}>{sub}</div>}
+          </div>
+        ))}
       </div>
 
-      <div className="flex flex-col gap-2">
-        {rows.map(({ p, i, etf, ter }) => {
-          const color = SEG_COLORS[i % SEG_COLORS.length];
-          const isOpen = open === p.asset.ticker;
-          const look = lookRows(p, 12);
-          return (
-            <div key={p.asset.ticker} className={`overflow-hidden rounded-lg border transition-colors ${isOpen ? "border-white/[0.1] bg-white/[0.015]" : "border-white/[0.04] bg-black/20"}`}>
-              <button
-                type="button"
-                onClick={() => setOpen(isOpen ? null : p.asset.ticker)}
-                aria-expanded={isOpen}
-                className="flex w-full items-center gap-4 px-4 py-3 text-left transition-colors hover:bg-white/[0.03]"
-              >
-                <span className="h-10 w-1 flex-none rounded-full" style={{ background: color }} />
-                <div className="flex min-w-0 flex-1 flex-col">
-                  <span className="flex items-center gap-2">
-                    <span className="font-mono text-[15px] font-bold text-zinc-50">{p.asset.ticker}</span>
-                    <span className="rounded bg-white/[0.06] px-1.5 py-px font-mono text-[9px] font-bold tracking-[0.1em] text-zinc-400">{etf ? etf.sector : "STOCK"}</span>
-                  </span>
-                  <span className="truncate text-[11.5px] text-zinc-500">{etf ? `${p.asset.name} · ${etf.issuer}` : p.asset.name}</span>
-                </div>
-                <div className="hidden flex-col items-end sm:flex">
-                  <span className={label}>TER</span>
-                  <span className="font-mono text-[12px] text-zinc-200">{etf ? terFmt(ter) : "—"}</span>
-                </div>
-                <div className="hidden w-16 flex-col items-end md:flex">
-                  <span className={label}>AUM</span>
-                  <span className="font-mono text-[12px] text-zinc-200">{etf ? fmtAum(etf.aum) : "—"}</span>
-                </div>
-                <div className="flex w-16 flex-col items-end">
-                  <span className={label}>YTD</span>
-                  <span className={`font-mono text-[12px] font-semibold ${p.asset.ytd >= 0 ? "text-emerald-400" : "text-rose-400"}`}>{pct(p.asset.ytd)}</span>
-                </div>
-                <div className="flex w-14 flex-col items-end">
-                  <span className={label}>WEIGHT</span>
-                  <span className="font-mono text-[13px] font-semibold text-zinc-100">{p.weight}%</span>
-                </div>
-                <motion.span animate={{ rotate: isOpen ? 90 : 0 }} className="w-4 text-center font-mono text-[11px] text-zinc-500">▶</motion.span>
-              </button>
+      <div className="min-w-0 overflow-x-auto">
+        <div className="min-w-[860px]">
+          <div className={`${cols} px-4 pb-1.5 font-mono text-[9px] tracking-[0.12em] text-zinc-600`}>
+            <span>INSTRUMENT</span>
+            <span className="text-right">QTY</span>
+            <span className="text-right">AVG PRICE</span>
+            <span className="text-right">PRICE</span>
+            <span className="text-right">VALUE</span>
+            <span className="text-right">P/L</span>
+            <span className="text-right">1D</span>
+            <span className="text-right">WEIGHT</span>
+            <span />
+          </div>
 
-              <AnimatePresence initial={false}>
-                {isOpen && (
-                  <motion.div
-                    initial={{ height: 0, opacity: 0 }}
-                    animate={{ height: "auto", opacity: 1 }}
-                    exit={{ height: 0, opacity: 0 }}
-                    transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
-                    className="border-t border-white/[0.05] bg-black/20"
+          <div className="flex flex-col gap-1.5">
+            {rows.map((r) => {
+              const { p, i, etf, ter } = r;
+              const color = SEG_COLORS[i % SEG_COLORS.length];
+              const isOpen = open === p.asset.ticker;
+              const look = lookRows(p, 12);
+              return (
+                <div key={p.asset.ticker} className={`overflow-hidden rounded-sm border transition-colors ${isOpen ? "border-white/[0.1] bg-white/[0.015]" : "border-white/[0.05] bg-[#0a0a0c]"}`}>
+                  <button
+                    type="button"
+                    onClick={() => setOpen(isOpen ? null : p.asset.ticker)}
+                    aria-expanded={isOpen}
+                    className={`${cols} w-full px-4 py-2.5 text-left transition-colors hover:bg-white/[0.03]`}
                   >
-                    <div className="grid grid-cols-[60px_minmax(0,1fr)_64px_84px_92px] gap-3 px-4 pb-1 pt-3 font-mono text-[9px] tracking-[0.12em] text-zinc-600">
-                      <span>STOCK</span><span />
-                      <span className="text-right">IN {p.asset.kind === "etf" ? "ETF" : "POS"}</span>
-                      <span className="text-right" title={`Weight in ETF × ${p.weight}% of portfolio`}>VIA {p.asset.ticker}</span>
-                      <span className="text-right" title="Summed across every position that holds it">TOTAL</span>
-                    </div>
-                    {look.map((r) => {
-                      const k = r.ticker, n = holders[k] ?? 1;
-                      return (
-                        <div key={r.ticker} className="grid grid-cols-[60px_minmax(0,1fr)_64px_84px_92px] items-center gap-3 px-4 py-1.5">
-                          <span className="truncate font-mono text-[12px] font-bold text-zinc-200">{r.ticker}</span>
-                          <span className="truncate text-[12px] text-zinc-500">{r.name}</span>
-                          <span className="text-right font-mono text-[12px] text-zinc-400">{r.inFund.toFixed(2)}%</span>
-                          <span className="text-right font-mono text-[12px] text-zinc-200">{r.inPortfolio.toFixed(2)}%</span>
-                          <span className="flex items-center justify-end gap-1.5 font-mono text-[12px] font-semibold text-zinc-50">
-                            {n > 1 && <span className="font-mono text-[9px] font-bold text-amber-400" title={`Held by ${n} positions`}>×{n}</span>}
-                            {(total[k] ?? r.inPortfolio).toFixed(2)}%
-                          </span>
-                        </div>
-                      );
-                    })}
-                    <div className="flex items-center justify-between gap-3 px-4 pb-3 pt-2">
-                      <span className="font-mono text-[9.5px] text-zinc-600">
-                        TOP {look.length} · {look.reduce((a, r) => a + r.inPortfolio, 0).toFixed(1)}% OF PORTFOLIO · <span className="text-amber-400">×N</span> = ALSO IN OTHER POSITIONS
+                    <span className="flex min-w-0 items-center gap-3">
+                      <span className="h-8 w-1 flex-none" style={{ background: color }} />
+                      <span className="flex min-w-0 flex-col">
+                        <span className="flex items-center gap-2">
+                          <span className="font-mono text-[14px] font-bold text-zinc-50">{p.asset.ticker}</span>
+                          <span className="rounded-sm bg-white/[0.06] px-1.5 py-px font-mono text-[9px] font-bold tracking-[0.1em] text-zinc-400">{etf ? "ETF" : "STOCK"}</span>
+                        </span>
+                        <span className="truncate text-[11px] text-zinc-500">{p.asset.name}</span>
                       </span>
-                      {etf && (
-                        <Link href={`/etf/${p.asset.ticker}`} className="whitespace-nowrap font-mono text-[10.5px] tracking-[0.1em] text-zinc-400 hover:text-white">
-                          [ {p.asset.ticker} DEEP VIEW → ]
-                        </Link>
-                      )}
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
-          );
-        })}
+                    </span>
+                    <span className="text-right font-mono text-[12px] tabular-nums text-zinc-200">{qtyFmt(r.lot.qty)}</span>
+                    <span className="text-right font-mono text-[12px] tabular-nums text-zinc-400">{r.lot.avg.toFixed(2)}</span>
+                    <span className="text-right font-mono text-[12px] tabular-nums text-zinc-100">{r.price.toFixed(2)}</span>
+                    <span className="text-right font-mono text-[12px] tabular-nums text-zinc-100">{M(r.value)}</span>
+                    <span className={`flex flex-col items-end font-mono tabular-nums ${tone(r.pl)}`}>
+                      <span className="text-[12px] font-semibold">{SM(r.pl)}</span>
+                      <span className="text-[10px]">{pct(r.plPct, 2)}</span>
+                    </span>
+                    <span className={`text-right font-mono text-[12px] tabular-nums ${tone(p.asset.chg1d)}`}>{pct(p.asset.chg1d, 2)}</span>
+                    <span className="flex flex-col items-end font-mono tabular-nums">
+                      <span className="text-[12px] font-semibold text-zinc-100">{r.actualW.toFixed(1)}%</span>
+                      <span className="text-[10px] text-zinc-600">TGT {p.weight}%</span>
+                    </span>
+                    <motion.span animate={{ rotate: isOpen ? 90 : 0 }} className="text-center font-mono text-[11px] text-zinc-500">▶</motion.span>
+                  </button>
+
+                  <AnimatePresence initial={false}>
+                    {isOpen && (
+                      <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: "auto", opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+                        className="border-t border-white/[0.05] bg-black/20"
+                      >
+                        <LotEditor key={`${r.lot.qty}-${r.lot.avg}`} lot={r.lot} custom={r.custom} onSave={(l) => save(p.asset.ticker, l)} />
+
+                        <div className="grid grid-cols-2 gap-x-6 gap-y-1 border-t border-white/[0.04] px-4 py-3 font-mono text-[11px] sm:grid-cols-4">
+                          {([
+                            ["COST BASIS", M(r.cost)],
+                            ["YTD", pct(p.asset.ytd)],
+                            ["TER", etf ? terFmt(ter) : "—"],
+                            ["AUM", etf ? fmtAum(etf.aum) : "—"],
+                          ] as const).map(([k, v]) => (
+                            <span key={k} className="flex justify-between gap-2"><span className="text-zinc-600">{k}</span><span className="text-zinc-200">{v}</span></span>
+                          ))}
+                        </div>
+
+                        <div className="grid grid-cols-[60px_minmax(0,1fr)_64px_84px_92px] gap-3 border-t border-white/[0.04] px-4 pb-1 pt-3 font-mono text-[9px] tracking-[0.12em] text-zinc-600">
+                          <span>STOCK</span><span />
+                          <span className="text-right">IN {p.asset.kind === "etf" ? "ETF" : "POS"}</span>
+                          <span className="text-right" title={`Weight in ETF × ${p.weight}% of portfolio`}>VIA {p.asset.ticker}</span>
+                          <span className="text-right" title="Summed across every position that holds it">TOTAL</span>
+                        </div>
+                        {look.map((lr) => {
+                          const k = lr.ticker, n = holders[k] ?? 1;
+                          return (
+                            <div key={lr.ticker} className="grid grid-cols-[60px_minmax(0,1fr)_64px_84px_92px] items-center gap-3 px-4 py-1.5">
+                              <span className="truncate font-mono text-[12px] font-bold text-zinc-200">{lr.ticker}</span>
+                              <span className="truncate text-[12px] text-zinc-500">{lr.name}</span>
+                              <span className="text-right font-mono text-[12px] text-zinc-400">{lr.inFund.toFixed(2)}%</span>
+                              <span className="text-right font-mono text-[12px] text-zinc-200">{lr.inPortfolio.toFixed(2)}%</span>
+                              <span className="flex items-center justify-end gap-1.5 font-mono text-[12px] font-semibold text-zinc-50">
+                                {n > 1 && <span className="font-mono text-[9px] font-bold text-amber-400" title={`Held by ${n} positions`}>×{n}</span>}
+                                {(total[k] ?? lr.inPortfolio).toFixed(2)}%
+                              </span>
+                            </div>
+                          );
+                        })}
+                        <div className="flex items-center justify-end gap-3 px-4 pb-3 pt-2">
+                          {etf && (
+                            <Link href={`/etf/${p.asset.ticker}`} className="whitespace-nowrap font-mono text-[10.5px] tracking-[0.1em] text-zinc-400 hover:text-white">
+                              [ {p.asset.ticker} DEEP VIEW → ]
+                            </Link>
+                          )}
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+              );
+            })}
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -311,9 +328,10 @@ function PortfolioEtfs({ positions, onClose }: { positions: Position[]; onClose?
 /* ───────────────────── Resizable split row ───────────────────── */
 
 type PaneId = "sector" | "etfs";
-const PANE_TITLE: Record<PaneId, string> = { sector: "Sector Overlap", etfs: "ETFs in portfolio" };
+const PANE_TITLE: Record<PaneId, string> = { sector: "Sector Overlap", etfs: "Open positions" };
 const MIN_RATIO = 0.28;
-const LAYOUT_KEY = "inferno.portfolio.split.v2";
+const LAYOUT_KEY = "inferno.portfolio.split.v3";
+const DEFAULT_RATIO = 0.7;
 
 /** Narrow "+" rail that brings a hidden panel back. */
 function AddRail({ id, onAdd }: { id: PaneId; onAdd: () => void }) {
@@ -334,12 +352,12 @@ function AddRail({ id, onAdd }: { id: PaneId; onAdd: () => void }) {
 }
 
 /**
- * Sector Overlap ⇄ ETFs in portfolio: one joined strip, equal heights, a draggable divider
+ * Open positions (left, 70%) ⇄ Sector Overlap (right): one joined strip, equal heights, a draggable divider
  * to trade width between them (double-click resets), X to hide a panel, + to bring it back.
  */
 function SplitRow({ positions }: { positions: Position[] }) {
   const rowRef = useRef<HTMLDivElement>(null);
-  const [ratio, setRatio] = useState(0.5); // width share of the left (sector) panel
+  const [ratio, setRatio] = useState(DEFAULT_RATIO); // width share of the left (positions) panel
   const [shown, setShown] = useState<Record<PaneId, boolean>>({ sector: true, etfs: true });
   const [dragging, setDragging] = useState(false);
 
@@ -393,7 +411,7 @@ function SplitRow({ positions }: { positions: Position[] }) {
   if (!shown.sector && !shown.etfs) {
     return (
       <div className="flex gap-3">
-        {(["sector", "etfs"] as PaneId[]).map((id) => (
+        {(["etfs", "sector"] as PaneId[]).map((id) => (
           <button key={id} type="button" onClick={() => show(id)} className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-dashed border-white/[0.08] py-6 font-mono text-[11px] font-bold tracking-[0.12em] text-zinc-500 transition-colors hover:border-red-500/40 hover:text-white">
             <span className="text-[15px]">+</span> {PANE_TITLE[id].toUpperCase()}
           </button>
@@ -405,18 +423,18 @@ function SplitRow({ positions }: { positions: Position[] }) {
   return (
     <div ref={rowRef} className={`flex flex-col items-stretch gap-4 xl:flex-row xl:gap-0 ${dragging ? "cursor-col-resize select-none" : ""}`}>
       <AnimatePresence initial={false}>
-        {!shown.sector && <AddRail key="add-sector" id="sector" onAdd={() => show("sector")} />}
+        {!shown.etfs && <AddRail key="add-etfs" id="etfs" onAdd={() => show("etfs")} />}
       </AnimatePresence>
-      {!shown.sector && <div className="hidden w-3 xl:block" />}
+      {!shown.etfs && <div className="hidden w-3 xl:block" />}
 
-      {shown.sector && (
+      {shown.etfs && (
         <motion.div
           layout
           transition={spring}
           className={`min-w-0 ${both ? "xl:w-[var(--split-w)] xl:flex-none" : "flex-1"}`}
           style={{ "--split-w": `calc(${ratio * 100}% - 6px)` } as React.CSSProperties}
         >
-          <SectorOverlap positions={positions} onClose={() => hide("sector")} />
+          <PortfolioEtfs positions={positions} onClose={() => hide("etfs")} />
         </motion.div>
       )}
 
@@ -429,7 +447,7 @@ function SplitRow({ positions }: { positions: Position[] }) {
           aria-valuemax={Math.round((1 - MIN_RATIO) * 100)}
           tabIndex={0}
           onPointerDown={onPointerDown}
-          onDoubleClick={() => setRatio(0.5)}
+          onDoubleClick={() => setRatio(DEFAULT_RATIO)}
           onKeyDown={onKey}
           title="Drag to resize · double-click to reset"
           className="group relative hidden w-3 flex-none cursor-col-resize touch-none items-center justify-center outline-none xl:flex"
@@ -441,15 +459,15 @@ function SplitRow({ positions }: { positions: Position[] }) {
         </div>
       )}
 
-      {shown.etfs && (
+      {shown.sector && (
         <motion.div layout transition={spring} className="min-w-0 flex-1">
-          <PortfolioEtfs positions={positions} onClose={() => hide("etfs")} />
+          <SectorOverlap positions={positions} onClose={() => hide("sector")} />
         </motion.div>
       )}
 
-      {!shown.etfs && <div className="hidden w-3 xl:block" />}
+      {!shown.sector && <div className="hidden w-3 xl:block" />}
       <AnimatePresence initial={false}>
-        {!shown.etfs && <AddRail key="add-etfs" id="etfs" onAdd={() => show("etfs")} />}
+        {!shown.sector && <AddRail key="add-sector" id="sector" onAdd={() => show("sector")} />}
       </AnimatePresence>
     </div>
   );
@@ -463,9 +481,6 @@ export default function PortfolioDeepView({ positions }: { positions: Position[]
     <div className="flex flex-col gap-4">
       <motion.div custom={0} variants={reveal} initial="hidden" animate="show">
         <SplitRow positions={positions} />
-      </motion.div>
-      <motion.div custom={1} variants={reveal} initial="hidden" animate="show">
-        <DrawdownSim positions={positions} />
       </motion.div>
     </div>
   );

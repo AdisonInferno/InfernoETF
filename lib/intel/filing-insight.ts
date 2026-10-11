@@ -13,6 +13,8 @@ import { promises as fs } from "node:fs";
 import path from "node:path";
 import { GoogleGenAI, Type } from "@google/genai";
 import { UA } from "./sec";
+import { focusById, SECTOR_OF_TICKER } from "./focus";
+import { TICKER_SUB } from "@/lib/news-archive/sectors";
 
 export type Direction = "up" | "down" | "neutral";
 export interface Insight {
@@ -23,6 +25,10 @@ export interface Insight {
   detail: string;
   /** Where the read comes from */
   basis: "form4" | "xbrl" | "rules" | "ai" | "none";
+  /** 1 (routine) … 5 (market-moving) */
+  importance: number;
+  /** Sector most affected by the news */
+  sector?: string;
 }
 export interface FilingRef { ticker: string; cik: number; form: string; accession: string; doc: string; items: string }
 
@@ -46,7 +52,7 @@ async function remember(key: string, v: Insight) {
 }
 
 const get = async (url: string, json = false) => {
-  const res = await fetch(url, { headers: { "User-Agent": UA }, cache: "no-store" });
+  const res = await fetch(url, { headers: { "User-Agent": UA }, cache: "no-store", signal: AbortSignal.timeout(12_000) });
   if (!res.ok) throw new Error(`SEC ${res.status}`);
   return json ? res.json() : res.text();
 };
@@ -78,19 +84,19 @@ async function form4(f: FilingRef): Promise<Insight> {
   const avg = (xs: typeof tx) => (shares(xs) ? total(xs) / shares(xs) : 0);
 
   if (buys.length) {
-    return { direction: "up", basis: "form4", headline: `Insider buy · ${usd(total(buys))}`,
+    return { direction: "up", basis: "form4", importance: total(buys) >= 1e6 ? 4 : 3, headline: `Insider buy · ${usd(total(buys))}`,
       detail: `${who} bought ${shares(buys).toLocaleString("en-US")} shares on the open market at ~$${avg(buys).toFixed(2)}. Open-market purchases with personal money are one of the stronger insider signals.` };
   }
   if (sells.length) {
     return plan
-      ? { direction: "neutral", basis: "form4", headline: `Planned sale (10b5-1) · ${usd(total(sells))}`,
+      ? { direction: "neutral", basis: "form4", importance: 1, headline: `Planned sale (10b5-1) · ${usd(total(sells))}`,
           detail: `${who} sold ${shares(sells).toLocaleString("en-US")} shares at ~$${avg(sells).toFixed(2)} under a pre-arranged 10b5-1 plan. Scheduled sales are routine (taxes, diversification) and usually not a view on the stock.` }
-      : { direction: "down", basis: "form4", headline: `Insider sale · ${usd(total(sells))}`,
+      : { direction: "down", basis: "form4", importance: total(sells) >= 10e6 ? 3 : 2, headline: `Insider sale · ${usd(total(sells))}`,
           detail: `${who} sold ${shares(sells).toLocaleString("en-US")} shares at ~$${avg(sells).toFixed(2)}, not flagged as a pre-planned 10b5-1 sale. Discretionary selling is a mild negative signal, stronger when several insiders sell together.` };
   }
   const codes = [...new Set(tx.map((x) => x.code))].filter(Boolean);
   const what = codes.map((c) => CODE_LABEL[c] ?? `code ${c}`).join(", ") || "reported holdings";
-  return { direction: "neutral", basis: "form4", headline: codes.includes("A") || codes.includes("M") ? "Stock award / option exercise" : "Holdings update",
+  return { direction: "neutral", basis: "form4", importance: 1, headline: codes.includes("A") || codes.includes("M") ? "Stock award / option exercise" : "Holdings update",
     detail: `${who} ${what}${shares(tx) ? ` ${shares(tx).toLocaleString("en-US")} shares` : ""}. Compensation-related — no buying or selling on the open market.` };
 }
 
@@ -121,7 +127,7 @@ async function periodic(f: FilingRef): Promise<Insight> {
   let rev: ReturnType<typeof yoy> = null;
   for (const c of REVENUE) { rev = yoy(await concept(f.cik, c, "USD"), f.accession, annual); if (rev) break; }
   const eps = yoy(await concept(f.cik, "EarningsPerShareDiluted", "USD/shares"), f.accession, annual);
-  if (!rev && !eps) return { direction: "neutral", basis: "none", headline: annual ? "Annual report filed" : "Quarterly report filed", detail: "Structured financial data for this filing isn't available yet." };
+  if (!rev && !eps) return { direction: "neutral", basis: "none", importance: 3, headline: annual ? "Annual report filed" : "Quarterly report filed", detail: "Structured financial data for this filing isn't available yet." };
 
   const revG = rev?.prev ? ((rev.cur - rev.prev) / Math.abs(rev.prev)) * 100 : null;
   const epsG = eps?.prev ? ((eps.cur - eps.prev) / Math.abs(eps.prev)) * 100 : null;
@@ -131,6 +137,7 @@ async function periodic(f: FilingRef): Promise<Insight> {
   const period = annual ? "fiscal year" : "quarter";
   return {
     direction, basis: "xbrl",
+    importance: [revG, epsG].some((x) => x != null && Math.abs(x) >= 15) ? 5 : 4,
     headline: parts.join(" · "),
     detail: `For the ${period} ending ${(rev ?? eps)!.end}: ${parts.join(", ")} versus the same ${period} a year earlier. ${direction === "up" ? "Both sales and earnings grew." : direction === "down" ? "Sales and earnings both declined." : "Mixed picture — not all key lines moved the same way."}`,
   };
@@ -138,13 +145,13 @@ async function periodic(f: FilingRef): Promise<Insight> {
 
 /* ── 8-K ── */
 const RULES: Record<string, Insight> = {
-  "2.05": { direction: "down", basis: "rules", headline: "Restructuring / exit costs", detail: "The company disclosed a restructuring plan or exit activity, usually meaning job cuts, closures and one-off charges." },
-  "2.06": { direction: "down", basis: "rules", headline: "Material impairment", detail: "The company wrote down the value of assets (e.g. goodwill or an acquisition), signalling they are worth less than expected." },
-  "3.01": { direction: "down", basis: "rules", headline: "Listing standard notice", detail: "The exchange flagged a listing-rule issue or the company plans to delist or transfer its listing." },
-  "4.01": { direction: "down", basis: "rules", headline: "Auditor change", detail: "The company changed its auditor. Usually routine, but unexpected changes can point to accounting disagreements." },
-  "4.02": { direction: "down", basis: "rules", headline: "Prior financials unreliable", detail: "Previously issued financial statements should no longer be relied on and will be restated — a serious red flag." },
-  "5.02": { direction: "neutral", basis: "rules", headline: "Leadership change", detail: "An executive or board member was appointed, departed or had their compensation changed." },
-  "5.07": { direction: "neutral", basis: "rules", headline: "Shareholder vote results", detail: "Results of matters voted on at the shareholder meeting." },
+  "2.05": { importance: 4, direction: "down", basis: "rules", headline: "Restructuring / exit costs", detail: "The company disclosed a restructuring plan or exit activity, usually meaning job cuts, closures and one-off charges." },
+  "2.06": { importance: 4, direction: "down", basis: "rules", headline: "Material impairment", detail: "The company wrote down the value of assets (e.g. goodwill or an acquisition), signalling they are worth less than expected." },
+  "3.01": { importance: 3, direction: "down", basis: "rules", headline: "Listing standard notice", detail: "The exchange flagged a listing-rule issue or the company plans to delist or transfer its listing." },
+  "4.01": { importance: 3, direction: "down", basis: "rules", headline: "Auditor change", detail: "The company changed its auditor. Usually routine, but unexpected changes can point to accounting disagreements." },
+  "4.02": { importance: 5, direction: "down", basis: "rules", headline: "Prior financials unreliable", detail: "Previously issued financial statements should no longer be relied on and will be restated — a serious red flag." },
+  "5.02": { importance: 3, direction: "neutral", basis: "rules", headline: "Leadership change", detail: "An executive or board member was appointed, departed or had their compensation changed." },
+  "5.07": { importance: 1, direction: "neutral", basis: "rules", headline: "Shareholder vote results", detail: "Results of matters voted on at the shareholder meeting." },
 };
 
 const strip = (html: string) => html.replace(/<script[\s\S]*?<\/script>|<style[\s\S]*?<\/style>/gi, " ").replace(/<[^>]+>/g, " ").replace(/&nbsp;|&#160;/g, " ").replace(/&amp;/g, "&").replace(/&#8217;|&rsquo;/g, "'").replace(/&#\d+;|&\w+;/g, " ").replace(/\s+/g, " ").trim();
@@ -157,21 +164,28 @@ async function aiRead(f: FilingRef, text: string): Promise<Insight | null> {
     model: process.env.GEMINI_MODEL ?? "gemini-3.5-flash",
     contents: `Company: ${f.ticker}\nFiling: ${f.form} (items ${f.items || "n/a"})\n\nDOCUMENT TEXT:\n${text.slice(0, 14000)}`,
     config: {
-      systemInstruction: "You are an equity analyst. Using ONLY the provided SEC filing text (no outside knowledge), judge whether the disclosed news is positive (up), negative (down) or neutral for shareholders. headline: max 80 characters, concrete numbers where present. detail: max 2 sentences explaining why.",
+      systemInstruction: "You are an equity analyst. Using ONLY the provided SEC filing text (no outside knowledge), judge whether the disclosed news is positive (up), negative (down) or neutral for shareholders. headline: max 80 characters, concrete numbers where present. detail: max 2 sentences explaining why. importance: 1 = routine/administrative, 3 = notable, 5 = likely to move the stock or its sector. sector: the industry most affected by this news, 1-3 words (e.g. Defense, Semiconductors, Cloud Software).",
       temperature: 0.1,
       responseMimeType: "application/json",
       responseSchema: {
         type: Type.OBJECT,
-        properties: { direction: { type: Type.STRING, enum: ["up", "down", "neutral"] }, headline: { type: Type.STRING }, detail: { type: Type.STRING } },
-        required: ["direction", "headline", "detail"],
-        propertyOrdering: ["direction", "headline", "detail"],
+        properties: {
+          direction: { type: Type.STRING, enum: ["up", "down", "neutral"] },
+          headline: { type: Type.STRING },
+          detail: { type: Type.STRING },
+          importance: { type: Type.INTEGER, minimum: 1, maximum: 5 },
+          sector: { type: Type.STRING },
+        },
+        required: ["direction", "headline", "detail", "importance", "sector"],
+        propertyOrdering: ["direction", "headline", "detail", "importance", "sector"],
       },
     },
   });
   const j = JSON.parse(res.text ?? "{}");
   if (!j.headline) return null;
   const dir: Direction = j.direction === "up" || j.direction === "down" ? j.direction : "neutral";
-  return { direction: dir, basis: "ai", headline: String(j.headline).slice(0, 90), detail: String(j.detail ?? "").slice(0, 400) };
+  const imp = Math.max(1, Math.min(5, Math.round(Number(j.importance) || 3)));
+  return { direction: dir, basis: "ai", importance: imp, sector: j.sector ? String(j.sector).slice(0, 30) : undefined, headline: String(j.headline).slice(0, 90), detail: String(j.detail ?? "").slice(0, 400) };
 }
 
 async function eightK(f: FilingRef): Promise<Insight> {
@@ -190,22 +204,27 @@ async function eightK(f: FilingRef): Promise<Insight> {
   if (ai) return ai;
   const neutral = codes.map((c) => RULES[c]).find(Boolean);
   if (neutral) return neutral;
-  return { direction: "neutral", basis: "none", headline: codes.includes("2.02") ? "Results released — open filing" : "Event disclosed — open filing", detail: "Add GEMINI_API_KEY to get an automatic read of this filing's press release." };
+  return { direction: "neutral", basis: "none", importance: codes.includes("2.02") ? 4 : 2, headline: codes.includes("2.02") ? "Results released — open filing" : "Event disclosed — open filing", detail: "Add GEMINI_API_KEY to get an automatic read of this filing's press release." };
 }
 
 /* ── entry ── */
+/** Sector label for a company: focus sector if we track it, else its archive sub-sector. */
+const companySector = (t: string) => (SECTOR_OF_TICKER[t] ? focusById(SECTOR_OF_TICKER[t]).label : TICKER_SUB[t] ?? "");
+
 export async function insightFor(f: FilingRef): Promise<Insight> {
   const m = await cacheMap();
-  if (m[f.accession]) return m[f.accession];
+  const key = `v2:${f.accession}`; // v2 = includes importance + sector
+  if (m[key]) return m[key];
   let out: Insight;
   try {
     out = f.form === "4" ? await form4(f)
       : f.form === "10-Q" || f.form === "10-K" ? await periodic(f)
       : f.form === "8-K" ? await eightK(f)
-      : { direction: "neutral", basis: "none", headline: "Filed — open document", detail: "No automatic read for this form type yet." };
+      : { direction: "neutral", basis: "none", importance: 2, headline: "Filed — open document", detail: "No automatic read for this form type yet." };
   } catch (e) {
-    return { direction: "neutral", basis: "none", headline: "Insight unavailable", detail: e instanceof Error ? e.message : "SEC request failed" }; // not cached → retried later
+    return { direction: "neutral", basis: "none", importance: 1, sector: companySector(f.ticker), headline: "Insight unavailable", detail: e instanceof Error ? e.message : "SEC request failed" }; // not cached → retried later
   }
-  if (out.basis !== "none") await remember(f.accession, out);
+  out = { ...out, sector: out.sector || companySector(f.ticker) };
+  if (out.basis !== "none") await remember(key, out);
   return out;
 }
