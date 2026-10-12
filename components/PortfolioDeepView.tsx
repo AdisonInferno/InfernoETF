@@ -8,8 +8,8 @@ import { ETFS, fmtAum } from "@/lib/etfs";
 import { QUOTE } from "@/lib/fund-profiles";
 import { drillDown, loadLots, lookThrough, saveLots, sectorExposure, type Lot, type Position } from "@/lib/portfolio";
 
-export const SEG_COLORS = ["#4ade80", "#60a5fa", "#a78bfa", "#f59e0b", "#f472b6", "#22d3ee", "#f87171", "#a3e635"];
-const panel = "rounded-xl border border-white/[0.04] bg-black/30 p-5";
+export const SEG_COLORS = ["#4ade80", "#60a5fa", "#94a3b8", "#f59e0b", "#f472b6", "#22d3ee", "#f87171", "#a3e635"];
+const panel = "rounded-sm border border-white/[0.06] bg-[#030303] p-3";
 const label = "font-mono text-[10px] font-semibold tracking-[0.14em] text-zinc-500";
 const pct = (v: number, d = 1) => (v >= 0 ? "+" : "") + v.toFixed(d) + "%";
 
@@ -29,7 +29,7 @@ function CloseBtn({ onClick, title }: { onClick?: () => void; title: string }) {
       onClick={onClick}
       title={`Hide ${title}`}
       aria-label={`Hide ${title}`}
-      className="flex h-6 w-6 flex-none items-center justify-center rounded-md text-zinc-600 transition-colors hover:bg-white/[0.08] hover:text-white"
+      className="flex h-6 w-6 flex-none items-center justify-center rounded-sm text-zinc-600 transition-colors hover:bg-white/[0.08] hover:text-white"
     >
       <svg width="10" height="10" viewBox="0 0 10 10" stroke="currentColor" strokeWidth="1.6"><path d="M1 1l8 8M9 1L1 9" /></svg>
     </button>
@@ -70,7 +70,7 @@ function SectorOverlap({ positions, onClose }: { positions: Position[]; onClose?
           );
         })}
       </div>
-      <div className="flex flex-wrap gap-3 border-t border-white/[0.04] pt-3">
+      <div className="flex flex-wrap gap-3 border-t border-white/[0.06] pt-3">
         {positions.map((p, i) => (
           <span key={p.asset.ticker} className="flex items-center gap-1.5 font-mono text-[10.5px] text-zinc-400">
             <span className="h-2 w-2 rounded-sm" style={{ background: SEG_COLORS[i % SEG_COLORS.length] }} />{p.asset.ticker}
@@ -201,7 +201,7 @@ function PortfolioEtfs({ positions, onClose }: { positions: Position[]; onClose?
 
       <div className="grid grid-cols-2 gap-2 md:grid-cols-5">
         {stats.map(([k, v, c, sub]) => (
-          <div key={k} className="rounded-sm border border-white/[0.05] bg-[#0a0a0c] px-3 py-2">
+          <div key={k} className="rounded-sm border border-white/[0.06] bg-[#0a0a0c] px-3 py-2">
             <div className={label}>{k}</div>
             <div className={`mt-1 font-mono text-[15px] font-semibold tabular-nums ${c}`}>{v}</div>
             {sub && <div className={`font-mono text-[10px] tabular-nums ${k === "FEES / YEAR" ? "text-zinc-600" : c}`}>{sub}</div>}
@@ -230,7 +230,7 @@ function PortfolioEtfs({ positions, onClose }: { positions: Position[]; onClose?
               const isOpen = open === p.asset.ticker;
               const look = lookRows(p, 12);
               return (
-                <div key={p.asset.ticker} className={`overflow-hidden rounded-sm border transition-colors ${isOpen ? "border-white/[0.1] bg-white/[0.015]" : "border-white/[0.05] bg-[#0a0a0c]"}`}>
+                <div key={p.asset.ticker} className={`overflow-hidden rounded-sm border transition-colors ${isOpen ? "border-white/[0.1] bg-white/[0.015]" : "border-white/[0.06] bg-[#0a0a0c]"}`}>
                   <button
                     type="button"
                     onClick={() => setOpen(isOpen ? null : p.asset.ticker)}
@@ -270,11 +270,11 @@ function PortfolioEtfs({ positions, onClose }: { positions: Position[]; onClose?
                         animate={{ height: "auto", opacity: 1 }}
                         exit={{ height: 0, opacity: 0 }}
                         transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
-                        className="border-t border-white/[0.05] bg-black/20"
+                        className="border-t border-white/[0.06] bg-[#030303]"
                       >
                         <LotEditor key={`${r.lot.qty}-${r.lot.avg}`} lot={r.lot} custom={r.custom} onSave={(l) => save(p.asset.ticker, l)} />
 
-                        <div className="grid grid-cols-2 gap-x-6 gap-y-1 border-t border-white/[0.04] px-4 py-3 font-mono text-[11px] sm:grid-cols-4">
+                        <div className="grid grid-cols-2 gap-x-6 gap-y-1 border-t border-white/[0.06] px-4 py-3 font-mono text-[11px] sm:grid-cols-4">
                           {([
                             ["COST BASIS", M(r.cost)],
                             ["YTD", pct(p.asset.ytd)],
@@ -285,7 +285,7 @@ function PortfolioEtfs({ positions, onClose }: { positions: Position[]; onClose?
                           ))}
                         </div>
 
-                        <div className="grid grid-cols-[60px_minmax(0,1fr)_64px_84px_92px] gap-3 border-t border-white/[0.04] px-4 pb-1 pt-3 font-mono text-[9px] tracking-[0.12em] text-zinc-600">
+                        <div className="grid grid-cols-[60px_minmax(0,1fr)_64px_84px_92px] gap-3 border-t border-white/[0.06] px-4 pb-1 pt-3 font-mono text-[9px] tracking-[0.12em] text-zinc-600">
                           <span>STOCK</span><span />
                           <span className="text-right">IN {p.asset.kind === "etf" ? "ETF" : "POS"}</span>
                           <span className="text-right" title={`Weight in ETF × ${p.weight}% of portfolio`}>VIA {p.asset.ticker}</span>
@@ -343,9 +343,9 @@ function AddRail({ id, onAdd }: { id: PaneId; onAdd: () => void }) {
       animate={{ opacity: 1, x: 0 }}
       exit={{ opacity: 0, x: 12 }}
       title={`Show ${PANE_TITLE[id]}`}
-      className="group flex w-12 flex-none flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-white/[0.08] bg-black/20 text-zinc-500 transition-colors hover:border-red-500/40 hover:text-white"
+      className="group flex w-12 flex-none flex-col items-center justify-center gap-3 rounded-sm border border-dashed border-white/[0.08] bg-[#030303] text-zinc-500 transition-colors hover:border-red-500/40 hover:text-white"
     >
-      <span className="flex h-7 w-7 items-center justify-center rounded-md bg-white/[0.05] text-[16px] leading-none group-hover:bg-red-500/20 group-hover:text-red-300">+</span>
+      <span className="flex h-7 w-7 items-center justify-center rounded-sm bg-white/[0.05] text-[16px] leading-none group-hover:bg-red-500/20 group-hover:text-red-300">+</span>
       <span className="font-mono text-[10px] font-bold tracking-[0.14em] [writing-mode:vertical-rl]">{PANE_TITLE[id].toUpperCase()}</span>
     </motion.button>
   );
@@ -377,7 +377,7 @@ function SplitRow({ positions }: { positions: Position[] }) {
     return (
       <div className="flex gap-3">
         {(["etfs", "sector"] as PaneId[]).map((id) => (
-          <button key={id} type="button" onClick={() => show(id)} className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-dashed border-white/[0.08] py-6 font-mono text-[11px] font-bold tracking-[0.12em] text-zinc-500 transition-colors hover:border-red-500/40 hover:text-white">
+          <button key={id} type="button" onClick={() => show(id)} className="flex flex-1 items-center justify-center gap-2 rounded-sm border border-dashed border-white/[0.08] py-3 font-mono text-[11px] font-bold tracking-[0.12em] text-zinc-500 transition-colors hover:border-red-500/40 hover:text-white">
             <span className="text-[15px]">+</span> {PANE_TITLE[id].toUpperCase()}
           </button>
         ))}

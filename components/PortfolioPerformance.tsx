@@ -71,11 +71,11 @@ export default function PortfolioPerformance({ positions, chartHeight = 200, tf:
   };
 
   return (
-    <div className="flex flex-col gap-2.5 rounded-xl border border-white/[0.05] bg-[#030303]/60 p-3.5">
+    <div className="flex flex-col gap-2.5 rounded-sm border border-white/[0.06] bg-[#030303]/60 p-3.5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-4">
           <span className={`${label} text-zinc-300`}>PERFORMANCE</span>
-          <span className="flex items-center gap-1.5 font-mono text-[10.5px] text-zinc-300"><span className="h-0.5 w-4 rounded-full bg-emerald-400" />MY PORTFOLIO</span>
+          <span className="flex items-center gap-1.5 font-mono text-[10.5px] text-zinc-300"><span className="h-0.5 w-4 rounded-none bg-emerald-400" />MY PORTFOLIO</span>
           <span className="flex items-center gap-1.5 font-mono text-[10.5px] text-zinc-400"><span className="h-0 w-4 border-t border-dashed border-zinc-400" />S&amp;P 500 · {BENCH}</span>
         </div>
         <div className="flex gap-1">
@@ -84,7 +84,7 @@ export default function PortfolioPerformance({ positions, chartHeight = 200, tf:
               key={k}
               type="button"
               onClick={() => { setTf(k); setHover(null); }}
-              className={`rounded-md px-2.5 py-1 font-mono text-[10.5px] font-bold transition-colors ${tf === k ? "bg-white/[0.1] text-white shadow-[inset_0_0_0_1px_rgba(255,255,255,0.1)]" : "text-zinc-500 hover:text-zinc-200"}`}
+              className={`rounded-sm px-2.5 py-1 font-mono text-[10.5px] font-bold transition-colors ${tf === k ? "bg-white/[0.1] text-white shadow-[inset_0_0_0_1px_rgba(255,255,255,0.1)]" : "text-zinc-500 hover:text-zinc-200"}`}
             >
               {k}
             </button>
@@ -130,8 +130,8 @@ export default function PortfolioPerformance({ positions, chartHeight = 200, tf:
         {hover !== null && (
           <>
             <div className="pointer-events-none absolute bottom-0 top-0 w-px bg-white/20" style={{ left: `${(x(i) / 1000) * 100}%` }} />
-            <div className="pointer-events-none absolute -ml-1 -mt-1 h-2 w-2 rounded-full bg-emerald-400" style={{ left: `${(x(i) / 1000) * 100}%`, top: `${(y(mine[i]) / 200) * 100}%` }} />
-            <div className="pointer-events-none absolute -ml-1 -mt-1 h-2 w-2 rounded-full border border-zinc-300 bg-[#030303]" style={{ left: `${(x(i) / 1000) * 100}%`, top: `${(y(bench[i]) / 200) * 100}%` }} />
+            <div className="pointer-events-none absolute -ml-1 -mt-1 h-2 w-2 rounded-none bg-emerald-400" style={{ left: `${(x(i) / 1000) * 100}%`, top: `${(y(mine[i]) / 200) * 100}%` }} />
+            <div className="pointer-events-none absolute -ml-1 -mt-1 h-2 w-2 rounded-none border border-zinc-300 bg-[#030303]" style={{ left: `${(x(i) / 1000) * 100}%`, top: `${(y(bench[i]) / 200) * 100}%` }} />
           </>
         )}
       </div>
@@ -140,7 +140,7 @@ export default function PortfolioPerformance({ positions, chartHeight = 200, tf:
         {TF[tf].axis.map((a) => <span key={a}>{a}</span>)}
       </div>
 
-      <div className="grid grid-cols-3 gap-3 border-t border-white/[0.05] pt-2.5">
+      <div className="grid grid-cols-3 gap-3 border-t border-white/[0.06] pt-2.5">
         <div>
           <div className={label}>MY PORTFOLIO</div>
           <div className={`mt-1 font-mono text-[15px] font-semibold tabular-nums ${myEnd >= 0 ? "text-emerald-400" : "text-rose-400"}`}>{pct(myEnd)}</div>

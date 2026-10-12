@@ -14,7 +14,7 @@ export default function ScannerShell() {
     <button
       type="button"
       onClick={() => setView(v)}
-      className={`rounded-lg px-3 py-1.5 text-[12px] font-semibold transition-colors ${
+      className={`rounded-sm px-3 py-1.5 font-mono text-[11px] font-bold tracking-[0.1em] transition-colors ${
         view === v ? "bg-white/[0.08] text-white shadow-[inset_0_0_0_1px_rgba(255,255,255,0.06)]" : "text-zinc-500 hover:text-zinc-200"
       }`}
     >
@@ -25,15 +25,15 @@ export default function ScannerShell() {
   return (
     <div className="flex min-h-[640px] flex-1 flex-col">
       <div className="flex-none px-4 pt-3">
-        <div className="inline-flex items-center gap-1 rounded-xl border border-white/[0.05] bg-[#0a0a0c] p-1">
-          {tab("table", "Table Scanner")}
-          {tab("map", "Market Map")}
+        <div className="inline-flex items-center gap-1 rounded-sm border border-white/[0.06] bg-[#0a0a0c] p-1">
+          {tab("table", "[ TABLE ]")}
+          {tab("map", "[ MARKET MAP ]")}
           <Link
             href="/chat"
-            title="AI Chat"
-            className="ml-0.5 rounded-md bg-violet-500/15 px-2 py-1 text-[10px] font-bold text-violet-300 transition-colors hover:bg-violet-500/25"
+            title="Query terminal"
+            className="ml-0.5 rounded-sm border border-white/[0.06] px-2 py-1 font-mono text-[10px] font-bold tracking-[0.1em] text-zinc-400 transition-colors hover:text-white"
           >
-            AI
+            [ QUERY ]
           </Link>
         </div>
       </div>

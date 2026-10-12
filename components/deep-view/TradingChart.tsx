@@ -345,9 +345,9 @@ export default function TradingChart({ fund }: { fund: FundData }) {
   const drawing = tool === "hline" || tool === "range";
 
   return (
-    <div className="flex h-[560px] flex-none overflow-hidden rounded-2xl border border-white/[0.05] bg-[#0a0a0c] font-mono">
+    <div className="flex h-[560px] flex-none overflow-hidden rounded-sm border border-white/[0.06] bg-[#0a0a0c] font-mono">
       {/* ── Left drawing toolbar ── */}
-      <div className="flex w-12 flex-none flex-col items-center gap-1 border-r border-white/[0.05] bg-[#0a0a0c] py-3">
+      <div className="flex w-12 flex-none flex-col items-center gap-1 border-r border-white/[0.06] bg-[#0a0a0c] py-3">
         {(Object.keys(ICONS) as Tool[]).map((t) => {
           const on = t === "crosshair" ? crossOn : tool === t;
           return (
@@ -357,7 +357,7 @@ export default function TradingChart({ fund }: { fund: FundData }) {
               onClick={() => pickTool(t)}
               title={TOOL_TITLE[t]}
               aria-pressed={on}
-              className={`flex h-9 w-9 items-center justify-center rounded-lg transition-colors ${on ? "bg-emerald-400/[0.1] text-emerald-400 shadow-[inset_0_0_0_1px_rgba(52,211,153,0.35)]" : "text-zinc-500 hover:bg-white/[0.05] hover:text-zinc-100"}`}
+              className={`flex h-9 w-9 items-center justify-center rounded-sm transition-colors ${on ? "bg-emerald-400/[0.1] text-emerald-400 shadow-[inset_0_0_0_1px_rgba(52,211,153,0.35)]" : "text-zinc-500 hover:bg-white/[0.05] hover:text-zinc-100"}`}
             >
               <svg viewBox="0 0 20 20" className="h-[18px] w-[18px]" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden>{ICONS[t]}</svg>
             </button>
@@ -369,7 +369,7 @@ export default function TradingChart({ fund }: { fund: FundData }) {
           onClick={clearDrawings}
           disabled={!hlines.length && !ranges.length && !pending}
           title="Remove all drawings"
-          className="flex h-9 w-9 items-center justify-center rounded-lg text-zinc-500 transition-colors hover:bg-white/[0.05] hover:text-red-400 disabled:pointer-events-none disabled:opacity-30"
+          className="flex h-9 w-9 items-center justify-center rounded-sm text-zinc-500 transition-colors hover:bg-white/[0.05] hover:text-red-400 disabled:pointer-events-none disabled:opacity-30"
         >
           <svg viewBox="0 0 20 20" className="h-[17px] w-[17px]" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" aria-hidden><path d="M4 6h12M8 6V4h4v2M6 6l1 10h6l1-10" /></svg>
         </button>
@@ -378,8 +378,8 @@ export default function TradingChart({ fund }: { fund: FundData }) {
 
       <div className="flex min-w-0 flex-1 flex-col">
         {/* ── Header ── */}
-        <div className="flex flex-none flex-wrap items-center gap-x-4 gap-y-2 border-b border-white/[0.05] px-3 py-2.5">
-          <div role="tablist" aria-label="Range" className="flex items-center rounded-lg border border-white/[0.05] bg-[#030303] p-0.5">
+        <div className="flex flex-none flex-wrap items-center gap-x-4 gap-y-2 border-b border-white/[0.06] px-3 py-2.5">
+          <div role="tablist" aria-label="Range" className="flex items-center rounded-sm border border-white/[0.06] bg-[#030303] p-0.5">
             {RANGES.map((r) => (
               <button
                 key={r}
@@ -387,7 +387,7 @@ export default function TradingChart({ fund }: { fund: FundData }) {
                 role="tab"
                 aria-selected={r === range}
                 onClick={() => setRange(r)}
-                className={`h-7 min-w-[38px] rounded-md px-2 text-[11px] font-bold tracking-[0.04em] transition-colors ${r === range ? "bg-white/[0.08] text-emerald-400 shadow-[inset_0_0_0_1px_rgba(52,211,153,0.35)]" : "text-zinc-500 hover:text-zinc-100"}`}
+                className={`h-7 min-w-[38px] rounded-sm px-2 text-[11px] font-bold tracking-[0.04em] transition-colors ${r === range ? "bg-white/[0.08] text-emerald-400 shadow-[inset_0_0_0_1px_rgba(52,211,153,0.35)]" : "text-zinc-500 hover:text-zinc-100"}`}
               >
                 {r}
               </button>
@@ -400,14 +400,14 @@ export default function TradingChart({ fund }: { fund: FundData }) {
           </span>
 
           <div className="ml-auto flex items-center gap-2">
-            <div className="flex items-center rounded-lg border border-white/[0.05] bg-[#030303] p-0.5">
+            <div className="flex items-center rounded-sm border border-white/[0.06] bg-[#030303] p-0.5">
               {(["line", "candles"] as const).map((c) => (
                 <button
                   key={c}
                   type="button"
                   onClick={() => setKind(c)}
                   aria-pressed={kind === c}
-                  className={`flex h-7 items-center gap-1.5 rounded-md px-2.5 text-[10.5px] font-bold uppercase tracking-[0.08em] transition-colors ${kind === c ? "bg-white/[0.08] text-white" : "text-zinc-500 hover:text-zinc-100"}`}
+                  className={`flex h-7 items-center gap-1.5 rounded-sm px-2.5 text-[10.5px] font-bold uppercase tracking-[0.08em] transition-colors ${kind === c ? "bg-white/[0.08] text-white" : "text-zinc-500 hover:text-zinc-100"}`}
                 >
                   <svg viewBox="0 0 14 14" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="1.4" aria-hidden>
                     {c === "line" ? <path d="M1 10l3-4 3 2 3-5 3 3" /> : <><path d="M4 2v10M10 1v12" /><rect x="2.5" y="4" width="3" height="5" fill="currentColor" /><rect x="8.5" y="3" width="3" height="6" /></>}
@@ -422,12 +422,12 @@ export default function TradingChart({ fund }: { fund: FundData }) {
                 type="button"
                 onClick={() => setMenu((m) => !m)}
                 aria-expanded={menu}
-                className="flex h-8 items-center gap-1.5 rounded-lg border border-white/[0.08] px-2.5 text-[10.5px] font-bold tracking-[0.08em] text-zinc-300 transition-colors hover:border-emerald-400/50 hover:text-emerald-400"
+                className="flex h-8 items-center gap-1.5 rounded-sm border border-white/[0.08] px-2.5 text-[10.5px] font-bold tracking-[0.08em] text-zinc-300 transition-colors hover:border-emerald-400/50 hover:text-emerald-400"
               >
                 [ + ADD INDICATOR ]{ind.size > 0 && <span className="rounded bg-white/[0.08] px-1 text-[9.5px] text-zinc-400">{ind.size}</span>}
               </button>
               {menu && (
-                <div className="absolute right-0 top-[calc(100%+6px)] z-20 w-52 overflow-hidden rounded-xl border border-white/[0.08] bg-[#0a0a0c] py-1 shadow-[0_12px_32px_rgba(0,0,0,0.6)]">
+                <div className="absolute right-0 top-[calc(100%+6px)] z-20 w-52 overflow-hidden rounded-sm border border-white/[0.08] bg-[#0a0a0c] py-1 ">
                   {INDICATORS.map((d) => {
                     const on = ind.has(d.id);
                     return (
@@ -436,7 +436,7 @@ export default function TradingChart({ fund }: { fund: FundData }) {
                           {on && <svg viewBox="0 0 12 12" className="h-2.5 w-2.5" aria-hidden><path d="M2.5 6.2 5 8.6 9.6 3.6" fill="none" stroke="#030303" strokeWidth="2" strokeLinecap="round" /></svg>}
                         </span>
                         <span className="flex-1">{d.label}</span>
-                        <span className="h-0.5 w-4 rounded-full" style={{ background: d.color }} />
+                        <span className="h-0.5 w-4 rounded-none" style={{ background: d.color }} />
                       </button>
                     );
                   })}
@@ -463,7 +463,7 @@ export default function TradingChart({ fund }: { fund: FundData }) {
             {INDICATORS.filter((d) => d.id !== "volume" && ind.has(d.id)).length > 0 && (
               <div className="flex gap-3">
                 {INDICATORS.filter((d) => d.id !== "volume" && ind.has(d.id)).map((d) => (
-                  <span key={d.id} className="flex items-center gap-1.5 text-zinc-500"><span className="h-0.5 w-3 rounded-full" style={{ background: d.color }} />{d.label}</span>
+                  <span key={d.id} className="flex items-center gap-1.5 text-zinc-500"><span className="h-0.5 w-3 rounded-none" style={{ background: d.color }} />{d.label}</span>
                 ))}
               </div>
             )}
@@ -485,12 +485,12 @@ export default function TradingChart({ fund }: { fund: FundData }) {
                 </div>
               );
             })}
-            {pending && geoms.dot && <span className="absolute -ml-1 -mt-1 h-2 w-2 rounded-full bg-emerald-400" style={{ left: geoms.dot.x, top: geoms.dot.y }} />}
+            {pending && geoms.dot && <span className="absolute -ml-1 -mt-1 h-2 w-2 rounded-none bg-emerald-400" style={{ left: geoms.dot.x, top: geoms.dot.y }} />}
           </div>
 
           {/* Tool hint */}
           {drawing && (
-            <div className="pointer-events-none absolute bottom-10 left-1/2 z-10 -translate-x-1/2 rounded-md border border-white/[0.08] bg-[#030303]/90 px-2.5 py-1 text-[10px] tracking-[0.1em] text-zinc-400">
+            <div className="pointer-events-none absolute bottom-10 left-1/2 z-10 -translate-x-1/2 rounded-sm border border-white/[0.08] bg-[#030303]/90 px-2.5 py-1 text-[10px] tracking-[0.1em] text-zinc-400">
               {tool === "hline" ? "CLICK TO PLACE A SUPPORT / RESISTANCE LINE · ESC TO EXIT" : pending ? "CLICK THE END POINT" : "CLICK THE START POINT · ESC TO EXIT"}
             </div>
           )}

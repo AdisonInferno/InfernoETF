@@ -24,7 +24,7 @@ const MOCK_WATCHLIST: WatchItem[] = [
 ];
 
 const SECTOR_COLORS: Record<string, string> = {
-  "Broad Market": "bg-emerald-500", Technology: "bg-violet-500", Bonds: "bg-sky-500", Commodities: "bg-amber-400", Energy: "bg-rose-500",
+  "Broad Market": "bg-emerald-500", Technology: "bg-zinc-500", Bonds: "bg-sky-500", Commodities: "bg-amber-400", Energy: "bg-rose-500",
 };
 
 const fmtPct = (c: number) => (c > 0 ? "+" : c < 0 ? "−" : "") + Math.abs(c).toFixed(2) + "%";
@@ -33,7 +33,7 @@ const usd = (n: number) => (n < 0 ? "−" : "") + "$" + Math.abs(n).toLocaleStri
 function ChangeBadge({ v }: { v: number }) {
   const up = v >= 0;
   return (
-    <span className={`inline-block rounded-lg px-2 py-0.5 font-mono text-xs font-bold ${up ? "bg-emerald-500/10 text-emerald-400" : "bg-rose-500/10 text-rose-400"}`}>
+    <span className={`inline-block rounded-sm px-2 py-0.5 font-mono text-xs font-bold ${up ? "bg-emerald-500/10 text-emerald-400" : "bg-rose-500/10 text-rose-400"}`}>
       {fmtPct(v)}
     </span>
   );
@@ -41,7 +41,7 @@ function ChangeBadge({ v }: { v: number }) {
 
 function Card({ title, aside, children, className = "" }: { title: string; aside?: React.ReactNode; children: React.ReactNode; className?: string }) {
   return (
-    <section className={`flex min-w-0 flex-col gap-4 rounded-3xl border border-white/[0.04] bg-[#0a0a0c] p-5 ${className}`}>
+    <section className={`flex min-w-0 flex-col gap-4 rounded-sm border border-white/[0.06] bg-[#0a0a0c] p-3 ${className}`}>
       <div className="flex items-center justify-between">
         <span className="text-[11px] font-semibold tracking-[0.1em] text-zinc-500">{title}</span>
         {aside}
@@ -101,14 +101,14 @@ export default function HoldingsPage() {
 
   return (
     <div className="flex flex-1 flex-col bg-[#030303] font-sans text-neutral-200">
-      <div className="mx-auto flex w-full max-w-[1600px] flex-1 flex-col gap-4 px-6 pb-6 pt-4">
+      <div className="mx-auto flex w-full max-w-[3200px] flex-1 flex-col gap-4 px-3 pb-6 pt-4">
         <div className="flex items-center justify-between font-mono text-[10px] tracking-[0.14em] text-zinc-600">
           <span>[ <Link href="/portfolio" className="hover:text-white">DASHBOARD</Link> / <span className="text-zinc-300">MY HOLDINGS</span> ]</span>
           <span>{fromSaved ? `MODEL VALUE $${NOTIONAL.toLocaleString("en-US")} · FROM YOUR PORTFOLIO` : "SAMPLE DATA · BUILD YOUR PORTFOLIO ON THE DASHBOARD"}</span>
         </div>
         <div className="grid grid-cols-[repeat(auto-fit,minmax(200px,1fr))] gap-4">
           {summary.map((s) => (
-            <div key={s.label} className="flex flex-col gap-2 rounded-3xl border border-white/[0.04] bg-[#0a0a0c] p-5">
+            <div key={s.label} className="flex flex-col gap-2 rounded-sm border border-white/[0.06] bg-[#0a0a0c] p-3">
               <span className="text-[11px] font-semibold tracking-[0.1em] text-zinc-500">{s.label}</span>
               <div className="flex items-center gap-2.5">
                 <span className="font-mono text-2xl font-semibold tabular-nums text-zinc-50">{s.value}</span>
@@ -139,7 +139,7 @@ export default function HoldingsPage() {
                     const gp = ((h.price - h.avgCost) / h.avgCost) * 100;
                     return (
                       <tr key={h.ticker} className="group">
-                        <td className={`${td} rounded-l-xl`}>
+                        <td className={`${td} rounded-l-sm`}>
                           <div className="font-mono text-[13px] font-bold text-zinc-50">{h.ticker}</div>
                           <div className="text-[11px] text-zinc-600">{h.name}</div>
                         </td>
@@ -148,9 +148,9 @@ export default function HoldingsPage() {
                         <td className={`${td} text-right`}><ChangeBadge v={h.changePct} /></td>
                         <td className={`${td} text-right font-mono text-[13px] tabular-nums text-zinc-50`}>{usd(val)}</td>
                         <td className={`${td} text-right`}><ChangeBadge v={gp} /></td>
-                        <td className={`${td} rounded-r-xl text-right`}>
+                        <td className={`${td} rounded-r-sm text-right`}>
                           <button type="button" onClick={() => setHoldings((a) => a.filter((x) => x.ticker !== h.ticker))}
-                            className="rounded-full px-2 py-1 text-xs text-zinc-600 opacity-0 transition hover:bg-white/10 hover:text-white group-hover:opacity-100" aria-label={`Remove ${h.ticker}`}>✕</button>
+                            className="rounded-none px-2 py-1 text-xs text-zinc-600 opacity-0 transition hover:bg-white/10 hover:text-white group-hover:opacity-100" aria-label={`Remove ${h.ticker}`}>✕</button>
                         </td>
                       </tr>
                     );
@@ -163,13 +163,13 @@ export default function HoldingsPage() {
 
           <div className="flex min-w-0 flex-col gap-4">
             <Card title="ALLOCATION">
-              <div className="flex h-3 gap-[1px] overflow-hidden rounded-full">
+              <div className="flex h-3 gap-[1px] overflow-hidden rounded-none">
                 {alloc.map(([k, v]) => <div key={k} className={SECTOR_COLORS[k] ?? "bg-zinc-500"} style={{ width: `${(v / stats.value) * 100}%` }} />)}
               </div>
               <div className="flex flex-col gap-1.5">
                 {alloc.map(([k, v]) => (
-                  <div key={k} className="flex items-center gap-2.5 rounded-xl px-3 py-2 transition-colors hover:bg-white/[0.05]">
-                    <span className={`h-2.5 w-2.5 rounded-full ${SECTOR_COLORS[k] ?? "bg-zinc-500"}`} />
+                  <div key={k} className="flex items-center gap-2.5 rounded-sm px-3 py-2 transition-colors hover:bg-white/[0.05]">
+                    <span className={`h-2.5 w-2.5 rounded-none ${SECTOR_COLORS[k] ?? "bg-zinc-500"}`} />
                     <span className="flex-1 text-[13px] text-neutral-200">{k}</span>
                     <span className="font-mono text-xs text-zinc-400">{((v / stats.value) * 100).toFixed(1)}%</span>
                   </div>
@@ -180,7 +180,7 @@ export default function HoldingsPage() {
             <Card title="WATCHLIST" aside={<span className="font-mono text-[11px] text-zinc-600">{watchlist.length}</span>}>
               <div className="flex flex-col gap-0.5">
                 {watchlist.map((w) => (
-                  <div key={w.ticker} className="group flex items-center gap-3 rounded-xl px-3 py-2.5 transition-colors hover:bg-white/[0.05]">
+                  <div key={w.ticker} className="group flex items-center gap-3 rounded-sm px-3 py-2.5 transition-colors hover:bg-white/[0.05]">
                     <div className="min-w-0 flex-1">
                       <div className="font-mono text-[13px] font-bold text-zinc-50">{w.ticker}</div>
                       <div className="truncate text-[11px] text-zinc-600">{w.name}</div>
@@ -191,7 +191,7 @@ export default function HoldingsPage() {
                       className="text-xs text-zinc-600 opacity-0 transition hover:text-white group-hover:opacity-100" aria-label={`Remove ${w.ticker}`}>✕</button>
                   </div>
                 ))}
-                {watchlist.length === 0 && <div className="p-6 text-center text-[13px] text-zinc-500">Watchlist is empty.</div>}
+                {watchlist.length === 0 && <div className="p-3 text-center text-[13px] text-zinc-500">Watchlist is empty.</div>}
               </div>
             </Card>
           </div>

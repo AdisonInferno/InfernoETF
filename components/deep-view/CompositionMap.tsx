@@ -15,11 +15,11 @@ const fp = (v: number) => (v >= 0 ? "+" : "−") + Math.abs(v).toFixed(2) + "%";
 
 function tileColor(v: number, sc: number) {
   const a = Math.min(1, Math.abs(v) / sc);
-  if (Math.abs(v) < sc * 0.04) return "radial-gradient(circle at 50% 50%,#4B5563,#1F2937)";
+  if (Math.abs(v) < sc * 0.04) return "#27272a";
   const r = (n: number[]) => n.map(Math.round).join(",");
   return v >= 0
-    ? `radial-gradient(circle at 50% 50%,rgb(${r([90 - a * 20, 130 + a * 90, 90 - a * 50])}),rgb(${r([28, 70 + a * 60, 36])}))`
-    : `radial-gradient(circle at 50% 50%,rgb(${r([150 + a * 105, 60 - a * 10, 90 - a * 15])}),rgb(${r([100 + a * 50, 28, 46 + a * 4])}))`;
+    ? `rgb(${r([6 + a * 4, 70 + a * 60, 50 + a * 20])})`
+    : `rgb(${r([100 + a * 85, 28, 30])})`;
 }
 
 /* ── Treemap ───────────────────────────────────────────────── */
@@ -51,7 +51,7 @@ function HoldingsMap({ fund, tf }: { fund: FundData; tf: MapTf }) {
   const tiles = useMemo(() => binaryTreemap(items, (i) => i.w, 0, 0, W, H), [items, W, H]);
 
   return (
-    <div ref={ref} className="relative h-full overflow-hidden rounded-lg">
+    <div ref={ref} className="relative h-full overflow-hidden rounded-sm">
       {tiles.map(({ item: it, x, y, w, h }) => {
         const m = Math.min(w, h), big = w > 150 && h > 70, fs = Math.max(9, Math.min(40, m / 3.6));
         return (
@@ -96,10 +96,10 @@ function Panel({ title, meta, tools, expanded, onToggle, weight, axis = "y", chi
       animate={{ flexGrow: expanded ? weight : 0 }}
       transition={{ duration: reduce ? 0 : 0.42, ease }}
       style={horiz ? { flexShrink: 1, flexBasis: HEADER_H, minWidth: HEADER_H } : { flexShrink: 1, flexBasis: HEADER_H, minHeight: HEADER_H }}
-      className="flex flex-col overflow-hidden rounded-2xl border border-white/[0.05] bg-[#0a0a0c]"
+      className="flex flex-col overflow-hidden rounded-sm border border-white/[0.06] bg-[#0a0a0c]"
     >
       {expanded ? (
-        <header className="flex h-10 flex-none items-center gap-3 border-b border-white/[0.05] pl-4 pr-1.5">
+        <header className="flex h-10 flex-none items-center gap-3 border-b border-white/[0.06] pl-4 pr-1.5">
           <h3 className="m-0 whitespace-nowrap font-mono text-[10.5px] font-bold tracking-[0.18em] text-neutral-300">{title}</h3>
           <span className="min-w-0 truncate font-mono text-[10px] tracking-[0.08em] text-zinc-600">{meta}</span>
           <span className="ml-auto flex items-center gap-1.5">
@@ -110,7 +110,7 @@ function Panel({ title, meta, tools, expanded, onToggle, weight, axis = "y", chi
               aria-expanded
               aria-label={`Collapse ${title}`}
               title="Collapse"
-              className="flex h-7 w-7 items-center justify-center rounded-md text-zinc-500 hover:bg-white/[0.06] hover:text-white"
+              className="flex h-7 w-7 items-center justify-center rounded-sm text-zinc-500 hover:bg-white/[0.06] hover:text-white"
             >
               <svg viewBox="0 0 12 12" className="h-3 w-3" aria-hidden><path d="M2 6h8" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" /></svg>
             </button>
@@ -137,7 +137,7 @@ function Panel({ title, meta, tools, expanded, onToggle, weight, axis = "y", chi
           aria-label={`Expand ${title}`}
           className="group flex h-10 w-full flex-none items-center gap-3 pl-4 pr-3 text-left transition-colors hover:bg-white/[0.04]"
         >
-          <span className="h-1.5 w-1.5 rounded-full bg-zinc-700 transition-colors group-hover:bg-emerald-400" />
+          <span className="h-1.5 w-1.5 rounded-none bg-zinc-700 transition-colors group-hover:bg-emerald-400" />
           <span className="whitespace-nowrap font-mono text-[10.5px] font-bold tracking-[0.18em] text-zinc-500 transition-colors group-hover:text-white">{title}</span>
           <span className="min-w-0 truncate font-mono text-[10px] tracking-[0.08em] text-zinc-700">{meta}</span>
           <span className="ml-auto flex items-center gap-1.5 font-mono text-[10px] font-bold tracking-[0.14em] text-zinc-600 transition-colors group-hover:text-emerald-400">
@@ -208,7 +208,7 @@ export default function CompositionMap({ fund }: { fund: FundData }) {
         tools={
           <span className="hidden gap-1 sm:flex">
             {MAP_TFS.map((k) => (
-              <button key={k} type="button" onClick={() => setTf(k)} className={`flex h-6 min-w-7 items-center justify-center rounded-md px-1.5 font-mono text-[10px] font-bold ${k === tf ? "bg-white/[0.1] text-white shadow-[inset_0_0_0_1px_rgba(255,255,255,0.12)]" : "text-zinc-500 hover:text-zinc-200"}`}>{k}</button>
+              <button key={k} type="button" onClick={() => setTf(k)} className={`flex h-6 min-w-7 items-center justify-center rounded-sm px-1.5 font-mono text-[10px] font-bold ${k === tf ? "bg-white/[0.1] text-white shadow-[inset_0_0_0_1px_rgba(255,255,255,0.12)]" : "text-zinc-500 hover:text-zinc-200"}`}>{k}</button>
             ))}
           </span>
         }

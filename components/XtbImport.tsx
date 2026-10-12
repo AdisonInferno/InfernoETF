@@ -189,7 +189,7 @@ export default function XtbImport({ onImport, onClose }: { onImport: (r: ImportR
   const bad = "border-rose-500/60";
 
   return (
-    <div className="flex flex-col gap-4 rounded-sm border border-white/[0.05] bg-[#0a0a0c] p-5">
+    <div className="flex flex-col gap-4 rounded-sm border border-white/[0.06] bg-[#0a0a0c] p-3">
       <div className="flex items-center justify-between gap-3">
         <span className="font-mono text-[10.5px] font-semibold tracking-[0.14em] text-zinc-300">[ IMPORT FROM XTB SCREENSHOT ]</span>
         <button type="button" onClick={onClose} className="font-mono text-[11px] text-zinc-500 hover:text-white">[ CLOSE ]</button>
@@ -202,7 +202,7 @@ export default function XtbImport({ onImport, onClose }: { onImport: (r: ImportR
           onDragOver={(e) => e.preventDefault()}
           onDrop={(e) => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) read(f); }}
           disabled={busy}
-          className="flex min-h-[140px] flex-col items-center justify-center gap-2 rounded-sm border border-dashed border-white/[0.1] px-4 py-8 text-center transition-colors hover:border-white/[0.25] disabled:cursor-wait"
+          className="flex min-h-[140px] flex-col items-center justify-center gap-2 rounded-sm border border-dashed border-white/[0.1] px-4 py-3 text-center transition-colors hover:border-white/[0.25] disabled:cursor-wait"
         >
           {/* eslint-disable-next-line @next/next/no-img-element -- local blob preview */}
           {preview && busy && <img src={preview} alt="" className="max-h-32 rounded-sm opacity-40" />}
@@ -255,7 +255,7 @@ export default function XtbImport({ onImport, onClose }: { onImport: (r: ImportR
 
             <div className="flex flex-col gap-3">
               {/* eslint-disable-next-line @next/next/no-img-element -- local blob preview */}
-              {preview && <img src={preview} alt="Zrzut z XTB" className="max-h-56 w-full rounded-sm border border-white/[0.05] object-contain object-top" />}
+              {preview && <img src={preview} alt="Zrzut z XTB" className="max-h-56 w-full rounded-sm border border-white/[0.06] object-contain object-top" />}
               <div className="flex flex-col gap-1.5 font-mono text-[11px]">
                 <span className="flex justify-between"><span className="text-zinc-600">POSITIONS</span><span className="text-zinc-200">{rows.length}</span></span>
                 <span className="flex justify-between"><span className="text-zinc-600">VALUE {meta?.accountCurrency ?? ""}</span><span className="text-zinc-200">{fmt(calc.total)}</span></span>

@@ -24,7 +24,7 @@ import {
 
 /* ───────────────────────────── Theme ───────────────────────────── */
 
-const card = "rounded-2xl border border-white/[0.04] bg-[#0a0a0c]";
+const card = "rounded-sm border border-white/[0.06] bg-[#0a0a0c]";
 const label = "font-mono text-[10px] font-semibold tracking-[0.14em] text-zinc-500";
 const fmtP = (v: number) => (v >= 0 ? "+" : "") + v.toFixed(2) + "%";
 
@@ -102,7 +102,7 @@ const usd = (v: number, digits = 0) =>
 function AllocationBar({ positions }: { positions: Position[] }) {
   return (
     <div className="group/alloc py-1" aria-label="Portfolio allocation">
-      <div className="flex h-1.5 w-full overflow-hidden rounded-full bg-white/[0.04] transition-all duration-300 ease-out group-hover/alloc:h-4">
+      <div className="flex h-1.5 w-full overflow-hidden rounded-none bg-white/[0.04] transition-all duration-300 ease-out group-hover/alloc:h-4">
         {positions.map((p, i) => {
           const color = SEG_COLORS[i % SEG_COLORS.length];
           return (
@@ -147,7 +147,7 @@ const MOVE_STYLE: Record<string, string> = {
 
 
 
-const ghostBtn = "rounded-lg border border-white/[0.1] px-3 py-1.5 text-[12px] font-semibold text-zinc-100 transition-colors hover:bg-white/[0.06]";
+const ghostBtn = "rounded-sm border border-white/[0.1] px-3 py-1.5 font-mono text-[11px] font-bold tracking-[0.08em] text-zinc-100 transition-colors hover:bg-white/[0.06]";
 
 /* ───────────────────────────── Page ───────────────────────────── */
 
@@ -299,11 +299,11 @@ export default function PortfolioPage() {
     /* Builder */
     <>
       <div className="flex items-baseline justify-between">
-        <span className={`${label} flex items-center gap-2 text-zinc-300`}><span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />BUILDER</span>
+        <span className={`${label} flex items-center gap-2 text-zinc-300`}><span className="h-1.5 w-1.5 rounded-none bg-emerald-400" />BUILDER</span>
         <span className="font-mono text-[10px] text-zinc-600">4 presets · model</span>
       </div>
       <div>
-        <h2 className="text-[17px] font-semibold text-zinc-50 xl:text-[15px]">Build from scratch</h2>
+        <h2 className="font-mono text-[12px] font-bold tracking-[0.16em] text-zinc-200">[ MODEL ALLOCATIONS ]</h2>
         <p className="mt-1 text-[12.5px] text-zinc-500 xl:hidden">Pick a risk profile and preview how it would have held up.</p>
       </div>
 
@@ -317,10 +317,10 @@ export default function PortfolioPage() {
               key={b.id}
               type="button"
               onClick={() => { setPresetId(b.id); setComparing(false); }}
-              className={`flex min-w-0 flex-col items-start gap-0.5 rounded-lg border px-2.5 py-1.5 text-left transition-colors ${
+              className={`flex min-w-0 flex-col items-start gap-0.5 rounded-sm border px-2.5 py-1.5 text-left transition-colors ${
                 on
                   ? hot ? "border-red-500/50 bg-red-500/[0.08]" : "border-emerald-400/40 bg-emerald-400/[0.06]"
-                  : "border-white/[0.05] bg-[#030303]/60 hover:border-white/[0.12]"
+                  : "border-white/[0.06] bg-[#030303]/60 hover:border-white/[0.12]"
               }`}
             >
               <span className={`font-mono text-[11px] font-bold tracking-[0.08em] ${on ? (hot ? "text-red-300" : "text-emerald-300") : "text-zinc-300"}`}>{b.name}</span>
@@ -332,9 +332,9 @@ export default function PortfolioPage() {
 
       {/* Allocation of the preset */}
       <div className="flex flex-col gap-2">
-        <div className="flex h-1.5 overflow-hidden rounded-full bg-white/[0.04]">
+        <div className="flex h-1.5 overflow-hidden rounded-none bg-white/[0.04]">
           <div className="bg-emerald-400 transition-[width] duration-300" style={{ width: `${preset.core}%` }} />
-          <div className="bg-violet-400 transition-[width] duration-300" style={{ width: `${preset.thematic}%` }} />
+          <div className="bg-zinc-400 transition-[width] duration-300" style={{ width: `${preset.thematic}%` }} />
           <div className="bg-sky-400 transition-[width] duration-300" style={{ width: `${preset.defensive}%` }} />
         </div>
         <div className="flex justify-between font-mono text-[10px]">
@@ -346,8 +346,8 @@ export default function PortfolioPage() {
 
       {/* Performance teaser / comparison */}
       {comparing && mine ? (
-        <div className="flex flex-col rounded-lg border border-white/[0.05] bg-[#030303]/60">
-          <div className="grid grid-cols-[minmax(0,1fr)_72px_72px] gap-2 border-b border-white/[0.05] px-3 py-2 font-mono text-[9.5px] tracking-[0.12em] text-zinc-600">
+        <div className="flex flex-col rounded-sm border border-white/[0.06] bg-[#030303]/60">
+          <div className="grid grid-cols-[minmax(0,1fr)_72px_72px] gap-2 border-b border-white/[0.06] px-3 py-2 font-mono text-[9.5px] tracking-[0.12em] text-zinc-600">
             <span>METRIC</span><span className="text-right">{preset.name}</span><span className="text-right">MINE</span>
           </div>
           {([
@@ -369,7 +369,7 @@ export default function PortfolioPage() {
           })}
         </div>
       ) : (
-        <div className="flex flex-col gap-2.5 rounded-lg border border-white/[0.05] bg-[#030303]/60 p-3">
+        <div className="flex flex-col gap-2.5 rounded-sm border border-white/[0.06] bg-[#030303]/60 p-3">
           <div className="flex items-baseline justify-between">
             <span className={label}>3Y ANNUALIZED RETURN</span>
             <span className="font-mono text-[20px] font-semibold tabular-nums text-emerald-400">+{preset.cagr.toFixed(1)}%<span className="ml-1 text-[11px] text-emerald-400/70">CAGR</span></span>
@@ -380,8 +380,8 @@ export default function PortfolioPage() {
                 <span className="text-[12px] text-zinc-400">{k}</span>
                 <span className="font-mono text-[12px] font-semibold tabular-nums text-rose-400">{v.toFixed(1)}%</span>
               </div>
-              <div className="h-1 overflow-hidden rounded-full bg-white/[0.05]">
-                <div className="h-full rounded-full bg-rose-500/80 transition-[width] duration-300" style={{ width: `${Math.min(100, Math.abs(v) * 2)}%` }} />
+              <div className="h-1 overflow-hidden rounded-none bg-white/[0.05]">
+                <div className="h-full rounded-none bg-rose-500/80 transition-[width] duration-300" style={{ width: `${Math.min(100, Math.abs(v) * 2)}%` }} />
               </div>
             </div>
           ))}
@@ -390,7 +390,7 @@ export default function PortfolioPage() {
       )}
 
       {/* Bottom action bar */}
-      <div className="mt-auto flex items-center justify-between gap-2 border-t border-white/[0.05] pt-3">
+      <div className="mt-auto flex items-center justify-between gap-2 border-t border-white/[0.06] pt-3">
         <button type="button" onClick={() => applyPrompt(preset.prompt)} className="font-mono text-[11px] tracking-[0.06em] text-zinc-500 transition-colors hover:text-white" title={preset.prompt}>
           Use preset
         </button>
@@ -399,9 +399,9 @@ export default function PortfolioPage() {
           disabled={!mine}
           onClick={() => setComparing((c) => !c)}
           title={mine ? undefined : "Build your portfolio first"}
-          className="rounded-lg bg-white/[0.06] px-3 py-1.5 text-[12px] font-semibold text-zinc-100 transition-colors hover:bg-white/[0.1] disabled:cursor-not-allowed disabled:opacity-40"
+          className="rounded-sm bg-white/[0.06] px-3 py-1.5 text-[12px] font-semibold text-zinc-100 transition-colors hover:bg-white/[0.1] disabled:cursor-not-allowed disabled:opacity-40"
         >
-          {comparing ? "← Back to preset" : "Compare with my portfolio →"}
+          {comparing ? "[ ← PRESET ]" : "[ COMPARE VS MINE → ]"}
         </button>
       </div>
     </>,
@@ -409,15 +409,15 @@ export default function PortfolioPage() {
     /* Whales */
     <>
       <div className="flex items-baseline justify-between">
-        <span className={`${label} flex items-center gap-2 text-zinc-300`}><span className="h-1.5 w-1.5 rounded-full bg-zinc-300" />WHALES</span>
+        <span className={`${label} flex items-center gap-2 text-zinc-300`}><span className="h-1.5 w-1.5 rounded-none bg-zinc-300" />WHALES</span>
         <span className="font-mono text-[10px] text-zinc-600">13F · Q2 2026</span>
       </div>
       <div>
-        <h2 className="text-[17px] font-semibold text-zinc-50 xl:text-[15px]">Clone smart money</h2>
+        <h2 className="font-mono text-[12px] font-bold tracking-[0.16em] text-zinc-200">[ 13F FLOWS ]</h2>
         <p className="mt-1 text-[12.5px] text-zinc-500 xl:hidden">Latest filings. Clone the proportions in one click.</p>
       </div>
       <div className="flex flex-col">
-        <div className="grid grid-cols-[minmax(0,1fr)_56px_64px_56px] gap-2 border-b border-white/[0.04] pb-2 font-mono text-[9.5px] tracking-[0.12em] text-zinc-600">
+        <div className="grid grid-cols-[minmax(0,1fr)_56px_64px_56px] gap-2 border-b border-white/[0.06] pb-2 font-mono text-[9.5px] tracking-[0.12em] text-zinc-600">
           <span>ENTITY</span><span>MOVE</span><span className="text-right">Q/Q</span><span className="text-right">ALLOC</span>
         </div>
         {WHALES.map((w) => (
@@ -426,7 +426,7 @@ export default function PortfolioPage() {
             type="button"
             onClick={() => applyPrompt(w.prompt)}
             title={`Clone: ${w.prompt}`}
-            className="group grid grid-cols-[minmax(0,1fr)_56px_64px_56px] items-center gap-2 border-b border-white/[0.04] py-2 text-left transition-colors hover:bg-white/[0.02]"
+            className="group grid grid-cols-[minmax(0,1fr)_56px_64px_56px] items-center gap-2 border-b border-white/[0.06] py-2 text-left transition-colors hover:bg-white/[0.02]"
           >
             <span className="min-w-0">
               <span className="block truncate text-[13px] font-semibold text-zinc-100">{w.name}</span>
@@ -442,7 +442,7 @@ export default function PortfolioPage() {
         ))}
       </div>
       <Link href={`/chat?q=${encodeURIComponent("Pokaż mi portfele największych inwestorów (Buffett, Dalio, BlackRock) i jak odwzorować je ETF-ami.")}`} className={`${ghostBtn} mt-auto self-start`}>
-        Explore gurus →
+        [ 13F DETAIL → ]
       </Link>
     </>,
   ];
@@ -450,7 +450,7 @@ export default function PortfolioPage() {
   return (
     // flex-none: the page grows with its content (never squeezed to the viewport);
     // falling cards are clipped by <main> while its scroll is locked during the transition.
-    <div className="relative mx-auto flex min-h-full w-full max-w-[1560px] flex-none flex-col gap-3 overflow-x-clip bg-[#030303] px-6 pb-5 pt-3">
+    <div className="relative mx-auto flex min-h-full w-full max-w-[3200px] flex-none flex-col gap-3 overflow-x-clip bg-[#030303] px-3 min-[1800px]:px-6 pb-5 pt-3">
       <motion.div layout="position" className="font-mono text-[10px] tracking-[0.14em] text-zinc-600">
         [ DASHBOARD / <span className={isDeep ? "" : "text-zinc-300"}>PORTFOLIO</span>
         {isDeep && <> / <span className="text-zinc-300">DEEP VIEW</span></>} ]
@@ -466,7 +466,7 @@ export default function PortfolioPage() {
             transition={{ layout: reduceMotion ? { duration: 0 } : LAYOUT_SPRING }}
             onClick={onCardClick}
             title={isDeep ? undefined : "Click for the full portfolio deep view"}
-            className={`${card} flex flex-none flex-col gap-3 p-5 ${isExpanded ? "min-h-[calc(100dvh-230px)]" : isDeep ? "" : "cursor-pointer transition-colors hover:border-white/[0.09]"}`}
+            className={`${card} flex flex-none flex-col gap-3 p-3 ${isExpanded ? "min-h-[calc(100dvh-230px)]" : isDeep ? "" : "cursor-pointer transition-colors hover:border-white/[0.09]"}`}
           >
             <motion.div layout="position" className="flex flex-wrap items-end justify-between gap-4">
               <div className="flex flex-col gap-3">
@@ -478,15 +478,15 @@ export default function PortfolioPage() {
                       initial={{ opacity: 0, x: -8 }}
                       animate={{ opacity: 1, x: 0, transition: { delay: 0.2 } }}
                       exit={{ opacity: 0, x: -8, transition: { duration: 0.12 } }}
-                      className="self-start rounded-lg border border-white/[0.08] bg-white/[0.03] px-3 py-1.5 font-mono text-[11px] font-semibold tracking-[0.06em] text-zinc-300 transition-colors hover:bg-white/[0.08] hover:text-white"
+                      className="self-start rounded-sm border border-white/[0.08] bg-white/[0.03] px-3 py-1.5 font-mono text-[11px] font-semibold tracking-[0.06em] text-zinc-300 transition-colors hover:bg-white/[0.08] hover:text-white"
                     >
-                      ← Back to Overview
+                      [ ← OVERVIEW ]
                     </motion.button>
                   )}
                 </AnimatePresence>
                 <div>
-                  <h1 className="text-[22px] font-semibold tracking-tight text-zinc-50">
-                    My portfolio{isDeep && <span className="ml-3 align-middle font-mono text-[12px] font-bold tracking-[0.14em] text-red-400">DEEP VIEW</span>}
+                  <h1 className="font-mono text-[15px] font-bold tracking-[0.16em] text-zinc-50">
+                    [ PORTFOLIO ]{isDeep && <span className="ml-3 align-middle font-mono text-[12px] font-bold tracking-[0.14em] text-red-400">DEEP VIEW</span>}
                   </h1>
                   <p className="mt-0.5 font-mono text-[11px] text-zinc-500">
                     {parsed.positions.length} positions · created {new Date(saved!.createdAt).toLocaleDateString("pl-PL")} · <span className="text-zinc-400">{saved!.prompt}</span>
@@ -503,7 +503,7 @@ export default function PortfolioPage() {
                       className="grid grid-cols-2 gap-2 md:grid-cols-4"
                     >
                       {METRICS.map((m) => (
-                        <div key={m.k} className="min-w-[150px] rounded-lg border border-white/[0.05] bg-[#030303]/60 px-3 py-1.5">
+                        <div key={m.k} className="min-w-[150px] rounded-sm border border-white/[0.06] bg-[#030303]/60 px-3 py-1.5">
                           <div className="font-mono text-[9px] font-semibold tracking-[0.14em] text-zinc-500">{m.k}</div>
                           <div className="flex items-baseline gap-1.5">
                             <span className={`font-mono text-[15px] font-semibold tabular-nums ${toneTxt(m.tone)}`}>{m.v}</span>
@@ -512,13 +512,13 @@ export default function PortfolioPage() {
                         </div>
                       ))}
                     </motion.div>
-                    <Link href="/portfolio/holdings" className={ghostBtn}>Holdings table →</Link>
+                    <Link href="/portfolio/holdings" className={ghostBtn}>[ HOLDINGS → ]</Link>
                   </>
                 ) : (
                   <>
-                    <button type="button" onClick={() => setEditing(true)} className={ghostBtn}>Edit</button>
-                    <button type="button" onClick={goDeep} className="rounded-lg bg-red-500 px-3.5 py-1.5 text-[12px] font-semibold text-white transition-colors hover:bg-red-400">
-                      Full analysis →
+                    <button type="button" onClick={() => setEditing(true)} className={ghostBtn}>[ EDIT ]</button>
+                    <button type="button" onClick={goDeep} className="rounded-sm bg-red-500 px-3 py-1.5 font-mono text-[11px] font-bold tracking-[0.08em] text-white transition-colors hover:bg-red-400">
+                      [ DEEP VIEW → ]
                     </button>
                   </>
                 )}
@@ -559,7 +559,7 @@ export default function PortfolioPage() {
                 ) : (
                   <div className="grid grid-cols-2 gap-2 md:grid-cols-4 xl:grid-cols-2">
                     {METRICS.map((m) => (
-                      <div key={m.k} className="rounded-xl border border-white/[0.05] bg-[#030303]/60 px-3.5 py-2">
+                      <div key={m.k} className="rounded-sm border border-white/[0.06] bg-[#030303]/60 px-3.5 py-2">
                         <div className={label}>{m.k}</div>
                         <div className="mt-0.5 flex flex-wrap items-baseline gap-x-2">
                           <span className={`font-mono text-[18px] font-semibold tabular-nums ${toneTxt(m.tone)}`}>{m.v}</span>
@@ -585,7 +585,7 @@ export default function PortfolioPage() {
                     const isEtf = p.asset.kind === "etf";
                     const body = (
                       <>
-                        <span className="h-7 w-1 flex-none rounded-full" style={{ background: color }} />
+                        <span className="h-7 w-1 flex-none rounded-none" style={{ background: color }} />
                         <div className="flex w-[150px] min-w-0 flex-none flex-col">
                           <span className="flex items-center gap-2">
                             <span className="font-mono text-[16px] font-bold text-zinc-50">{p.asset.ticker}</span>
@@ -595,15 +595,15 @@ export default function PortfolioPage() {
                         </div>
                         <div className="flex min-w-[90px] flex-1 flex-col gap-1">
                           <span className="font-mono text-[11px] text-zinc-500">WEIGHT <span className="ml-1 text-[13px] font-semibold text-zinc-100">{p.weight}%</span></span>
-                          <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/[0.06]"><div className="h-full rounded-full" style={{ width: `${p.weight}%`, background: color }} /></div>
+                          <div className="h-1.5 w-full overflow-hidden rounded-none bg-white/[0.06]"><div className="h-full rounded-none" style={{ width: `${p.weight}%`, background: color }} /></div>
                         </div>
                         <span className="hidden w-[80px] text-right font-mono text-[13px] text-zinc-200 md:block xl:hidden 2xl:block">${p.asset.price.toFixed(2)}</span>
-                        <span className={`w-[70px] flex-none rounded-md px-1.5 py-0.5 text-center font-mono text-[11.5px] font-bold ${p.asset.chg1d >= 0 ? "bg-emerald-500/10 text-emerald-400" : "bg-rose-500/10 text-rose-400"}`}>{fmtP(p.asset.chg1d)}</span>
-                        <span className={`hidden w-[78px] flex-none rounded-md px-1.5 py-0.5 text-center font-mono text-[11.5px] font-bold sm:block ${p.asset.ytd >= 0 ? "bg-emerald-500/10 text-emerald-400" : "bg-rose-500/10 text-rose-400"}`}>{fmtP(p.asset.ytd)}</span>
+                        <span className={`w-[70px] flex-none rounded-sm px-1.5 py-0.5 text-center font-mono text-[11.5px] font-bold ${p.asset.chg1d >= 0 ? "bg-emerald-500/10 text-emerald-400" : "bg-rose-500/10 text-rose-400"}`}>{fmtP(p.asset.chg1d)}</span>
+                        <span className={`hidden w-[78px] flex-none rounded-sm px-1.5 py-0.5 text-center font-mono text-[11.5px] font-bold sm:block ${p.asset.ytd >= 0 ? "bg-emerald-500/10 text-emerald-400" : "bg-rose-500/10 text-rose-400"}`}>{fmtP(p.asset.ytd)}</span>
                         <span className={`w-[22px] flex-none text-right font-mono text-[13px] ${isEtf ? "text-zinc-500 group-hover:text-white" : "text-zinc-800"}`} title={isEtf ? "ETF deep view" : "Single stock"}>{isEtf ? "→" : "·"}</span>
                       </>
                     );
-                    const cls = "group flex items-center gap-3.5 rounded-xl border border-white/[0.04] bg-black/30 px-3.5 py-1.5 transition-colors";
+                    const cls = "group flex items-center gap-3.5 rounded-sm border border-white/[0.06] bg-[#030303] px-3.5 py-1.5 transition-colors";
                     return isEtf ? (
                       <Link key={p.asset.ticker} href={`/etf/${p.asset.ticker}`} className={`${cls} hover:border-white/[0.12] hover:bg-white/[0.03]`}>{body}</Link>
                     ) : (
@@ -627,9 +627,9 @@ export default function PortfolioPage() {
           </motion.section>
         ) : (
           /* ── Build my portfolio (no portfolio yet, or editing) ── */
-          <motion.section layout transition={{ layout: LAYOUT_SPRING }} className={`${card} flex flex-col gap-5 p-7`}>
+          <motion.section layout transition={{ layout: LAYOUT_SPRING }} className={`${card} flex flex-col gap-5 p-3`}>
             <div className="flex items-baseline justify-between gap-4">
-              <h1 className="text-[30px] font-semibold tracking-tight text-zinc-50">{saved ? "Edit my portfolio" : "Build my portfolio"}</h1>
+              <h1 className="font-mono text-[14px] font-bold tracking-[0.16em] text-zinc-100">{saved ? "[ EDIT PORTFOLIO ]" : "[ NEW PORTFOLIO ]"}</h1>
               {saved && (
                 <div className="flex gap-3 font-mono text-[11px]">
                   <button type="button" onClick={() => { setPrompt(saved.prompt); setEditing(false); }} className="text-zinc-400 hover:text-white">[ CANCEL ]</button>
@@ -638,7 +638,7 @@ export default function PortfolioPage() {
               )}
             </div>
 
-            <form onSubmit={(e) => { e.preventDefault(); run(); }} className="flex items-center gap-3 rounded-xl border border-white/[0.06] bg-black/40 py-2 pl-4 pr-2 focus-within:border-white/[0.14]">
+            <form onSubmit={(e) => { e.preventDefault(); run(); }} className="flex items-center gap-3 rounded-sm border border-white/[0.06] bg-[#030303] py-2 pl-4 pr-2 focus-within:border-white/[0.14]">
               <span className="font-mono text-[12px] text-zinc-600">$</span>
               <input
                 ref={inputRef}
@@ -651,15 +651,15 @@ export default function PortfolioPage() {
               <button
                 type="submit"
                 disabled={!parsed.valid}
-                className="flex items-center gap-2 rounded-lg bg-red-500 px-3.5 py-1.5 text-[12px] font-semibold text-white transition-colors hover:bg-red-400 disabled:cursor-not-allowed disabled:bg-white/[0.06] disabled:text-zinc-600"
+                className="flex items-center gap-2 rounded-sm bg-red-500 px-3.5 py-1.5 text-[12px] font-semibold text-white transition-colors hover:bg-red-400 disabled:cursor-not-allowed disabled:bg-white/[0.06] disabled:text-zinc-600"
               >
-                {saved ? "Save" : "Run"} <span className="rounded bg-black/20 px-1 font-mono text-[10px]">↵</span>
+                {saved ? "Save" : "Run"} <span className="rounded bg-[#030303] px-1 font-mono text-[10px]">↵</span>
               </button>
             </form>
 
             <div className="flex flex-col gap-3">
               <div className="flex items-center gap-3">
-                <div className="flex h-[3px] flex-1 gap-[2px] overflow-hidden rounded-full bg-white/[0.04]">
+                <div className="flex h-[3px] flex-1 gap-[2px] overflow-hidden rounded-none bg-white/[0.04]">
                   {parsed.positions.map((p, i) => (
                     <div key={p.asset.ticker} className="h-full transition-[width] duration-300" style={{ width: `${(p.weight / Math.max(100, parsed.total)) * 100}%`, background: SEG_COLORS[i % SEG_COLORS.length] }} />
                   ))}
@@ -670,7 +670,7 @@ export default function PortfolioPage() {
               </div>
               <div className="flex flex-wrap gap-2">
                 {parsed.positions.map((p, i) => (
-                  <span key={p.asset.ticker} className="flex items-center gap-1.5 rounded border border-white/[0.06] bg-black/30 px-2 py-1 font-mono text-[10.5px] text-zinc-500">
+                  <span key={p.asset.ticker} className="flex items-center gap-1.5 rounded border border-white/[0.06] bg-[#030303] px-2 py-1 font-mono text-[10.5px] text-zinc-500">
                     <span style={{ color: SEG_COLORS[i % SEG_COLORS.length] }}>■</span>[
                     <span className="font-bold text-zinc-100">{p.asset.ticker}</span>:
                     <span className="max-w-[180px] truncate">{p.asset.name}</span>· {p.weight}% ]
@@ -689,7 +689,7 @@ export default function PortfolioPage() {
                 </button>
               )}
               {([["VOO QQQ NVDA", PRESETS.classic], ["retire 2045", PRESETS.retire2045], ["Clone Dalio", PRESETS.dalio]] as const).map(([l, p]) => (
-                <button key={l} type="button" onClick={() => applyPrompt(p)} className="rounded-full border border-white/[0.06] bg-white/[0.03] px-3 py-1 font-mono text-[11px] text-zinc-400 transition-colors hover:bg-white/[0.08] hover:text-white">
+                <button key={l} type="button" onClick={() => applyPrompt(p)} className="rounded-none border border-white/[0.06] bg-white/[0.03] px-3 py-1 font-mono text-[11px] text-zinc-400 transition-colors hover:bg-white/[0.08] hover:text-white">
                   {l}
                 </button>
               ))}
@@ -711,7 +711,7 @@ export default function PortfolioPage() {
                   animate="show"
                   exit="fall"
                   style={{ transformOrigin: i === 0 ? "70% 30%" : i === 2 ? "30% 30%" : "50% 30%", willChange: "transform, opacity" }}
-                  className={`${card} flex flex-col gap-4 p-6 xl:gap-3 xl:p-5`}
+                  className={`${card} flex flex-col gap-4 p-3 xl:gap-3 xl:p-5`}
                 >
                   {content}
                 </motion.section>

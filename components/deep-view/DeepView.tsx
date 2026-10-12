@@ -47,7 +47,7 @@ export default function DeepView({ fund, onBack, onSelectAlt }: Props) {
 
         <div className="flex flex-wrap gap-2 py-0.5">
           {fund.meta.map(([k, v]) => (
-            <div key={k} className="flex h-7 items-center gap-2 whitespace-nowrap rounded-xl border border-white/[0.03] bg-black/30 px-3">
+            <div key={k} className="flex h-7 items-center gap-2 whitespace-nowrap rounded-sm border border-white/[0.03] bg-[#030303] px-3">
               <span className="font-display text-[10.5px] font-semibold tracking-[0.12em] text-gray-400">{k}:</span>
               <span className="font-mono text-xs font-semibold text-neutral-100">{v}</span>
             </div>
@@ -59,7 +59,7 @@ export default function DeepView({ fund, onBack, onSelectAlt }: Props) {
               type="button"
               onClick={() => selectAlt(a.tic)}
               title={`${a.name} · −${(fund.ter - a.ter).toFixed(2)}% vs ${fund.tic}`}
-              className="flex items-center gap-2 whitespace-nowrap rounded-full border border-white/[0.04] bg-white/5 px-3 py-1 font-geist text-xs tabular-nums text-zinc-100 transition-colors hover:border-emerald-400/25 hover:bg-emerald-400/10"
+              className="flex items-center gap-2 whitespace-nowrap rounded-none border border-white/[0.06] bg-white/5 px-3 py-1 font-geist text-xs tabular-nums text-zinc-100 transition-colors hover:border-emerald-400/25 hover:bg-emerald-400/10"
             >
               [ {a.tic} ] <span className="font-semibold text-emerald-400">{a.ter.toFixed(2)}%</span>
             </button>

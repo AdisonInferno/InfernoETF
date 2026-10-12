@@ -34,26 +34,26 @@ const fmtAum = (b: number) => (b >= 100 ? `$${b.toFixed(0)}B` : `$${b.toFixed(1)
 function ChangeBadge({ v }: { v: number }) {
   const up = v >= 0;
   return (
-    <span className={`inline-block rounded-lg px-2 py-0.5 font-mono text-xs font-bold ${up ? "bg-emerald-500/10 text-emerald-400" : "bg-rose-500/10 text-rose-400"}`}>
+    <span className={`inline-block rounded-sm px-2 py-0.5 font-mono text-xs font-bold ${up ? "bg-emerald-500/10 text-emerald-400" : "bg-rose-500/10 text-rose-400"}`}>
       {fmtPct(v)}
     </span>
   );
 }
 
 const tile = (c: number) =>
-  c >= 1.5 ? "from-emerald-900 to-emerald-600"
-  : c >= 0.5 ? "from-emerald-900/80 to-emerald-700"
-  : c > 0.15 ? "from-emerald-900/55 to-emerald-700/75"
-  : c >= -0.15 ? "from-slate-800 to-slate-600"
-  : c > -1.5 ? "from-red-900 to-red-700"
-  : "from-red-950 to-red-800";
+  c >= 1.5 ? "bg-emerald-700"
+  : c >= 0.5 ? "bg-emerald-800"
+  : c > 0.15 ? "bg-emerald-900"
+  : c >= -0.15 ? "bg-zinc-800"
+  : c > -1.5 ? "bg-red-900"
+  : "bg-red-800";
 
 function Pill({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className={`rounded-full px-3.5 py-1.5 text-xs font-semibold transition-colors ${
+      className={`rounded-none px-3.5 py-1.5 text-xs font-semibold transition-colors ${
         active
           ? "bg-white/[0.14] text-zinc-50 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.14)]"
           : "bg-white/[0.05] text-zinc-400 hover:bg-white/10"
@@ -71,7 +71,7 @@ function FilterDeck({ filters, setFilters, onReset }: { filters: Filters; setFil
   const toggle = (p: string) =>
     setFilters({ ...filters, providers: filters.providers.includes(p) ? filters.providers.filter((x) => x !== p) : [...filters.providers, p] });
   return (
-    <aside className="flex flex-col gap-6 self-start rounded-3xl border border-white/[0.04] bg-[#0a0a0c] p-5">
+    <aside className="flex flex-col gap-6 self-start rounded-sm border border-white/[0.06] bg-[#0a0a0c] p-3">
       <div className="flex items-center justify-between">
         <span className="text-base font-semibold tracking-tight text-zinc-50">Filters</span>
         <button type="button" onClick={onReset} className="text-xs text-zinc-500 transition-colors hover:text-white">Reset</button>
@@ -84,7 +84,7 @@ function FilterDeck({ filters, setFilters, onReset }: { filters: Filters; setFil
             const on = filters.providers.includes(p);
             return (
               <button key={p} type="button" onClick={() => toggle(p)}
-                className={`flex items-center gap-2.5 rounded-xl px-3 py-[9px] text-left transition-colors hover:bg-white/10 ${on ? "bg-white/[0.05]" : ""}`}>
+                className={`flex items-center gap-2.5 rounded-sm px-3 py-[9px] text-left transition-colors hover:bg-white/10 ${on ? "bg-white/[0.05]" : ""}`}>
                 <span className={`flex h-4 w-4 items-center justify-center rounded-[5px] border text-[10px] font-bold text-emerald-950 ${on ? "border-emerald-400 bg-emerald-400" : "border-white/[0.18]"}`}>{on ? "✓" : ""}</span>
                 <span className={`text-[13px] ${on ? "text-neutral-200" : "text-zinc-500"}`}>{p}</span>
               </button>
@@ -134,20 +134,20 @@ export default function ScreenerPage() {
 
   return (
     <div className="flex flex-1 flex-col bg-[#030303] font-sans text-neutral-200">
-      <div className="mx-auto grid w-full max-w-[1600px] flex-1 grid-cols-[260px_minmax(0,1fr)] gap-4 px-6 pb-6 pt-4 max-lg:grid-cols-1">
+      <div className="mx-auto grid w-full max-w-[3200px] flex-1 grid-cols-[260px_minmax(0,1fr)] gap-4 px-3 pb-6 pt-4 max-lg:grid-cols-1">
         <FilterDeck filters={filters} setFilters={setFilters} onReset={() => { setFilters(defaults); setCategory("All"); }} />
 
-        <section className="flex min-w-0 flex-col gap-4 rounded-3xl border border-white/[0.04] bg-[#0a0a0c] p-5">
+        <section className="flex min-w-0 flex-col gap-4 rounded-sm border border-white/[0.06] bg-[#0a0a0c] p-3">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex flex-wrap gap-1.5">
               {CATEGORIES.map((c) => <Pill key={c} active={category === c} onClick={() => setCategory(c)}>{c}</Pill>)}
             </div>
             <div className="flex items-center gap-3">
               <span className="font-mono text-[11px] text-zinc-600">{rows.length} funds</span>
-              <div className="flex gap-0.5 rounded-xl border border-white/[0.04] bg-white/[0.04] p-[3px]">
+              <div className="flex gap-0.5 rounded-sm border border-white/[0.06] bg-white/[0.04] p-[3px]">
                 {(["table", "heatmap"] as View[]).map((v) => (
                   <button key={v} type="button" onClick={() => setView(v)}
-                    className={`rounded-lg px-3 py-1 text-[11.5px] font-semibold transition-colors ${view === v ? "bg-white/[0.12] text-white" : "text-zinc-500 hover:text-white"}`}>
+                    className={`rounded-sm px-3 py-1 text-[11.5px] font-semibold transition-colors ${view === v ? "bg-white/[0.12] text-white" : "text-zinc-500 hover:text-white"}`}>
                     {v === "table" ? "Table" : "Heatmap"}
                   </button>
                 ))}
@@ -172,7 +172,7 @@ export default function ScreenerPage() {
                 <tbody>
                   {rows.map((e) => (
                     <tr key={e.ticker} className="group cursor-pointer">
-                      <td className="rounded-l-xl px-4 py-3 font-mono text-[13px] font-bold text-zinc-50 transition-colors group-hover:bg-white/[0.04]">{e.ticker}</td>
+                      <td className="rounded-l-sm px-4 py-3 font-mono text-[13px] font-bold text-zinc-50 transition-colors group-hover:bg-white/[0.04]">{e.ticker}</td>
                       <td className="px-4 py-3 transition-colors group-hover:bg-white/[0.04]">
                         <div className="text-[13px] text-neutral-200">{e.name}</div>
                         <div className="text-[11px] text-zinc-600">{e.provider} · {e.category}</div>
@@ -181,7 +181,7 @@ export default function ScreenerPage() {
                       <td className="px-4 py-3 text-right transition-colors group-hover:bg-white/[0.04]"><ChangeBadge v={e.changePct} /></td>
                       <td className="px-4 py-3 text-right font-mono text-[13px] tabular-nums text-neutral-300 transition-colors group-hover:bg-white/[0.04]">{fmtAum(e.aumB)}</td>
                       <td className="px-4 py-3 text-right font-mono text-[13px] tabular-nums text-zinc-400 transition-colors group-hover:bg-white/[0.04]">{e.expense.toFixed(2)}%</td>
-                      <td className="rounded-r-xl px-4 py-3 text-right transition-colors group-hover:bg-white/[0.04]"><ChangeBadge v={e.ytd} /></td>
+                      <td className="rounded-r-sm px-4 py-3 text-right transition-colors group-hover:bg-white/[0.04]"><ChangeBadge v={e.ytd} /></td>
                     </tr>
                   ))}
                 </tbody>
@@ -192,7 +192,7 @@ export default function ScreenerPage() {
             <div className="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-[1px]">
               {rows.map((e) => (
                 <div key={e.ticker}
-                  className={`flex aspect-[4/3] cursor-pointer flex-col items-center justify-center gap-0.5 rounded-[1px] bg-gradient-to-br transition-[transform,filter] duration-200 hover:z-10 hover:scale-[1.03] hover:brightness-125 ${tile(e.changePct)}`}>
+                  className={`flex aspect-[4/3] cursor-pointer flex-col items-center justify-center gap-0.5 rounded-[1px] transition-[filter] duration-150 hover:z-10 hover:brightness-125 ${tile(e.changePct)}`}>
                   <span className="font-mono text-lg font-bold text-white">{e.ticker}</span>
                   <span className="font-mono text-xs font-semibold text-white/85">{fmtPct(e.changePct)}</span>
                 </div>

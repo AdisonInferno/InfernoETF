@@ -23,7 +23,7 @@ interface Row { key: string; from: number; to: number; delta: number; color?: st
 function Bars({ title, rows }: { title: string; rows: Row[] }) {
   const max = Math.max(...rows.map((r) => Math.abs(r.delta)), 0.01);
   return (
-    <div className="flex min-w-0 flex-col gap-2.5 rounded-xl border border-white/[0.05] bg-[#030303]/60 p-3.5">
+    <div className="flex min-w-0 flex-col gap-2.5 rounded-sm border border-white/[0.06] bg-[#030303]/60 p-3.5">
       <span className={`${label} text-zinc-300`}>{title}</span>
       {/* Direction key, aligned with the bar track */}
       <div className="grid grid-cols-[minmax(0,92px)_minmax(0,1fr)_52px] gap-2 font-mono text-[9.5px] font-bold tracking-[0.14em]">

@@ -28,7 +28,7 @@ interface Data {
 
 const REGIONS: [Region, string][] = [["us", "USA"], ["eu", "EUROPE"], ["asia", "ASIA"]];
 const SECTORS: [SectorId, string][] = [["tech", "TECHNOLOGY"], ["defense", "DEFENSE"]];
-const card = "rounded-2xl border border-white/[0.05] bg-[#0a0a0c]";
+const card = "rounded-sm border border-white/[0.06] bg-[#0a0a0c]";
 const label = "font-mono text-[10px] font-bold tracking-[0.16em] text-zinc-500";
 
 /** "TODAY 14:30" · "TOMORROW 20:00" · "YESTERDAY" · "3D AGO" · "OCT 28 20:00" — viewer's time zone */
@@ -55,13 +55,13 @@ const ARROW: Record<Insight["direction"], { icon: string; chip: string; text: st
   neutral: { icon: "●", chip: "bg-white/[0.06] text-zinc-400", text: "text-zinc-400", word: "NEUTRAL" },
 };
 const BASIS: Record<Insight["basis"], string> = {
-  form4: "Source: insider's Form 4 filing (SEC XML)",
-  xbrl: "Source: reported financials (SEC XBRL), year over year",
-  rules: "Source: 8-K item type",
-  ai: "Source: AI read of the filing's press release — verify in the document",
+  form4: "SRC: SEC FORM 4 (XML)",
+  xbrl: "SRC: SEC XBRL FINANCIALS · Y/Y",
+  rules: "SRC: 8-K ITEM CODE",
+  ai: "SRC: LLM PARSE OF PRESS RELEASE · VERIFY IN FILING",
   none: "",
 };
-const BADGE: Record<string, string> = { FED: "bg-amber-400/10 text-amber-300", FRED: "bg-sky-400/10 text-sky-300", EARN: "bg-purple-400/10 text-purple-300" };
+const BADGE: Record<string, string> = { FED: "bg-amber-400/10 text-amber-300", FRED: "bg-sky-400/10 text-sky-300", EARN: "bg-zinc-400/10 text-zinc-300" };
 
 /** 5-bar importance meter */
 function Weight({ n }: { n: number }) {
@@ -82,7 +82,7 @@ function SectorChip({ s }: { s?: string }) {
 /** Hover / focus popover */
 function Why({ title, cls, body, foot }: { title: string; cls: string; body: string; foot?: string }) {
   return (
-    <span role="tooltip" className="pointer-events-none absolute left-2 right-2 top-[calc(100%+6px)] z-30 hidden flex-col gap-1.5 rounded-xl border border-white/[0.1] bg-[#0a0a0c] p-3 shadow-[0_16px_40px_rgba(0,0,0,0.7)] group-hover:flex group-focus-visible:flex">
+    <span role="tooltip" className="pointer-events-none absolute left-2 right-2 top-[calc(100%+6px)] z-30 hidden flex-col gap-1.5 rounded-sm border border-white/[0.1] bg-[#0a0a0c] p-3 group-hover:flex group-focus-visible:flex">
       <span className={`text-[10px] font-bold tracking-[0.16em] ${cls}`}>{title}</span>
       <span className="font-sans text-[12.5px] leading-snug text-zinc-200">{body}</span>
       {foot && <span className="text-[9.5px] tracking-[0.06em] text-zinc-600">{foot}</span>}
@@ -95,7 +95,7 @@ function PickBar({ options, value, onChange, placeholder, upper }: { options: st
   const [typing, setTyping] = useState(false);
   const [q, setQ] = useState("");
   const chip = (on: boolean) =>
-    `h-7 rounded-md border px-2.5 text-[10.5px] font-bold tracking-[0.1em] transition-colors ${on ? "border-white/[0.2] bg-white/[0.08] text-white" : "border-white/[0.05] bg-[#030303] text-zinc-500 hover:text-zinc-200"}`;
+    `h-7 rounded-sm border px-2.5 text-[10.5px] font-bold tracking-[0.1em] transition-colors ${on ? "border-white/[0.2] bg-white/[0.08] text-white" : "border-white/[0.06] bg-[#030303] text-zinc-500 hover:text-zinc-200"}`;
   const custom = value && !options.some((o) => o.toLowerCase() === value.toLowerCase()) ? value : null;
   const submit = () => {
     const v = q.trim();
@@ -128,7 +128,7 @@ function PickBar({ options, value, onChange, placeholder, upper }: { options: st
             onKeyDown={(e) => { if (e.key === "Escape") { setQ(""); setTyping(false); } }}
             placeholder={placeholder}
             maxLength={24}
-            className="h-7 w-28 rounded-md border border-white/[0.2] bg-[#030303] px-2 text-[10.5px] font-bold tracking-[0.08em] text-white outline-none placeholder:font-normal placeholder:text-zinc-600"
+            className="h-7 w-28 rounded-sm border border-white/[0.2] bg-[#030303] px-2 text-[10.5px] font-bold tracking-[0.08em] text-white outline-none placeholder:font-normal placeholder:text-zinc-600"
           />
         </form>
       ) : (
@@ -187,8 +187,8 @@ function FilingsPanel({ filings: sectorFilings, error: sectorError, loading: sec
   return (
     <section className={`${card} flex min-w-0 flex-col gap-3 p-4`}>
       <div className="flex items-center justify-between gap-2">
-        <h2 className="m-0 font-sans text-[17px] font-semibold text-zinc-50">SEC Filings</h2>
-        <div className="flex rounded-md border border-white/[0.05] bg-[#030303] p-0.5">
+        <h2 className="m-0 font-mono text-[12px] font-bold tracking-[0.16em] text-zinc-200">[ SEC FILINGS ]</h2>
+        <div className="flex rounded-sm border border-white/[0.06] bg-[#030303] p-0.5">
           {(["weight", "time"] as const).map((k) => (
             <button key={k} type="button" onClick={() => setSort(k)} className={`h-6 rounded px-2 text-[9.5px] font-bold tracking-[0.12em] ${sort === k ? "bg-white/[0.08] text-white" : "text-zinc-500 hover:text-zinc-200"}`}>
               {k === "weight" ? "IMPORTANT" : "LATEST"}
@@ -197,17 +197,17 @@ function FilingsPanel({ filings: sectorFilings, error: sectorError, loading: sec
         </div>
       </div>
       <PickBar options={picks} value={pick} onChange={setPick} placeholder="Any ticker…" upper />
-      {loading && [0, 1, 2].map((i) => <div key={i} className="h-[74px] animate-pulse rounded-xl bg-white/[0.03]" />)}
+      {loading && [0, 1, 2].map((i) => <div key={i} className="h-[74px] animate-pulse rounded-sm bg-white/[0.03]" />)}
       {error && <p className="m-0 text-[11px] text-amber-400">⚠ SEC unavailable ({error}). Check SEC_USER_AGENT in .env.local.</p>}
       {!loading && rows.map((f) => {
         const ins = insights[f.accession];
         const a = ARROW[ins?.direction ?? "neutral"];
         return (
-          <a key={f.accession} href={f.url} target="_blank" rel="noreferrer" className="group relative flex flex-col gap-1.5 rounded-xl border border-white/[0.04] bg-black/30 px-3.5 py-3 transition-colors hover:border-white/[0.12] focus-visible:border-white/[0.2] focus-visible:outline-none">
+          <a key={f.accession} href={f.url} target="_blank" rel="noreferrer" className="group relative flex flex-col gap-1.5 rounded-sm border border-white/[0.06] bg-[#030303] px-3.5 py-3 transition-colors hover:border-white/[0.12] focus-visible:border-white/[0.2] focus-visible:outline-none">
             <div className="flex items-center justify-between gap-2">
               <span className="flex min-w-0 items-center gap-2">
-                <span className="whitespace-nowrap rounded-md bg-sky-400/10 px-2 py-0.5 text-[11.5px] font-bold text-sky-300">{f.ticker} · {f.form}</span>
-                {ins ? <span className={`flex h-5 w-5 flex-none items-center justify-center rounded-md text-[10px] ${a.chip}`} aria-label={a.word}>{a.icon}</span> : <span className="h-5 w-5 animate-pulse rounded-md bg-white/[0.05]" />}
+                <span className="whitespace-nowrap rounded-sm bg-sky-400/10 px-2 py-0.5 text-[11.5px] font-bold text-sky-300">{f.ticker} · {f.form}</span>
+                {ins ? <span className={`flex h-5 w-5 flex-none items-center justify-center rounded-sm text-[10px] ${a.chip}`} aria-label={a.word}>{a.icon}</span> : <span className="h-5 w-5 animate-pulse rounded-sm bg-white/[0.05]" />}
                 {ins && <Weight n={ins.importance} />}
               </span>
               <span className="whitespace-nowrap text-[10.5px] text-zinc-500">{when(f.acceptedAt)}</span>
@@ -237,18 +237,18 @@ function CommoditiesPanel({ items: sectorItems, loading: sectorLoading, ready, p
   return (
         <section className={`${card} flex min-w-0 flex-col gap-3 p-4`}>
           <div className="flex items-baseline justify-between">
-            <h2 className="m-0 font-sans text-[17px] font-semibold text-zinc-50">Commodities</h2>
+            <h2 className="m-0 font-mono text-[12px] font-bold tracking-[0.16em] text-zinc-200">[ COMMODITIES ]</h2>
             <span className={label}>{pick ? "14D · ALL SECTORS" : "7D"}</span>
           </div>
           <PickBar options={picks} value={pick} onChange={setPick} placeholder="Any commodity…" />
-          {loading && [0, 1, 2].map((i) => <div key={i} className="h-[66px] animate-pulse rounded-xl bg-white/[0.03]" />)}
+          {loading && [0, 1, 2].map((i) => <div key={i} className="h-[66px] animate-pulse rounded-sm bg-white/[0.03]" />)}
           {!loading && items.map((c) => {
             const all = c.tag.sectors.includes("all");
             return (
-              <a key={c.id} href={c.url || undefined} target="_blank" rel="noreferrer" className="group relative flex flex-col gap-1.5 rounded-xl border border-white/[0.04] bg-black/30 px-3.5 py-3 transition-colors hover:border-white/[0.12]">
+              <a key={c.id} href={c.url || undefined} target="_blank" rel="noreferrer" className="group relative flex flex-col gap-1.5 rounded-sm border border-white/[0.06] bg-[#030303] px-3.5 py-3 transition-colors hover:border-white/[0.12]">
                 <div className="flex items-center justify-between gap-2">
                   <span className="flex items-center gap-2">
-                    <span className="rounded-md bg-amber-400/10 px-2 py-0.5 text-[11px] font-bold text-amber-300">{c.commodity.toUpperCase()}</span>
+                    <span className="rounded-sm bg-amber-400/10 px-2 py-0.5 text-[11px] font-bold text-amber-300">{c.commodity.toUpperCase()}</span>
                     <Weight n={c.tag.importance} />
                   </span>
                   <span className="text-[10.5px] text-zinc-500">{when(c.ts * 1000)}</span>
@@ -260,7 +260,7 @@ function CommoditiesPanel({ items: sectorItems, loading: sectorLoading, ready, p
                     {all ? <SectorChip s="ALL SECTORS" /> : c.tag.sectors.map((s) => <SectorChip key={s} s={s === "tech" ? "Technology" : "Defense"} />)}
                   </span>
                 </span>
-                <Why title={`IMPACT · IMPORTANCE ${c.tag.importance}/5`} cls="text-amber-300" body={`${c.tag.why}. Source: ${c.source}.`} foot={c.tag.basis === "ai" ? "Sector impact judged by AI from the headline/summary" : "Sector impact from keyword rules (add GEMINI_API_KEY for AI tagging)"} />
+                <Why title={`IMPACT · IMPORTANCE ${c.tag.importance}/5`} cls="text-amber-300" body={`${c.tag.why}. Source: ${c.source}.`} foot={c.tag.basis === "ai" ? "SRC: LLM TAG OF HEADLINE · UNVERIFIED" : "SRC: KEYWORD RULES"} />
               </a>
             );
           })}
@@ -295,7 +295,7 @@ export default function MarketIntel() {
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="m-0 font-display text-[22px] font-semibold tracking-[0.04em] text-zinc-50">MARKET INTEL</h1>
-          <p className="m-0 mt-1 text-[11px] tracking-[0.06em] text-zinc-500">Sector sentiment · SEC filings · commodities · macro</p>
+          <p className="m-0 mt-1 text-[11px] tracking-[0.06em] text-zinc-500">[ SENTIMENT ] [ FILINGS ] [ COMMODITIES ] [ MACRO ]</p>
         </div>
         <Link href="/news/archive" className="text-[10.5px] font-bold tracking-[0.12em] text-zinc-500 hover:text-white">[ NEWS ARCHIVE → ]</Link>
       </div>
@@ -303,7 +303,7 @@ export default function MarketIntel() {
       <div className="grid grid-cols-3 gap-2" role="tablist" aria-label="Region">
         {REGIONS.map(([id, l]) => (
           <button key={id} type="button" role="tab" aria-selected={region === id} onClick={() => setRegion(id)}
-            className={`h-10 rounded-xl border text-[12px] font-bold tracking-[0.18em] transition-colors ${region === id ? "border-emerald-400/40 bg-emerald-400/[0.07] text-emerald-300" : "border-white/[0.05] bg-[#0a0a0c] text-zinc-500 hover:text-zinc-200"}`}>
+            className={`h-10 rounded-sm border text-[12px] font-bold tracking-[0.18em] transition-colors ${region === id ? "border-emerald-400/40 bg-emerald-400/[0.07] text-emerald-300" : "border-white/[0.06] bg-[#0a0a0c] text-zinc-500 hover:text-zinc-200"}`}>
             {l}
           </button>
         ))}
@@ -322,10 +322,10 @@ export default function MarketIntel() {
             const t = tone(s.index), on = s.id === sector;
             return (
               <button key={s.id} type="button" onClick={() => setSector(s.id)} aria-pressed={on}
-                className={`flex min-w-0 flex-col gap-2 rounded-2xl border p-4 text-left transition-[box-shadow] ${t.box} ${on ? "shadow-[inset_0_0_0_1px_rgba(255,255,255,0.18)]" : "opacity-80 hover:opacity-100"}`}>
+                className={`flex min-w-0 flex-col gap-2 rounded-sm border p-4 text-left transition-[box-shadow] ${t.box} ${on ? "shadow-[inset_0_0_0_1px_rgba(255,255,255,0.18)]" : "opacity-80 hover:opacity-100"}`}>
                 <div className="flex items-center justify-between gap-2">
                   <span className="truncate font-sans text-[15px] font-semibold text-zinc-50">{s.label}</span>
-                  <span className={`rounded-md px-2 py-0.5 text-[14px] font-bold tabular-nums ${t.num}`}>{s.index > 0 ? "+" : ""}{s.index}</span>
+                  <span className={`rounded-sm px-2 py-0.5 text-[14px] font-bold tabular-nums ${t.num}`}>{s.index > 0 ? "+" : ""}{s.index}</span>
                 </div>
                 <span className="line-clamp-2 font-sans text-[12.5px] leading-snug text-zinc-400" title={s.driver ? `${s.driver.source}: ${s.driver.headline}` : undefined}>{s.driver?.headline ?? "No archived news in 7 days."}</span>
                 <span className="mt-auto text-[9.5px] tracking-[0.12em] text-zinc-600">{s.articles} ARTICLE{s.articles === 1 ? "" : "S"}</span>
@@ -336,12 +336,12 @@ export default function MarketIntel() {
       </section>
 
       {/* Sector switch */}
-      <div className="flex items-center gap-3 border-y border-white/[0.05] py-2.5">
+      <div className="flex items-center gap-3 border-y border-white/[0.06] py-2.5">
         <span className={label}>SECTOR</span>
-        <div className="flex rounded-lg border border-white/[0.05] bg-[#0a0a0c] p-0.5" role="tablist" aria-label="Sector">
+        <div className="flex rounded-sm border border-white/[0.06] bg-[#0a0a0c] p-0.5" role="tablist" aria-label="Sector">
           {SECTORS.map(([id, l]) => (
             <button key={id} type="button" role="tab" aria-selected={sector === id} onClick={() => setSector(id)}
-              className={`h-8 rounded-md px-4 text-[11px] font-bold tracking-[0.16em] ${sector === id ? "bg-white/[0.08] text-white" : "text-zinc-500 hover:text-zinc-200"}`}>
+              className={`h-8 rounded-sm px-4 text-[11px] font-bold tracking-[0.16em] ${sector === id ? "bg-white/[0.08] text-white" : "text-zinc-500 hover:text-zinc-200"}`}>
               {l}
             </button>
           ))}
@@ -357,21 +357,21 @@ export default function MarketIntel() {
 
         <section className={`${card} flex min-w-0 flex-col gap-3 p-4`}>
           <div className="flex items-baseline justify-between">
-            <h2 className="m-0 font-sans text-[17px] font-semibold text-zinc-50">Macro</h2>
+            <h2 className="m-0 font-mono text-[12px] font-bold tracking-[0.16em] text-zinc-200">[ MACRO ]</h2>
             <span className={label}>ALL SECTORS</span>
           </div>
-          {loading && [0, 1, 2].map((i) => <div key={i} className="h-[58px] animate-pulse rounded-xl bg-white/[0.03]" />)}
+          {loading && [0, 1, 2].map((i) => <div key={i} className="h-[58px] animate-pulse rounded-sm bg-white/[0.03]" />)}
           {!loading && d?.macro.calendar.events.slice(0, 5).map((e) => (
-            <div key={`${e.source}-${e.code}-${e.at}`} className="flex flex-col gap-1.5 rounded-xl border border-white/[0.04] bg-black/30 px-3.5 py-3">
+            <div key={`${e.source}-${e.code}-${e.at}`} className="flex flex-col gap-1.5 rounded-sm border border-white/[0.06] bg-[#030303] px-3.5 py-3">
               <div className="flex items-center justify-between gap-3">
-                <span className={`rounded-md px-2 py-0.5 text-[11px] font-bold ${BADGE[e.source] ?? "bg-white/[0.06] text-zinc-300"}`}>{e.source} · {e.code}</span>
+                <span className={`rounded-sm px-2 py-0.5 text-[11px] font-bold ${BADGE[e.source] ?? "bg-white/[0.06] text-zinc-300"}`}>{e.source} · {e.code}</span>
                 <span className="text-[10.5px] text-zinc-500">{when(e.at, e.allDay)}</span>
               </div>
               <span className="font-sans text-[13px] text-zinc-200">{e.title}</span>
             </div>
           ))}
           {!loading && d && d.macro.news.length > 0 && (
-            <div className="flex flex-col gap-2 border-t border-white/[0.05] pt-3">
+            <div className="flex flex-col gap-2 border-t border-white/[0.06] pt-3">
               <span className={label}>MACRO NEWS</span>
               {d.macro.news.map((n) => (
                 <a key={n.id} href={n.url || undefined} target="_blank" rel="noreferrer" className="flex gap-3 text-[12.5px] hover:text-white">

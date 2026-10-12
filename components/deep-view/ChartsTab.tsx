@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { FundData } from "./types";
 import { BREADTH, MONTHS } from "./mockData";
 
-const CARD = "rounded-[18px] border border-white/[0.04] bg-[#121214]";
+const CARD = "rounded-[18px] border border-white/[0.06] bg-[#0a0a0c]";
 
 function heat(v: number | null, wide: boolean) {
   if (v == null) return { v: "·", bg: "transparent", fg: "#4B5563", fw: 400 };
@@ -110,7 +110,7 @@ function Seasonality({ fund }: { fund: FundData }) {
 
   return (
     <div ref={ref} className={`mx-3 mb-3 flex min-w-0 flex-col ${CARD}`}>
-      <div className="flex flex-col gap-2.5 p-6 font-mono tabular-nums">
+      <div className="flex flex-col gap-2.5 p-3 font-mono tabular-nums">
         <div className="flex items-baseline justify-between gap-2">
           <span className="font-display text-[10.5px] font-bold tracking-[0.18em] text-neutral-300">SEASONALITY MATRIX</span>
           <span className="whitespace-nowrap text-[9.5px] text-gray-600">MONTHLY % · 2023–26</span>
@@ -123,9 +123,9 @@ function Seasonality({ fund }: { fund: FundData }) {
             <div key={r.y} className="contents">
               <span className={`flex items-center text-[10px] font-bold ${r.isAvg ? "mt-1 text-white" : "text-gray-400"}`}>{r.y}</span>
               {r.cells.map((c, i) => (
-                <span key={i} title={c.tip} className={`flex h-[34px] min-w-0 items-center justify-center overflow-hidden whitespace-nowrap hover:outline hover:outline-1 hover:outline-gray-200 ${r.isAvg ? "mt-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.35)]" : ""}`} style={{ background: c.bg, color: c.fg, fontWeight: c.fw }}>{c.v}</span>
+                <span key={i} title={c.tip} className={`flex h-[34px] min-w-0 items-center justify-center overflow-hidden whitespace-nowrap hover:outline hover:outline-1 hover:outline-gray-200 ${r.isAvg ? "mt-1 " : ""}`} style={{ background: c.bg, color: c.fg, fontWeight: c.fw }}>{c.v}</span>
               ))}
-              <span title={r.tn} className={`flex h-[34px] items-center justify-center whitespace-nowrap font-bold text-white ${r.isAvg ? "mt-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.35)]" : ""}`} style={{ background: r.tb }}>{r.t}</span>
+              <span title={r.tn} className={`flex h-[34px] items-center justify-center whitespace-nowrap font-bold text-white ${r.isAvg ? "mt-1 " : ""}`} style={{ background: r.tb }}>{r.t}</span>
             </div>
           ))}
         </div>

@@ -14,7 +14,7 @@ import { sg } from "./utils";
    ───────────────────────────────────────────────────────────── */
 
 
-const SURFACE = "rounded-2xl border border-white/[0.05] bg-[#0a0a0c]";
+const SURFACE = "rounded-sm border border-white/[0.06] bg-[#0a0a0c]";
 const pct2 = (v: number) => v.toFixed(2) + "%";
 /** 450.2 → "$450.2B", 0.84 → "$840M" */
 const aumFmt = (b: number) => (b >= 1 ? "$" + b.toFixed(1) + "B" : "$" + Math.round(b * 1000) + "M");

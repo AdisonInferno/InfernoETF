@@ -70,34 +70,33 @@ export default function InfernoChat() {
   }
 
   return (
-    <div className="mx-auto flex min-h-[480px] w-full max-w-[1100px] flex-1 flex-col gap-4 px-6 py-6">
-      <section className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-3xl border border-white/[0.04] bg-[#0a0a0c]">
-        <div className="flex items-center justify-between border-b border-white/[0.04] px-5 py-4">
-          <span className="text-[11px] font-semibold tracking-[0.1em] text-[#A78BFA]">✦ INFERNO AI</span>
+    <div className="mx-auto flex min-h-[480px] w-full max-w-[1100px] flex-1 flex-col gap-4 px-3 py-3">
+      <section className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-sm border border-white/[0.06] bg-[#0a0a0c]">
+        <div className="flex items-center justify-between border-b border-white/[0.06] px-5 py-4">
+          <span className="font-mono text-[11px] font-bold tracking-[0.16em] text-zinc-300">[ QUERY TERMINAL ]</span>
           {messages.length > 0 && (
             <button
               type="button"
               onClick={() => { setMessages([]); setError(null); }}
               disabled={loading}
-              className="text-xs text-zinc-500 transition-colors hover:text-white disabled:opacity-40"
+              className="font-mono text-[10.5px] tracking-[0.1em] text-zinc-500 transition-colors hover:text-white disabled:opacity-40"
             >
-              Nowa rozmowa
+              [ CLEAR ]
             </button>
           )}
         </div>
 
-        <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-5">
+        <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-3">
           {messages.length === 0 && (
-            <div className="m-auto flex max-w-md flex-col items-center gap-4 text-center">
-              <h1 className="text-xl font-semibold tracking-tight text-zinc-50">Zapytaj o dowolny ETF</h1>
-              <p className="text-sm text-zinc-500">Koszty, skład, ryzyko, porównania. Asystent wyjaśnia, nie doradza.</p>
-              <div className="flex flex-wrap justify-center gap-2">
+            <div className="flex flex-col gap-2 font-mono">
+              <span className="text-[10.5px] tracking-[0.14em] text-zinc-500">[ SCOPE ] TER · HOLDINGS · RISK · COMPARISON — FACTS ONLY, NOT ADVICE</span>
+              <div className="flex flex-wrap gap-1.5">
                 {SUGGESTIONS.map((s) => (
                   <button
                     key={s}
                     type="button"
                     onClick={() => send(s)}
-                    className="rounded-full bg-white/[0.05] px-3.5 py-1.5 text-xs text-zinc-300 transition-colors hover:bg-white/10 hover:text-white"
+                    className="rounded-sm border border-white/[0.06] bg-[#030303] px-2.5 py-1 font-mono text-[11px] text-zinc-400 transition-colors hover:text-white"
                   >
                     {s}
                   </button>
@@ -106,28 +105,27 @@ export default function InfernoChat() {
             </div>
           )}
 
+          {/* Session log: one row per entry, prefix column instead of chat bubbles */}
           {messages.map((m, i) => (
-            <div
-              key={i}
-              className={`max-w-[80%] whitespace-pre-wrap rounded-2xl px-4 py-3 text-sm leading-relaxed ${
-                m.role === "user"
-                  ? "self-end bg-white/[0.08] text-zinc-50"
-                  : "self-start border border-violet-400/[0.15] bg-violet-500/[0.06] text-zinc-200"
-              }`}
-            >
-              {m.content || <span className="animate-pulse text-zinc-500">…</span>}
+            <div key={i} className={`grid grid-cols-[64px_minmax(0,1fr)] gap-3 border-b border-white/[0.06] pb-3 ${m.role === "user" ? "" : "text-zinc-200"}`}>
+              <span className={`pt-0.5 font-mono text-[10px] font-bold tracking-[0.12em] ${m.role === "user" ? "text-red-400" : "text-zinc-500"}`}>
+                {m.role === "user" ? "> QUERY" : "< RESP"}
+              </span>
+              <div className={`whitespace-pre-wrap text-[13px] leading-relaxed ${m.role === "user" ? "font-mono text-zinc-50" : ""}`}>
+                {m.content || <span className="animate-pulse font-mono text-zinc-500">█</span>}
+              </div>
             </div>
           ))}
           <div ref={endRef} />
         </div>
 
         {error && (
-          <div className="mx-5 mb-3 rounded-xl border border-rose-500/20 bg-rose-500/10 px-4 py-2.5 text-xs text-rose-300">{error}</div>
+          <div className="mx-5 mb-3 rounded-sm border border-rose-500/20 bg-rose-500/10 px-4 py-2.5 text-xs text-rose-300">{error}</div>
         )}
 
         <form
           onSubmit={(e) => { e.preventDefault(); send(input); }}
-          className="flex items-end gap-2 border-t border-white/[0.04] bg-[#121214] p-3"
+          className="flex items-end gap-2 border-t border-white/[0.06] bg-[#0a0a0c] p-3"
         >
           <textarea
             value={input}
@@ -136,15 +134,15 @@ export default function InfernoChat() {
               if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(input); }
             }}
             rows={1}
-            placeholder="Napisz wiadomość…  (Enter = wyślij, Shift+Enter = nowa linia)"
-            className="max-h-40 min-h-[42px] flex-1 resize-none rounded-xl border border-white/[0.05] bg-white/[0.03] px-3.5 py-2.5 text-sm text-zinc-100 outline-none placeholder:text-zinc-600 focus:border-white/[0.15]"
+            placeholder="> query…   [ENTER] run · [SHIFT+ENTER] newline"
+            className="max-h-40 min-h-[42px] flex-1 resize-none rounded-sm border border-white/[0.06] bg-[#030303] px-3 py-2.5 font-mono text-[13px] text-zinc-100 outline-none placeholder:text-zinc-600 focus:border-white/[0.15]"
           />
           <button
             type="submit"
             disabled={loading || !input.trim()}
-            className="h-[42px] rounded-xl bg-red-500/90 px-5 text-xs font-bold tracking-[0.08em] text-white transition-colors hover:bg-red-500 disabled:cursor-not-allowed disabled:bg-white/[0.06] disabled:text-zinc-600"
+            className="h-[42px] rounded-sm bg-red-500/90 px-4 font-mono text-[11px] font-bold tracking-[0.1em] text-white transition-colors hover:bg-red-500 disabled:cursor-not-allowed disabled:bg-white/[0.06] disabled:text-zinc-600"
           >
-            {loading ? "…" : "WYŚLIJ"}
+            {loading ? "[ … ]" : "[ RUN ]"}
           </button>
         </form>
       </section>

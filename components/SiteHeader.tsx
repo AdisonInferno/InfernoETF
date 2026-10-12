@@ -15,7 +15,7 @@ const NAV = [
 /* Swap for your own logo: put logo.svg in /public and use <img src="/logo.svg" />. */
 function LogoMark() {
   return (
-    <svg width="30" height="30" viewBox="0 0 32 32" aria-hidden="true" className="flex-none drop-">
+    <svg width="30" height="30" viewBox="0 0 32 32" aria-hidden="true" className="flex-none">
       <defs>
         <linearGradient id="inferno-flame" x1="0" y1="1" x2="0" y2="0">
           <stop offset="0" stopColor="#b91c1c" />
@@ -66,7 +66,7 @@ function SearchBox() {
 
   return (
     <div className="relative w-full max-w-[620px]">
-      <div className="flex h-10 items-center gap-2.5 rounded-xl border border-white/[0.06] bg-white/[0.03] px-3.5 transition-colors focus-within:border-white/[0.14] focus-within:bg-white/[0.05]">
+      <div className="flex h-10 items-center gap-2.5 rounded-sm border border-white/[0.06] bg-white/[0.03] px-3.5 transition-colors focus-within:border-white/[0.14] focus-within:bg-white/[0.05]">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" className="flex-none text-zinc-500">
           <circle cx="11" cy="11" r="7" />
           <line x1="21" y1="21" x2="16.65" y2="16.65" />
@@ -86,11 +86,11 @@ function SearchBox() {
           placeholder="Search ETF..."
           className="min-w-0 flex-1 bg-transparent text-sm text-zinc-100 outline-none placeholder:text-zinc-500"
         />
-        <kbd className="rounded-md border border-white/[0.08] bg-white/[0.06] px-1.5 py-0.5 font-mono text-[10px] text-zinc-500">/</kbd>
+        <kbd className="rounded-sm border border-white/[0.08] bg-white/[0.06] px-1.5 py-0.5 font-mono text-[10px] text-zinc-500">/</kbd>
       </div>
 
       {open && results.length > 0 && (
-        <div className="absolute inset-x-0 top-12 z-[60] overflow-hidden rounded-xl border border-white/[0.08] bg-[#121214] p-1">
+        <div className="absolute inset-x-0 top-12 z-[60] overflow-hidden rounded-sm border border-white/[0.08] bg-[#0a0a0c] p-1">
           {results.map((r, i) => (
             <button
               key={r.ticker}
@@ -98,7 +98,7 @@ function SearchBox() {
               onMouseDown={(e) => e.preventDefault()}
               onClick={() => go(r.ticker)}
               onMouseEnter={() => setActive(i)}
-              className={`flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left ${i === active ? "bg-white/[0.07]" : ""}`}
+              className={`flex w-full items-center gap-3 rounded-sm px-3 py-2 text-left ${i === active ? "bg-white/[0.07]" : ""}`}
             >
               <span className="w-14 font-mono text-[13px] font-bold text-zinc-50">{r.ticker}</span>
               <span className="min-w-0 flex-1 truncate text-xs text-zinc-500">{r.name}</span>
@@ -116,7 +116,7 @@ function IconButton({ label, children }: { label: string; children: React.ReactN
     <button
       type="button"
       aria-label={label}
-      className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/[0.06] bg-white/[0.03] transition-colors hover:bg-white/[0.08]"
+      className="flex h-9 w-9 items-center justify-center rounded-sm border border-white/[0.06] bg-white/[0.03] transition-colors hover:bg-white/[0.08]"
     >
       {children}
     </button>
@@ -129,7 +129,7 @@ export default function SiteHeader() {
   return (
     <header className="z-50 w-full flex-none bg-[#060607]">
       {/* Row 1: logo · search · actions */}
-      <div className="grid h-[68px] grid-cols-[1fr_minmax(0,620px)_1fr] items-center gap-6 px-6">
+      <div className="grid h-[68px] grid-cols-[1fr_minmax(0,620px)_1fr] items-center gap-6 px-3">
         <Link href="/scanner" className="flex items-center gap-3 justify-self-start">
           <LogoMark />
           <span className="text-[17px] font-bold tracking-[0.28em] text-white">INFERNO</span>
@@ -147,7 +147,7 @@ export default function SiteHeader() {
             </svg>
           </IconButton>
           <IconButton label="Account">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="#7c3aed">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="#a1a1aa">
               <circle cx="12" cy="8" r="4.2" />
               <path d="M3.5 21c0-4.4 3.8-7.5 8.5-7.5s8.5 3.1 8.5 7.5Z" />
             </svg>
@@ -156,14 +156,14 @@ export default function SiteHeader() {
       </div>
 
       {/* Row 2: main menu */}
-      <nav className="flex h-10 items-center justify-center gap-2 overflow-x-auto px-6 pb-1">
+      <nav className="flex h-10 items-center justify-center gap-2 overflow-x-auto px-3 pb-1">
         {NAV.map((n) => {
           const active = pathname === n.href || pathname?.startsWith(n.href + "/") || (n.href === "/scanner" && pathname?.startsWith("/etf/"));
           return (
             <Link
               key={n.href}
               href={n.href}
-              className={`whitespace-nowrap rounded-lg border px-3.5 py-1.5 text-[12px] font-semibold tracking-[0.08em] transition-colors ${
+              className={`whitespace-nowrap rounded-sm border px-3.5 py-1.5 text-[12px] font-semibold tracking-[0.08em] transition-colors ${
                 active
                   ? "border-red-500/40 bg-red-500/[0.12] text-red-400"
                   : "border-transparent text-zinc-400 hover:text-white"

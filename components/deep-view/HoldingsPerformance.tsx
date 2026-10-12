@@ -15,7 +15,7 @@ import { hash01, seeded } from "./utils";
 
 const MAX_LINES = 6;
 /** Series colours handed out in order to newly plotted tickers. */
-const PALETTE = ["#34d399", "#60a5fa", "#a78bfa", "#fbbf24", "#fb7185", "#22d3ee"];
+const PALETTE = ["#34d399", "#60a5fa", "#94a3b8", "#fbbf24", "#fb7185", "#22d3ee"];
 const ETF_KEY = "__ETF__";
 const WEEKS = 52;
 /** Last data point: Fri 2 Oct 2026 (fixed so server and client render identically). */
@@ -89,14 +89,14 @@ function ChartTip({ active, label, payload, etfTic }: { active?: boolean; label?
   if (!active || !payload?.length) return null;
   const rows = [...payload].sort((a, b) => Number(b.value) - Number(a.value));
   return (
-    <div className="min-w-[180px] rounded-lg border border-white/[0.08] bg-[#030303]/95 px-3 py-2.5 font-mono text-[11px] tabular-nums">
+    <div className="min-w-[180px] rounded-sm border border-white/[0.08] bg-[#030303]/95 px-3 py-2.5 font-mono text-[11px] tabular-nums">
       <div className="mb-1.5 text-[9.5px] tracking-[0.14em] text-zinc-500">{String(label)}</div>
       {rows.map((p) => {
         const key = String(p.dataKey), v = Number(p.value), isEtf = key === ETF_KEY;
         return (
           <div key={key} className="flex items-center justify-between gap-4 py-[1px]">
             <span className={`flex items-center gap-2 ${isEtf ? "font-bold text-white" : "text-zinc-300"}`}>
-              <span className="h-[3px] w-3 rounded-full" style={{ background: p.color }} />
+              <span className="h-[3px] w-3 rounded-none" style={{ background: p.color }} />
               {isEtf ? etfTic : key}
             </span>
             <span className={v >= 0 ? "text-emerald-400" : "text-red-400"}>{signed(v)}</span>
@@ -193,7 +193,7 @@ export function ExplorerTable({ x }: { x: Explorer }) {
     <div className="flex h-full min-h-0 flex-col gap-2 px-3 pb-2.5 pt-2 font-mono tabular-nums">
       {/* Toolbar + alerts — one wrapping row */}
       <div className="flex flex-none flex-wrap items-center gap-2">
-        <label className="flex h-7 min-w-[180px] flex-[0_1_280px] items-center gap-2 rounded-lg border border-white/[0.05] bg-[#030303] px-2.5 focus-within:border-zinc-700">
+        <label className="flex h-7 min-w-[180px] flex-[0_1_280px] items-center gap-2 rounded-sm border border-white/[0.06] bg-[#030303] px-2.5 focus-within:border-zinc-700">
           <span className="text-[11px] font-bold text-zinc-500">Q</span>
           <input type="text" value={x.q} onChange={(e) => x.setQ(e.target.value)} placeholder={`Search ${x.all.length} holdings...`} className="min-w-0 flex-1 border-0 bg-transparent font-mono text-[11.5px] text-neutral-200 outline-none" />
         </label>
@@ -206,7 +206,7 @@ export function ExplorerTable({ x }: { x: Explorer }) {
           <span key={c} className="flex h-7 items-center whitespace-nowrap border border-amber-500/60 bg-amber-500/[0.07] px-2.5 text-[10.5px] font-bold tracking-[0.08em] text-amber-500">⚠ {c}</span>
         ))}
         <span className="ml-auto flex items-center gap-2">
-          <label className="relative flex h-7 items-center whitespace-nowrap rounded-lg border border-white/[0.05] bg-[#030303] pl-2.5 pr-7 text-[10.5px] font-bold tracking-[0.08em] text-zinc-300 hover:border-zinc-700">
+          <label className="relative flex h-7 items-center whitespace-nowrap rounded-sm border border-white/[0.06] bg-[#030303] pl-2.5 pr-7 text-[10.5px] font-bold tracking-[0.08em] text-zinc-300 hover:border-zinc-700">
             <span>[ FILTER: {x.filter === "ALL" ? "ALL SECTORS" : x.filter.toUpperCase()} ]</span>
             <span className="absolute right-2.5 text-zinc-500">▾</span>
             <select value={x.filter} onChange={(e) => x.setFilter(e.target.value)} className="absolute inset-0 h-full w-full cursor-pointer opacity-0">
@@ -219,7 +219,7 @@ export function ExplorerTable({ x }: { x: Explorer }) {
       </div>
 
       {/* Table — inner scroll */}
-      <div className="min-h-0 flex-1 overflow-auto overscroll-contain rounded-lg border border-white/[0.05] bg-[#030303]/40 [scrollbar-color:#27272a_transparent] [scrollbar-width:thin]">
+      <div className="min-h-0 flex-1 overflow-auto overscroll-contain rounded-sm border border-white/[0.06] bg-[#030303]/40 [scrollbar-color:#27272a_transparent] [scrollbar-width:thin]">
         <div className="min-w-[860px]">
           <div className={`sticky top-0 z-[2] h-8 border-b border-white/[0.06] bg-[#0a0a0c] text-[9.5px] font-bold tracking-[0.14em] text-zinc-500 ${GRID}`}>
             <span className="text-center" title="Plot on chart">◫</span>
@@ -244,7 +244,7 @@ export function ExplorerTable({ x }: { x: Explorer }) {
                 onKeyDown={(e) => { if (e.key === " " || e.key === "Enter") { e.preventDefault(); x.toggle(r.tic); } }}
                 onMouseEnter={() => on && x.setHover(r.tic)}
                 onMouseLeave={() => x.setHover(null)}
-                className={`h-[32px] cursor-pointer border-b border-white/[0.04] text-[11.5px] transition-colors last:border-b-0 hover:bg-white/[0.03] focus-visible:bg-white/[0.04] focus-visible:outline-none ${on ? "bg-white/[0.015]" : ""} ${GRID}`}
+                className={`h-[32px] cursor-pointer border-b border-white/[0.06] text-[11.5px] transition-colors last:border-b-0 hover:bg-white/[0.03] focus-visible:bg-white/[0.04] focus-visible:outline-none ${on ? "bg-white/[0.015]" : ""} ${GRID}`}
                 style={on ? { boxShadow: `inset 2px 0 0 ${c}` } : undefined}
               >
                 <span className="flex justify-center">
@@ -270,7 +270,7 @@ export function ExplorerTable({ x }: { x: Explorer }) {
               </div>
             );
           })}
-          {x.rows.length === 0 && <div className="p-6 text-center text-[11px] tracking-[0.14em] text-zinc-600">NO MATCHING HOLDINGS</div>}
+          {x.rows.length === 0 && <div className="p-3 text-center text-[11px] tracking-[0.14em] text-zinc-600">NO MATCHING HOLDINGS</div>}
         </div>
       </div>
     </div>
@@ -343,9 +343,9 @@ export function ExplorerChart({ x }: { x: Explorer }) {
       </div>
 
       {/* Dynamic legend — only plotted tickers */}
-      <div className="mt-1.5 flex flex-none flex-wrap items-center gap-2 border-t border-white/[0.05] px-1 pt-2 text-[10.5px]">
-        <span className="flex h-6 items-center gap-1.5 rounded-md bg-white/[0.06] px-2 font-bold text-white">
-          <span className="h-[3px] w-3.5 rounded-full bg-zinc-100" />{fund.tic}
+      <div className="mt-1.5 flex flex-none flex-wrap items-center gap-2 border-t border-white/[0.06] px-1 pt-2 text-[10.5px]">
+        <span className="flex h-6 items-center gap-1.5 rounded-sm bg-white/[0.06] px-2 font-bold text-white">
+          <span className="h-[3px] w-3.5 rounded-none bg-zinc-100" />{fund.tic}
           <span className={x.etfR >= 0 ? "text-emerald-400" : "text-red-400"}>{signed(x.etfR, 1)}</span>
         </span>
         {shown.map((h) => (
@@ -356,9 +356,9 @@ export function ExplorerChart({ x }: { x: Explorer }) {
             onMouseEnter={() => x.setHover(h.tic)}
             onMouseLeave={() => x.setHover(null)}
             title={`Remove ${h.tic}`}
-            className="group flex h-6 items-center gap-1.5 rounded-md border border-white/[0.06] px-2 text-zinc-200 hover:border-white/20"
+            className="group flex h-6 items-center gap-1.5 rounded-sm border border-white/[0.06] px-2 text-zinc-200 hover:border-white/20"
           >
-            <span className="h-0.5 w-3.5 rounded-full" style={{ background: plotted.get(h.tic) }} />
+            <span className="h-0.5 w-3.5 rounded-none" style={{ background: plotted.get(h.tic) }} />
             {h.tic}
             <span className={h.r1y >= 0 ? "text-emerald-400" : "text-red-400"}>{signed(h.r1y, 1)}</span>
             <span className="text-zinc-600 group-hover:text-zinc-200">×</span>
@@ -369,7 +369,7 @@ export function ExplorerChart({ x }: { x: Explorer }) {
             {x.limitHit ? `MAX ${MAX_LINES} LINES · REMOVE ONE FIRST` : `${shown.length}/${MAX_LINES} PLOTTED`}
           </span>
           {shown.length > 0 && (
-            <button type="button" onClick={x.clearAll} className="rounded-md px-2 py-1 text-[10px] font-bold tracking-[0.1em] text-zinc-500 hover:bg-white/[0.05] hover:text-zinc-100">
+            <button type="button" onClick={x.clearAll} className="rounded-sm px-2 py-1 text-[10px] font-bold tracking-[0.1em] text-zinc-500 hover:bg-white/[0.05] hover:text-zinc-100">
               CLEAR ALL
             </button>
           )}

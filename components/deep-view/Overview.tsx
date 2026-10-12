@@ -7,7 +7,7 @@ import { COUNTRY_CODE } from "./mockData";
 import { aumFmt, pctOf, squarify } from "./utils";
 import PriceChart from "./PriceChart";
 
-const CARD = "rounded-2xl border border-white/[0.05] bg-[#0a0a0c]";
+const CARD = "rounded-sm border border-white/[0.06] bg-[#0a0a0c]";
 const H_LABEL = "font-display text-[10.5px] font-bold tracking-[0.18em] text-neutral-300";
 const SECTOR_RGB: Record<string, string> = {
   Technology: "16,185,129", Materials: "251,191,36", "Cash & Other": "148,163,184", Other: "113,113,122",
@@ -32,18 +32,17 @@ function SectorBreakdown({ fund }: { fund: FundData }) {
       .sort((a, b) => b.v - a.v);
     const tiles = squarify(secs, (s) => s.v, 0, 0, W, H).map(({ item: sc, x, y, w, h }) => {
       const c = SECTOR_RGB[sc.n] ?? "148,163,184";
-      const c2 = sc.n === "Technology" ? "20,184,166" : c;
       const lbl = w * PXU > 90 && h * 2.2 > 40, hdU = lbl ? 22 / PXU : 0;
       const subs = squarify(sc.a, (z) => z.v, 0, 0, w, h - hdU).map(({ item: z, x: sx, y: sy, w: sw, h: sh }) => ({
         name: z.n, v: z.v, x: pctOf(sx, w), y: pctOf(sy, h - hdU), w: pctOf(sw, w), h: pctOf(sh, h - hdU),
-        bg: `linear-gradient(135deg, rgba(${c},${(0.1 + (0.3 * z.v) / maxSub).toFixed(3)}), rgba(${c2},${(0.055 + (0.17 * z.v) / maxSub).toFixed(3)}))`,
-        bgh: `linear-gradient(135deg, rgba(${c},0.55), rgba(${c2},0.32))`,
+        bg: `rgba(${c},${(0.08 + (0.27 * z.v) / maxSub).toFixed(3)})`,
+        bgh: `rgba(${c},0.5)`,
         bc: `rgba(${c},0.75)`, lc: `rgb(${c})`, show: sw * PXU > 76 && sh * 2.2 > 40,
       }));
       return {
         name: sc.n.toUpperCase(), pct: sc.v.toFixed(1) + "%", parent: sc.n, lbl, subs,
         x: pctOf(x, W), y: pctOf(y, H), w: pctOf(w, W), h: pctOf(h, H),
-        bg: sc.n === "Technology" ? "linear-gradient(135deg, rgba(6,78,59,0.4), rgba(19,78,74,0.2))" : `rgba(${c},0.06)`,
+        bg: `rgba(${c},0.06)`,
         bc: `rgba(${c},0.45)`, lc: `rgb(${c})`,
       };
     });
@@ -58,12 +57,12 @@ function SectorBreakdown({ fund }: { fund: FundData }) {
   };
 
   return (
-    <div className={`flex h-full min-w-0 flex-col gap-4 p-7 font-mono tabular-nums ${CARD}`}>
+    <div className={`flex h-full min-w-0 flex-col gap-4 p-3 font-mono tabular-nums ${CARD}`}>
       <div className="flex items-baseline justify-between gap-2">
         <span className={H_LABEL}>SECTOR &amp; SUB-SECTOR BREAKDOWN</span>
         <span className="whitespace-nowrap text-[9.5px] text-gray-600">AUM {aumFmt(fund.aumB)} · {nSecs} SECTORS · {fund.sectors.length} SUB-SECTORS</span>
       </div>
-      <div ref={ref} onMouseLeave={() => setTip(null)} className="relative min-h-[260px] flex-1 overflow-hidden rounded-xl border border-white/[0.03] bg-black/30">
+      <div ref={ref} onMouseLeave={() => setTip(null)} className="relative min-h-[260px] flex-1 overflow-hidden rounded-sm border border-white/[0.03] bg-[#030303]">
         {tiles.map((sc) => (
           <div key={sc.name} className="absolute box-border overflow-hidden border" style={{ left: sc.x, top: sc.y, width: sc.w, height: sc.h, borderColor: sc.bc, background: sc.bg }}>
             {sc.lbl && <span className="pointer-events-none absolute left-2 top-1 z-[1] whitespace-nowrap text-[9.5px] font-bold tracking-[0.16em]" style={{ color: sc.lc }}>{sc.name} · {sc.pct}</span>}
@@ -106,7 +105,7 @@ function TopHoldings({ fund }: { fund: FundData }) {
   const top10 = fund.holdings.slice(0, 10).reduce((a, h) => a + h.w, 0);
   return (
     <div className={`flex h-full min-w-0 flex-col justify-between ${CARD}`}>
-      <div className="flex flex-col gap-2.5 p-6 font-mono tabular-nums">
+      <div className="flex flex-col gap-2.5 p-3 font-mono tabular-nums">
         <div className="flex items-baseline justify-between gap-2">
           <span className={H_LABEL}>TOP 10 HOLDINGS</span>
           <span className="whitespace-nowrap text-[9.5px] text-gray-600">{fund.positions} POS · TOP10 {top10.toFixed(1)}% · AS OF 09-25</span>
@@ -124,7 +123,7 @@ function TopHoldings({ fund }: { fund: FundData }) {
             </div>
           ))}
         </div>
-        {canExpand && <button type="button" onClick={() => setExp((v) => !v)} className="flex h-6 items-center justify-center rounded-xl border border-white/[0.03] bg-black/30 text-[9.5px] font-semibold tracking-[0.14em] text-gray-500 hover:border-gray-700 hover:text-white">
+        {canExpand && <button type="button" onClick={() => setExp((v) => !v)} className="flex h-6 items-center justify-center rounded-sm border border-white/[0.03] bg-[#030303] text-[9.5px] font-semibold tracking-[0.14em] text-gray-500 hover:border-gray-700 hover:text-white">
           {exp ? "[ COLLAPSE ]" : `[ EXPAND ALL · ${fund.holdings.length} ]`}
         </button>}
       </div>
@@ -134,7 +133,7 @@ function TopHoldings({ fund }: { fund: FundData }) {
 
 function GeoAllocation({ fund }: { fund: FundData }) {
   return (
-    <div className={`flex h-full min-w-0 flex-col gap-4 p-7 font-mono tabular-nums ${CARD}`}>
+    <div className={`flex h-full min-w-0 flex-col gap-4 p-3 font-mono tabular-nums ${CARD}`}>
       <div className="flex items-baseline justify-between gap-2">
         <span className={H_LABEL}>GEOGRAPHIC ALLOCATION</span>
         <span className="whitespace-nowrap text-[9.5px] text-gray-600">{fund.geo.length} REGIONS</span>
@@ -145,7 +144,7 @@ function GeoAllocation({ fund }: { fund: FundData }) {
           return (
             <div
               key={name}
-              className="box-border flex min-w-0 items-center rounded-xl border border-white/[0.03] bg-black/30 px-[18px] py-4 transition-[border-color,box-shadow] hover:border-emerald-400 hover:shadow-[inset_0_0_18px_rgba(52,211,153,0.05)]"
+              className="box-border flex min-w-0 items-center rounded-sm border border-white/[0.03] bg-[#030303] px-[18px] py-4 transition-[border-color,box-shadow] hover:border-emerald-400 "
               style={{ flex: `${Math.max(1, Math.round(v))} 1 ${big ? "100%" : "150px"}`, minHeight: Math.round(56 + v * 1.1), gap: big ? 24 : 12 }}
             >
               {cc ? (
@@ -165,35 +164,29 @@ function GeoAllocation({ fund }: { fund: FundData }) {
   );
 }
 
-function AiOversight({ note, onUpgrade }: { note: string; onUpgrade?: () => void }) {
+/** Desk note rendered as a structured record (no paywall blur, no "AI" voice). */
+function CatalystMatrix({ note, ticker }: { note: string; ticker: string }) {
+  const lines = note.split(/(?<=[.;])\s+/).map((x) => x.trim()).filter((x) => x && !/inferno pro|upgrade/i.test(x)).slice(0, 5);
   return (
-    <div className={`flex h-full min-w-0 flex-col justify-center ${CARD}`}>
-      <div className="px-6 py-4">
-        <div className="relative flex flex-col gap-2 rounded-sm border border-purple-900/45 bg-[#0a0510] p-3 shadow-[inset_0_0_24px_rgba(147,51,234,0.06)]">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-[13px] leading-none text-purple-400">✦</span>
-            <span className="whitespace-nowrap font-mono text-[10.5px] font-bold tracking-[0.12em] text-purple-200">AI OVERSIGHT // GEN-Z ALPHA</span>
-            <span className="ml-auto whitespace-nowrap border border-[#ff2a2a] bg-[#ff2a2a]/[0.12] px-1.5 py-0.5 font-mono text-[9px] font-bold tracking-[0.08em] text-[#ff4d4d]">[ LIMIT REACHED: 10/10 ]</span>
-          </div>
-          <div className="relative min-h-[90px]">
-            <p className="pointer-events-none m-0 select-none font-mono text-[10.5px] leading-[1.6] text-purple-300 opacity-50 blur-[4px]">
-              {note}
-            </p>
-            <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 px-2 text-center">
-              <span className="font-display text-sm font-bold tracking-[0.16em] text-white">UPGRADE TO INFERNO PRO</span>
-              <span className="max-w-[260px] text-pretty font-display text-[11px] leading-[1.3] text-violet-300">Unlock unlimited AI insights and deep overlap analysis.</span>
-              <button type="button" onClick={onUpgrade} className="mt-0.5 flex h-7 items-center border border-emerald-400 bg-emerald-400/[0.08] px-3.5 font-mono text-[11px] font-bold tracking-[0.14em] text-emerald-400 hover:bg-emerald-400 hover:text-black">
-                [ INITIATE UPGRADE ]
-              </button>
-            </div>
-          </div>
-        </div>
+    <div className={`flex h-full min-w-0 flex-col ${CARD}`}>
+      <div className="flex items-center justify-between gap-2 border-b border-white/[0.06] px-3 py-2.5 font-mono text-[10px] tracking-[0.14em]">
+        <span className="font-bold text-zinc-300">[ CATALYST MATRIX ]</span>
+        <span className="text-zinc-600">{ticker}</span>
       </div>
+      <ul className="m-0 flex list-none flex-col gap-1.5 p-3">
+        {lines.map((l, i) => (
+          <li key={i} className="grid grid-cols-[22px_minmax(0,1fr)] gap-2 text-[12px] leading-snug text-zinc-300">
+            <span className="font-mono text-[10px] text-zinc-600">{String(i + 1).padStart(2, "0")}</span>
+            <span>{l}</span>
+          </li>
+        ))}
+      </ul>
+      <span className="mt-auto border-t border-white/[0.06] px-3 py-2 font-mono text-[9.5px] tracking-[0.08em] text-zinc-600">SRC: MODEL NOTE · UNVERIFIED · NOT ADVICE</span>
     </div>
   );
 }
 
-export default function Overview({ fund, onUpgrade }: { fund: FundData; onUpgrade?: () => void }) {
+export default function Overview({ fund }: { fund: FundData; onUpgrade?: () => void }) {
   return (
     <div className="flex flex-none flex-col gap-6 px-5 pb-12 pt-6">
       <PriceChart fund={fund} />
@@ -203,7 +196,7 @@ export default function Overview({ fund, onUpgrade }: { fund: FundData; onUpgrad
       </div>
       <div className="grid grid-cols-1 items-stretch gap-6 lg:grid-cols-12">
         <div className="min-w-0 lg:col-span-8"><GeoAllocation fund={fund} /></div>
-        <div className="min-w-0 lg:col-span-4"><AiOversight note={fund.aiNote} onUpgrade={onUpgrade} /></div>
+        <div className="min-w-0 lg:col-span-4"><CatalystMatrix note={fund.aiNote} ticker={fund.tic} /></div>
       </div>
     </div>
   );

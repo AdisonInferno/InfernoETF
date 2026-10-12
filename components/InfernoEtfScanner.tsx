@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 
 /* ─────────────────────────────── Types ─────────────────────────────── */
 
@@ -107,19 +108,19 @@ const PROVIDERS: Provider[] = ["BlackRock", "Vanguard", "State Street", "Invesco
 
 const SECTOR_GAP = 8; // half-gutter between sector cards
 const HEADER_H = 28; // sector card title bar
-const MONO = "font-['JetBrains_Mono',ui-monospace,monospace]";
+const MONO = "font-mono";
 
 const fmtPct = (c: number) =>
   (c > 0 ? "+" : c < 0 ? "−" : "") + Math.abs(c).toFixed(2) + "%";
 
 const tileBg = (c: number) => {
-  if (c >= 1.5) return "linear-gradient(135deg,#064e3b,#059669)";
-  if (c >= 0.5) return "linear-gradient(135deg,rgba(6,78,59,0.8),#047857)";
-  if (c > 0.15) return "linear-gradient(135deg,rgba(6,78,59,0.55),rgba(4,120,87,0.75))";
-  if (c >= -0.15) return "linear-gradient(135deg,#1e293b,#334155)";
-  if (c > -0.5) return "linear-gradient(135deg,rgba(127,29,29,0.6),rgba(153,27,27,0.8))";
-  if (c > -1.5) return "linear-gradient(135deg,#7f1d1d,#b91c1c)";
-  return "linear-gradient(135deg,#450a0a,#991b1b)";
+  if (c >= 1.5) return "#047857";
+  if (c >= 0.5) return "#065f46";
+  if (c > 0.15) return "#064e3b";
+  if (c >= -0.15) return "#27272a";
+  if (c > -0.5) return "#7f1d1d";
+  if (c > -1.5) return "#991b1b";
+  return "#b91c1c";
 };
 
 const trendColor = (c: number) => (c >= 0 ? "#34D399" : "#F87171");
@@ -202,7 +203,7 @@ const ToggleButton: React.FC<{ active: boolean; onClick: () => void; children: R
       "flex-1 cursor-pointer rounded-sm border px-1 py-[9px] text-center text-xs font-semibold transition-colors",
       active
         ? "border-white/[0.14] bg-white/[0.10] text-[#FAFAFA] hover:bg-white/[0.14]"
-        : "border-white/[0.05] bg-white/[0.03] text-[#A1A1AA] hover:bg-white/[0.08]",
+        : "border-white/[0.06] bg-white/[0.03] text-[#A1A1AA] hover:bg-white/[0.08]",
     ].join(" ")}
   >
     {children}
@@ -212,6 +213,7 @@ const ToggleButton: React.FC<{ active: boolean; onClick: () => void; children: R
 /* ───────────────────────────── Component ───────────────────────────── */
 
 export default function InfernoEtfScanner() {
+  const router = useRouter();
   const [equalWeight, setEqualWeight] = useState(true);
   const [sort, setSort] = useState<SortKey>("aum");
   const [disabled, setDisabled] = useState<Partial<Record<Provider, boolean>>>({});
@@ -276,6 +278,7 @@ export default function InfernoEtfScanner() {
   }, []);
 
   const hoverHandlers = (etf: Etf) => ({
+    onClick: () => router.push(`/etf/${etf.ticker}`),
     onMouseEnter: (e: React.MouseEvent) => setTip({ etf, x: e.clientX, y: e.clientY }),
     onMouseMove: (e: React.MouseEvent) => setTip({ etf, x: e.clientX, y: e.clientY }),
     onMouseLeave: () => setTip(null),
@@ -287,9 +290,9 @@ export default function InfernoEtfScanner() {
   const tipColor = tip ? trendColor(tip.etf.change1d) : "#34D399";
 
   return (
-    <div className="absolute inset-0 grid grid-cols-[260px_minmax(0,1fr)] grid-rows-[minmax(0,1fr)] gap-4 overflow-hidden bg-[#030303] p-4 font-['Space_Grotesk',ui-sans-serif,system-ui,sans-serif] text-[#E5E5E5]">
+    <div className="absolute inset-0 grid grid-cols-[260px_minmax(0,1fr)] grid-rows-[minmax(0,1fr)] gap-4 overflow-hidden bg-[#030303] p-4 font-sans text-[#E5E5E5]">
       {/* ── Sidebar ── */}
-      <aside className="flex min-h-0 flex-col gap-5 self-stretch overflow-y-auto rounded-sm border border-white/[0.05] bg-[#0a0a0c] p-5">
+      <aside className="flex min-h-0 flex-col gap-5 self-stretch overflow-y-auto rounded-sm border border-white/[0.06] bg-[#0a0a0c] p-3">
         <div className="flex flex-col gap-1">
           <span className={`${MONO} text-[13px] font-semibold tracking-[0.12em] text-[#FAFAFA]`}>[ ETF MARKET MAP ]</span>
         </div>
@@ -298,10 +301,10 @@ export default function InfernoEtfScanner() {
           <SectionLabel>SIZING</SectionLabel>
           <div className="flex gap-1.5">
             <ToggleButton active={!equalWeight} onClick={() => setEqualWeight(false)}>
-              Market Weight
+              MKT WEIGHT
             </ToggleButton>
             <ToggleButton active={equalWeight} onClick={() => setEqualWeight(true)}>
-              Equal Weight
+              EQUAL
             </ToggleButton>
           </div>
         </div>
@@ -310,10 +313,10 @@ export default function InfernoEtfScanner() {
           <SectionLabel>SORTING</SectionLabel>
           <div className="flex gap-1.5">
             <ToggleButton active={sort === "aum"} onClick={() => setSort("aum")}>
-              AUM (Largest First)
+              AUM ↓
             </ToggleButton>
             <ToggleButton active={sort === "chg"} onClick={() => setSort("chg")}>
-              % Change
+              % CHG ↓
             </ToggleButton>
           </div>
         </div>
@@ -349,7 +352,7 @@ export default function InfernoEtfScanner() {
 
         <div className="flex flex-col gap-2.5">
           <SectionLabel>COLOR SCALE</SectionLabel>
-          <div className="h-2 rounded-sm bg-[linear-gradient(90deg,#7f1d1d,#b91c1c_22%,#334155_50%,#047857_78%,#065f46)]" />
+          <div className="h-2 rounded-sm bg-[linear-gradient(90deg,#b91c1c_0_16%,#991b1b_16%_32%,#7f1d1d_32%_44%,#27272a_44%_56%,#064e3b_56%_68%,#065f46_68%_84%,#047857_84%)]" />
           <div className={`${MONO} flex justify-between text-[11px] text-[#71717A]`}>
             <span>−3%</span>
             <span>0%</span>
@@ -375,7 +378,7 @@ export default function InfernoEtfScanner() {
               key={s.title}
               onMouseEnter={() => setHoverSector(s.title)}
               onMouseLeave={() => setHoverSector(null)}
-              className="absolute box-border overflow-hidden rounded-sm border border-white/[0.05] bg-[#0a0a0c]"
+              className="absolute box-border overflow-hidden rounded-sm border border-white/[0.06] bg-[#0a0a0c]"
               style={{ left: s.x, top: s.y, width: s.w, height: s.h, zIndex: hoverSector === s.title ? 5 : 1 }}
             >
               <div className="absolute inset-x-0 top-0 flex h-7 items-center justify-between gap-2 overflow-hidden px-3.5">
@@ -423,7 +426,7 @@ export default function InfernoEtfScanner() {
         </div>
 
         {/* Macro baseline */}
-        <div className="mt-2 box-border flex w-full flex-none flex-wrap items-center justify-between gap-4 rounded-sm border border-white/[0.05] bg-[#0a0a0c] px-6 py-4">
+        <div className="mt-2 box-border flex w-full flex-none flex-wrap items-center justify-between gap-4 rounded-sm border border-white/[0.06] bg-[#0a0a0c] px-3 py-4">
           <span className={`${MONO} text-[11px] font-semibold tracking-[0.14em] text-[#71717A]`}>[ MACRO BASELINE ]</span>
           <div className="flex flex-wrap items-center gap-2.5">
             {MACRO.map((m) => {
@@ -432,7 +435,7 @@ export default function InfernoEtfScanner() {
                 <div
                   key={m.ticker}
                   {...hoverHandlers(m)}
-                  className="flex cursor-pointer items-center gap-2.5 rounded-sm border border-white/[0.05] bg-white/[0.03] px-3.5 py-2 transition-colors duration-150 hover:bg-white/10"
+                  className="flex cursor-pointer items-center gap-2.5 rounded-sm border border-white/[0.06] bg-white/[0.03] px-3.5 py-2 transition-colors duration-150 hover:bg-white/10"
                 >
                   <span className={`${MONO} text-[13px] font-bold text-[#FAFAFA]`}>{m.ticker}</span>
                   <span className="text-[11px] uppercase tracking-[0.06em] text-[#71717A]">{m.tag}</span>
@@ -461,13 +464,7 @@ export default function InfernoEtfScanner() {
             <span className="text-xs text-[#A1A1AA]">{tip.etf.name}</span>
           </div>
           <svg viewBox="0 0 256 56" width={256} height={56} className="block">
-            <defs>
-              <linearGradient id="etf-spark" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0" stopColor={tipColor} stopOpacity={0.28} />
-                <stop offset="1" stopColor={tipColor} stopOpacity={0} />
-              </linearGradient>
-            </defs>
-            <polygon points={spark.area} fill="url(#etf-spark)" />
+            <polygon points={spark.area} fill={tipColor} fillOpacity={0.08} />
             <polyline
               points={spark.line}
               fill="none"
@@ -483,9 +480,13 @@ export default function InfernoEtfScanner() {
               {fmtPct(tip.etf.change1d)} 1D
             </span>
           </div>
-          <div className="flex flex-col gap-1.5 rounded-sm border border-violet-400/[0.15] bg-violet-500/[0.08] px-3 py-2.5">
-            <span className="text-[10px] font-semibold tracking-[0.1em] text-[#A78BFA]">[ AI OVERSIGHT ]</span>
-            <span className="text-xs leading-normal text-[#C4B5FD]">{tip.etf.note}</span>
+          <div className="flex flex-col gap-1.5 border-t border-white/[0.06] pt-2.5">
+            <span className={`${MONO} flex justify-between text-[10px] tracking-[0.1em] text-zinc-500`}>
+              <span>[ CATALYST ]</span>
+              <span className={tip.etf.change1d >= 0 ? "text-emerald-400" : "text-rose-400"}>[ 1D: {tip.etf.change1d >= 0 ? "BULLISH" : "BEARISH"} ]</span>
+            </span>
+            <span className="text-xs leading-snug text-zinc-300">{tip.etf.note}</span>
+            <span className={`${MONO} text-[9.5px] tracking-[0.08em] text-zinc-600`}>SRC: DESK NOTE · ILLUSTRATIVE</span>
           </div>
         </div>
       )}

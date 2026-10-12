@@ -55,12 +55,12 @@ const GROUPS: { id: GroupId; label: string; options: string[]; test: (e: EtfRow,
 ];
 
 type TabId = (typeof CATEGORIES)[number]["id"];
-type SortKey = "default" | "aum" | "ytd" | "chg1d";
+type SortKey = "default" | "aum" | "ytd" | "chg1d" | "wk";
 
 const PRESETS: { icon: string; label: string; tab: TabId; filters: Filters; sort: SortKey }[] = [
-  { icon: "🚀", label: "AI & High Growth", tab: "ai-tech", filters: {}, sort: "ytd" },
-  { icon: "🛡️", label: "Low Volatility / Defensive", tab: "all", filters: { volatility: ["Low"] }, sort: "aum" },
-  { icon: "💰", label: "High Dividend Yield", tab: "all", filters: { dividend: ["High yield (> 3%)"] }, sort: "aum" },
+  { icon: "", label: "AI & High Growth", tab: "ai-tech", filters: {}, sort: "ytd" },
+  { icon: "", label: "Low Volatility / Defensive", tab: "all", filters: { volatility: ["Low"] }, sort: "aum" },
+  { icon: "", label: "High Dividend Yield", tab: "all", filters: { dividend: ["High yield (> 3%)"] }, sort: "aum" },
 ];
 
 /* ───────────────────────────── UI pieces ───────────────────────────── */
@@ -73,15 +73,43 @@ function GroupIcon({ id }: { id: GroupId }) {
   );
 }
 
-function PctBadge({ v }: { v: number }) {
+function PctBadge({ v, arrow }: { v: number; arrow?: boolean }) {
   return (
-    <span className={`inline-block rounded-md px-2 py-[3px] font-mono text-[12px] font-bold tabular-nums ${v >= 0 ? "bg-emerald-500/10 text-emerald-400" : "bg-rose-500/10 text-rose-400"}`}>
+    <span className={`inline-flex items-center gap-1 rounded-sm px-2 py-[3px] font-mono text-[12px] font-bold tabular-nums ${v >= 0 ? "bg-emerald-500/10 text-emerald-400" : "bg-rose-500/10 text-rose-400"}`}>
+      {arrow && <span className="text-[9px] leading-none">{v > 0 ? "▲" : v < 0 ? "▼" : "■"}</span>}
       {fmtPct(v)}
     </span>
   );
 }
 
-const card = "rounded-3xl border border-white/[0.04] bg-[#0a0a0c]";
+/* ── 7D path: cumulative % change over the last 7 sessions (illustrative, seeded by ticker; ends on today's move) ── */
+function week(e: EtfRow): number[] {
+  let h = 0;
+  for (const ch of e.ticker) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  const rnd = () => ((h = (h * 1664525 + 1013904223) >>> 0) / 4294967296);
+  const vol = (e.volatility === "High" ? 1.9 : e.volatility === "Medium" ? 1.1 : 0.6) * (e.leverage === "1x" ? 1 : 2.4);
+  const drift = e.ytd / 200; // YTD trend nudges the week's direction
+  const daily = Array.from({ length: 6 }, () => (rnd() - 0.5) * vol + drift);
+  daily.push(e.chg1d);
+  const pts = [0];
+  daily.forEach((d) => pts.push(((1 + pts[pts.length - 1] / 100) * (1 + d / 100) - 1) * 100));
+  return pts; // 8 points: start of window → today
+}
+const wk = (e: EtfRow) => { const p = week(e); return p[p.length - 1]; };
+
+function Spark({ pts, w = 72, h = 22 }: { pts: number[]; w?: number; h?: number }) {
+  const lo = Math.min(0, ...pts), hi = Math.max(0, ...pts), rg = hi - lo || 1;
+  const x = (i: number) => (i / (pts.length - 1)) * w, y = (v: number) => h - 2 - ((v - lo) / rg) * (h - 4);
+  const up = pts[pts.length - 1] >= 0, c = up ? "#34d399" : "#fb7185";
+  return (
+    <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} className="block">
+      <line x1="0" x2={w} y1={y(0)} y2={y(0)} stroke="rgba(255,255,255,0.12)" strokeDasharray="2 2" />
+      <polyline points={pts.map((v, i) => `${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(" ")} fill="none" stroke={c} strokeWidth="1.4" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+const card = "rounded-sm border border-white/[0.06] bg-[#0a0a0c]";
 
 /* ───────────────────────────── Component ───────────────────────────── */
 
@@ -144,6 +172,7 @@ export default function EtfTableScanner() {
       aum: (a, b) => b.aum - a.aum,
       ytd: (a, b) => b.ytd - a.ytd,
       chg1d: (a, b) => b.chg1d - a.chg1d,
+      wk: (a, b) => wk(b) - wk(a),
     };
     return [...list].sort(by[sort]);
   }, [base, tab, sort, activeSub]);
@@ -168,7 +197,7 @@ export default function EtfTableScanner() {
     <div className="absolute inset-0 grid grid-cols-[260px_minmax(0,1fr)] grid-rows-[auto_minmax(0,1fr)] gap-4 p-4 max-lg:grid-cols-1">
       {/* ── Filter deck ── */}
       <aside className={`row-span-2 flex min-h-0 flex-col overflow-hidden ${card} max-lg:row-span-1`}>
-        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto p-5">
+        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto p-3">
           <div className="mb-4 flex items-center gap-2 font-mono text-[12px] font-bold tracking-[0.14em] text-zinc-100">
             <span className="h-2 w-2 rounded-[1px] bg-emerald-400" />[ FILTER DECK ]
           </div>
@@ -182,7 +211,7 @@ export default function EtfTableScanner() {
                   <button
                     type="button"
                     onClick={() => setOpen((o) => ({ ...o, [g.id]: !isOpen }))}
-                    className="flex w-full items-center gap-2.5 rounded-lg py-[7px] text-left transition-colors hover:text-white"
+                    className="flex w-full items-center gap-2.5 rounded-sm py-[7px] text-left transition-colors hover:text-white"
                   >
                     <span className={`text-[9px] text-red-500 transition-transform ${isOpen ? "rotate-90" : ""}`}>▶</span>
                     <GroupIcon id={g.id} />
@@ -198,7 +227,7 @@ export default function EtfTableScanner() {
                             key={o}
                             type="button"
                             onClick={() => toggleOpt(g.id, o)}
-                            className={`rounded-md border px-2 py-1 text-[11px] transition-colors ${
+                            className={`rounded-sm border px-2 py-1 text-[11px] transition-colors ${
                               on ? "border-red-500/40 bg-red-500/[0.12] text-red-300" : "border-white/[0.06] bg-white/[0.03] text-zinc-400 hover:bg-white/[0.07] hover:text-zinc-200"
                             }`}
                           >
@@ -219,12 +248,12 @@ export default function EtfTableScanner() {
             <span className="text-[10px] font-semibold tracking-[0.14em] text-zinc-500">ACTIVE FILTERS</span>
               <div className="flex flex-wrap gap-1.5">
                 {query && (
-                  <button type="button" onClick={() => router.replace("/scanner")} className="rounded-md bg-white/[0.06] px-2 py-1 text-[11px] text-zinc-300 hover:bg-white/10">
+                  <button type="button" onClick={() => router.replace("/scanner")} className="rounded-sm bg-white/[0.06] px-2 py-1 text-[11px] text-zinc-300 hover:bg-white/10">
                     Search: {query} ✕
                   </button>
                 )}
                 {activeChips.map(({ g, o }) => (
-                  <button key={g + o} type="button" onClick={() => toggleOpt(g, o)} className="rounded-md bg-white/[0.06] px-2 py-1 text-[11px] text-zinc-300 hover:bg-white/10">
+                  <button key={g + o} type="button" onClick={() => toggleOpt(g, o)} className="rounded-sm bg-white/[0.06] px-2 py-1 text-[11px] text-zinc-300 hover:bg-white/10">
                     {o} ✕
                   </button>
                 ))}
@@ -238,9 +267,9 @@ export default function EtfTableScanner() {
                 key={p.label}
                 type="button"
                 onClick={() => { setTab(p.tab); setFilters(p.filters); setSort(p.sort); if (query) router.replace("/scanner"); }}
-                className="flex items-center gap-3 rounded-xl bg-white/[0.035] px-3.5 py-2.5 text-left text-[12px] font-semibold text-zinc-300 transition-colors hover:bg-white/[0.07] hover:text-white"
+                className="flex items-center gap-3 rounded-sm bg-white/[0.035] px-3.5 py-2.5 text-left text-[12px] font-semibold text-zinc-300 transition-colors hover:bg-white/[0.07] hover:text-white"
               >
-                <span>{p.icon}</span>[ {p.label} ]
+                [ {p.label.toUpperCase()} ]
               </button>
             ))}
             <div className="flex items-center gap-2 pt-1 font-mono text-[11px] font-semibold tracking-[0.06em] text-emerald-400">
@@ -249,18 +278,18 @@ export default function EtfTableScanner() {
             </div>
           </div>
         </div>
-        <div className="flex flex-none items-center justify-between border-t border-white/[0.04] bg-white/[0.015] px-5 py-3">
+        <div className="flex flex-none items-center justify-between border-t border-white/[0.06] bg-white/[0.015] px-5 py-3">
           <span className="font-mono text-[10.5px] tracking-[0.12em] text-zinc-600">
             {filterCount === 0 ? "" : `${filterCount} FILTER${filterCount > 1 ? "S" : ""}`}
           </span>
-          <button type="button" onClick={clearAll} className="rounded-full bg-white/[0.06] px-3.5 py-1 font-mono text-[10.5px] font-bold tracking-[0.1em] text-zinc-300 transition-colors hover:bg-white/[0.12] hover:text-white">
+          <button type="button" onClick={clearAll} className="rounded-none bg-white/[0.06] px-3.5 py-1 font-mono text-[10.5px] font-bold tracking-[0.1em] text-zinc-300 transition-colors hover:bg-white/[0.12] hover:text-white">
             CLEAR
           </button>
         </div>
       </aside>
 
       {/* ── Ad slot ── */}
-      <div className="flex h-11 items-center justify-center rounded-lg border border-dashed border-white/[0.08] font-mono text-[10px] tracking-[0.3em] text-zinc-700">
+      <div className="flex h-11 items-center justify-center rounded-sm border border-dashed border-white/[0.08] font-mono text-[10px] tracking-[0.3em] text-zinc-700">
         ■ AD SPACE / SPONSOR ■
       </div>
 
@@ -275,11 +304,10 @@ export default function EtfTableScanner() {
                 key={c.id}
                 type="button"
                 onClick={() => { setTab(c.id); setSort("default"); }}
-                className={`flex flex-none items-center gap-2 rounded-full px-3.5 py-1.5 font-mono text-[11.5px] font-bold tracking-[0.06em] transition-colors ${
+                className={`flex flex-none items-center gap-2 rounded-none px-3.5 py-1.5 font-mono text-[11.5px] font-bold tracking-[0.06em] transition-colors ${
                   active ? "bg-red-500/[0.12] text-red-400 shadow-[inset_0_0_0_1px_rgba(239,68,68,0.35)]" : "bg-white/[0.04] text-zinc-400 hover:bg-white/[0.08] hover:text-zinc-200"
                 }`}
               >
-                <span className="text-[11px]">{c.icon}</span>
                 {c.label}
                 <span className={`text-[10px] font-medium ${active ? "text-red-400/70" : "text-zinc-600"}`}>{count}</span>
               </button>
@@ -299,7 +327,7 @@ export default function EtfTableScanner() {
                   key={sc.id}
                   type="button"
                   onClick={() => setSub(sc.id)}
-                  className={`flex flex-none items-center gap-1.5 rounded-full px-3 py-1 font-mono text-[10.5px] font-bold tracking-[0.05em] transition-colors ${
+                  className={`flex flex-none items-center gap-1.5 rounded-none px-3 py-1 font-mono text-[10.5px] font-bold tracking-[0.05em] transition-colors ${
                     on ? "bg-red-500/[0.14] text-zinc-100 shadow-[inset_0_0_0_1px_rgba(239,68,68,0.25)]" : "bg-white/[0.035] text-zinc-500 hover:bg-white/[0.07] hover:text-zinc-200"
                   }`}
                 >
@@ -312,21 +340,26 @@ export default function EtfTableScanner() {
         )}
 
         <div className="min-h-0 flex-1 overflow-auto px-5">
-          <table className="w-full min-w-[760px] border-separate border-spacing-0">
+          <table className="w-full min-w-[900px] border-separate border-spacing-0">
             <thead className="sticky top-0 z-10 bg-[#0a0a0c]">
               <tr className="text-left">
-                <th className={`${th} w-[42%]`}>FUND</th>
-                <th className={`${th} w-[20%]`}>SECTOR</th>
+                <th className={`${th} w-[34%]`}>FUND</th>
+                <th className={`${th} w-[16%]`}>SECTOR</th>
                 {sortTh("aum", "AUM")}
                 {sortTh("ytd", "YTD")}
                 {sortTh("chg1d", "1D CHG")}
+                {sortTh("wk", "7D")}
                 <th className={`${th} w-16 text-right`}>ACTION</th>
               </tr>
             </thead>
             <tbody>
               {rows.map((e) => (
-                <tr key={e.ticker} onClick={() => router.push(`/etf/${e.ticker}`)} className="group cursor-pointer">
-                  <td className="rounded-l-xl px-3 py-[9px] transition-colors group-hover:bg-white/[0.03]">
+                <tr
+                  key={e.ticker}
+                  onClick={() => router.push(`/etf/${e.ticker}`)}
+                  className="group cursor-pointer"
+                >
+                  <td className="rounded-l-sm px-3 py-[9px] transition-colors group-hover:bg-white/[0.03]">
                     <div className="flex items-center gap-2">
                       <span className="font-mono text-[14px] font-bold text-zinc-50">{e.ticker}</span>
                       {e.leverage !== "1x" && (
@@ -339,19 +372,26 @@ export default function EtfTableScanner() {
                   </td>
                   <td className="px-3 py-[9px] transition-colors group-hover:bg-white/[0.03]">
                     <span className="flex items-center gap-2 font-mono text-[11px] font-semibold tracking-[0.06em] text-zinc-400">
-                      <span className="w-4 text-center text-[12px]">{e.sectorIcon}</span>
                       {e.sector}
                     </span>
                   </td>
                   <td className="px-3 py-[9px] text-right font-mono text-[12.5px] tabular-nums text-zinc-300 transition-colors group-hover:bg-white/[0.03]">{fmtAum(e.aum)}</td>
                   <td className="px-3 py-[9px] text-right transition-colors group-hover:bg-white/[0.03]"><PctBadge v={e.ytd} /></td>
-                  <td className="px-3 py-[9px] text-right transition-colors group-hover:bg-white/[0.03]"><PctBadge v={e.chg1d} /></td>
-                  <td className="rounded-r-xl px-3 py-[9px] text-right transition-colors group-hover:bg-white/[0.03]">
+                  <td className="px-3 py-[9px] text-right transition-colors group-hover:bg-white/[0.03]"><PctBadge v={e.chg1d} arrow /></td>
+                  <td className="px-3 py-[9px] transition-colors group-hover:bg-white/[0.03]">
+                    {(() => { const p = week(e), w = p[p.length - 1]; return (
+                      <span className="flex items-center justify-end gap-2">
+                        <Spark pts={p} />
+                        <span className={`w-[58px] text-right font-mono text-[11.5px] font-bold tabular-nums ${w >= 0 ? "text-emerald-400" : "text-rose-400"}`}>{fmtPct(w)}</span>
+                      </span>
+                    ); })()}
+                  </td>
+                  <td className="rounded-r-sm px-3 py-[9px] text-right transition-colors group-hover:bg-white/[0.03]">
                     <Link
                       href={`/chat?etf=${e.ticker}`}
                       onClick={(ev) => ev.stopPropagation()}
-                      title={`Zapytaj AI o ${e.ticker}`}
-                      className="ml-auto flex h-7 w-7 items-center justify-center rounded-lg bg-white/[0.04] text-red-500 transition-colors hover:bg-red-500/15"
+                      title={`/chat · ${e.ticker}`}
+                      className="ml-auto flex h-7 w-7 items-center justify-center rounded-sm bg-white/[0.04] text-red-500 transition-colors hover:bg-red-500/15"
                     >
                       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6">
                         <circle cx="11" cy="11" r="7" />
@@ -366,7 +406,7 @@ export default function EtfTableScanner() {
           {rows.length === 0 && <div className="p-12 text-center text-[13px] text-zinc-500">No ETFs match the current filters.</div>}
         </div>
 
-        <div className="flex flex-none flex-wrap items-center gap-5 border-t border-white/[0.04] bg-white/[0.015] px-6 py-3 font-mono text-[11px] tracking-[0.08em]">
+        <div className="flex flex-none flex-wrap items-center gap-5 border-t border-white/[0.06] bg-white/[0.015] px-3 py-3 font-mono text-[11px] tracking-[0.08em]">
           <span className="text-zinc-600">AVG YTD <span className={avgYtd >= 0 ? "text-emerald-400" : "text-rose-400"}>{fmtPct(avgYtd)}</span></span>
         </div>
       </section>

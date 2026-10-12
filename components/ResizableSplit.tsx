@@ -46,6 +46,8 @@ function Grip({ onPointerDown, onDoubleClick, cursor, title }: { onPointerDown: 
 
 export default function ResizableSplit({ storageKey, minPx, initial = 0.5, height, left, right }: Props) {
   const rowRef = useRef<HTMLDivElement>(null);
+  const boxRef = useRef<HTMLDivElement>(null);
+  const [boxW, setBoxW] = useState(0);
   const [ratio, setRatio] = useState(initial);
   const [h, setH] = useState<number | null>(height?.initial ?? null);
   const [wide, setWide] = useState(false);
@@ -93,7 +95,17 @@ export default function ResizableSplit({ storageKey, minPx, initial = 0.5, heigh
     const ro = new ResizeObserver(() => setRatio((r) => clampRatio(r, el.clientWidth)));
     ro.observe(el);
     return () => ro.disconnect();
-  }, [wide, clampRatio]);
+  }, [wide, clampRatio, boxW]);
+
+  // Width of the available space: if both minimums don't fit, stack the panes instead of squeezing rows.
+  useEffect(() => {
+    const el = boxRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(() => setBoxW(el.clientWidth));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  const fits = boxW === 0 || boxW >= minL + minR + GUTTER;
 
   const drag = (mode: "x" | "xy" | "y", e: React.PointerEvent) => {
     e.preventDefault();
@@ -118,16 +130,15 @@ export default function ResizableSplit({ storageKey, minPx, initial = 0.5, heigh
   };
   const reset = () => { setRatio(clampRatio(initial, rowRef.current?.clientWidth ?? 0)); if (height) setH(height.initial); };
 
-  if (!wide) {
-    return (
-      <div className="flex flex-col gap-4">
-        <div className="min-w-0">{left(null)}</div>
-        <div className="min-w-0">{right(null)}</div>
-      </div>
-    );
-  }
-
+  const side = wide && fits;
   return (
+    <div ref={boxRef} className="min-w-0">
+      {!side ? (
+        <div className="flex flex-col gap-4">
+          <div className="min-w-0">{left(null)}</div>
+          <div className="min-w-0">{right(null)}</div>
+        </div>
+      ) : (
     <div ref={rowRef} className={`flex items-stretch ${dragging ? "cursor-grabbing select-none" : ""}`} style={h != null ? { height: h } : undefined}>
       <div className="relative min-w-0 flex-none" style={{ width: `calc(${ratio * 100}% - ${GUTTER / 2}px)` }}>
         <div className="h-full min-w-0 overflow-hidden">{left(h)}</div>
@@ -156,6 +167,8 @@ export default function ResizableSplit({ storageKey, minPx, initial = 0.5, heigh
         <div className="h-full min-w-0 overflow-hidden">{right(h)}</div>
         {height && <Grip onPointerDown={(e) => drag("y", e)} onDoubleClick={reset} cursor="ns-resize" title="Drag to change height · double-click to reset" />}
       </div>
+    </div>
+      )}
     </div>
   );
 }
