@@ -39,8 +39,8 @@ export default function RecentTickers() {
   }, [path]);
 
   return (
-    <footer className="z-50 flex h-8 w-full flex-none items-center gap-3 overflow-x-auto border-t border-white/[0.05] bg-[#0a0a0c] px-4 py-1.5 font-mono">
-      <span className="flex-none text-[10px] tracking-[0.14em] text-zinc-500">[ RECENT TICKERS ]</span>
+    <div className="flex min-w-0 items-center gap-2 overflow-x-auto font-mono">
+      <span className="flex-none text-[10px] tracking-[0.14em] text-zinc-500">[ RECENT ]</span>
       <nav aria-label="Recently viewed" className="flex items-center gap-1">
         {list.map((t) => {
           const e = BY.get(t)!;
@@ -48,7 +48,7 @@ export default function RecentTickers() {
           const active = path?.toUpperCase() === `/ETF/${t}`;
           return (
             <Link key={t} href={`/etf/${t}`}
-              className={`flex flex-none items-baseline gap-1.5 rounded-sm px-2 py-0.5 text-[11px] tabular-nums transition-colors hover:bg-white/[0.05] ${active ? "bg-white/[0.06]" : ""}`}>
+              className={`flex flex-none items-baseline gap-1.5 rounded-sm px-1.5 py-0.5 text-[10.5px] tracking-normal tabular-nums transition-colors hover:bg-white/[0.05] ${active ? "bg-white/[0.06]" : ""}`}>
               <span className="font-bold text-zinc-100">{t}</span>
               {px != null && <span className="text-zinc-400">${px.toFixed(2)}</span>}
               <span className={e.chg1d >= 0 ? "text-emerald-500" : "text-rose-500"}>{fmtPct(e.chg1d)}</span>
@@ -56,6 +56,6 @@ export default function RecentTickers() {
           );
         })}
       </nav>
-    </footer>
+    </div>
   );
 }

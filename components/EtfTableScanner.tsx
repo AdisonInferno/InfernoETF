@@ -8,6 +8,7 @@ import { QUOTE } from "@/lib/fund-profiles";
 import { buildFund } from "@/components/deep-view/buildFund";
 import TradingChart from "@/components/deep-view/TradingChart";
 import MarketPulse from "@/components/MarketPulse";
+import RecentTickers from "@/components/RecentTickers";
 
 /* ───────────────────────── Filter definitions ───────────────────────── */
 
@@ -301,7 +302,7 @@ export default function EtfTableScanner() {
 
   return (
     <div className={`absolute inset-0 grid grid-rows-[auto_minmax(0,1fr)] gap-3 p-3 max-lg:grid-cols-1 ${
-      mode === "price" ? "grid-cols-[240px_max-content_minmax(300px,1fr)] max-[1500px]:grid-cols-[240px_minmax(0,1fr)_300px]" : "grid-cols-[240px_minmax(0,1fr)]"
+      mode === "price" ? "justify-center grid-cols-[240px_max-content_minmax(320px,420px)] max-[1500px]:grid-cols-[240px_minmax(0,1fr)_300px]" : "grid-cols-[240px_minmax(0,1fr)]"
     }`}>
       {/* ── Filter deck ── */}
       <aside className={`row-span-2 flex min-h-0 flex-col overflow-hidden ${card} max-lg:row-span-1`}>
@@ -557,8 +558,10 @@ export default function EtfTableScanner() {
           </div>
         )}
 
-        <div className="flex flex-none flex-wrap items-center gap-5 border-t border-white/[0.06] bg-white/[0.015] px-3 py-3 font-mono text-[11px] tracking-[0.08em]">
-          <span className="text-zinc-600">AVG YTD <span className={avgYtd >= 0 ? "text-emerald-400" : "text-rose-400"}>{fmtPct(avgYtd)}</span></span>
+        {/* Footer glued to the table: terminal history + stats */}
+        <div className="flex flex-none items-center gap-4 border-t border-white/[0.06] bg-white/[0.015] px-3 py-1.5 font-mono text-[11px] tracking-[0.08em] [contain:inline-size]">
+          <RecentTickers />
+          <span className="ml-auto flex-none text-zinc-600">AVG YTD <span className={avgYtd >= 0 ? "text-emerald-400" : "text-rose-400"}>{fmtPct(avgYtd)}</span></span>
         </div>
       </section>
     </div>
