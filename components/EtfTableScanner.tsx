@@ -243,12 +243,10 @@ export default function EtfTableScanner() {
     <>
       <table className="w-full min-w-[788px] table-fixed border-separate border-spacing-0">
             <colgroup>
-              <col /> {/* FUND absorbs the extra width; data columns keep equal gaps */}
-              <col className="w-[132px]" />
-              <col className="w-[86px]" />
-              <col className="w-[96px]" />
-              <col className="w-[104px]" />
-              <col className="w-[124px]" />
+              {/* base widths + an equal share of any extra width → gaps grow evenly, FUND→SECTOR stays tight */}
+              {[250, 132, 86, 96, 104, 124].map((w, i) => (
+                <col key={i} style={{ width: `calc(${w}px + (100% - 792px) / 6)` }} />
+              ))}
             </colgroup>
             <thead className="sticky top-0 z-10 bg-[#0a0a0c]">
               <tr className="text-left">
@@ -267,24 +265,24 @@ export default function EtfTableScanner() {
                   onClick={() => openRow(e.ticker)}
                   className={`group cursor-pointer ${mode === "charts" && selected?.ticker === e.ticker ? "[&>td]:bg-red-500/[0.06]" : ""}`}
                 >
-                  <td className="rounded-l-sm py-[4px] pl-2 transition-colors group-hover:bg-white/[0.03]">
-                    <div className="flex min-w-0 items-baseline gap-2">
-                      <span className="w-[46px] flex-none font-mono text-[12.5px] font-bold text-zinc-50">{e.ticker}</span>
+                  <td className="rounded-l-sm py-[8px] pl-2.5 transition-colors group-hover:bg-white/[0.03]">
+                    <div className="flex min-w-0 items-center gap-2">
+                      <span className="font-mono text-[14px] font-bold text-zinc-50">{e.ticker}</span>
                       {e.leverage !== "1x" && (
                         <span className="rounded bg-amber-500/15 px-1.5 py-px font-mono text-[9.5px] font-bold text-amber-400">
                           {e.leverage === "Inverse" ? "-3X" : e.leverage.toUpperCase()}
                         </span>
                       )}
-                      <span className="min-w-0 truncate text-[10.5px] text-zinc-500" title={e.name}>{e.name}</span>
                     </div>
+                    <div className="truncate text-[11.5px] leading-snug text-zinc-500" title={e.name}>{e.name}</div>
                   </td>
-                  <td className={`${gapFirst} py-[4px] text-right transition-colors group-hover:bg-white/[0.03]`}>
+                  <td className={`${gapFirst} py-[8px] text-right transition-colors group-hover:bg-white/[0.03]`}>
                     <span className="block truncate font-mono text-[10.5px] font-semibold tracking-[0.06em] text-zinc-400">{e.sector}</span>
                   </td>
-                  <td className={`${gap} py-[4px] text-right font-mono text-[12px] tabular-nums text-zinc-300 transition-colors group-hover:bg-white/[0.03]`}>{fmtAum(e.aum)}</td>
-                  <td className={`${gap} py-[4px] text-right transition-colors group-hover:bg-white/[0.03]`}><PctBadge v={e.ytd} /></td>
-                  <td className={`${gap} py-[4px] text-right transition-colors group-hover:bg-white/[0.03]`}><PctBadge v={e.chg1d} arrow /></td>
-                  <td className={`${gap} rounded-r-sm py-[4px] pr-2 transition-colors group-hover:bg-white/[0.03]`}>
+                  <td className={`${gap} py-[8px] text-right font-mono text-[12px] tabular-nums text-zinc-300 transition-colors group-hover:bg-white/[0.03]`}>{fmtAum(e.aum)}</td>
+                  <td className={`${gap} py-[8px] text-right transition-colors group-hover:bg-white/[0.03]`}><PctBadge v={e.ytd} /></td>
+                  <td className={`${gap} py-[8px] text-right transition-colors group-hover:bg-white/[0.03]`}><PctBadge v={e.chg1d} arrow /></td>
+                  <td className={`${gap} rounded-r-sm py-[8px] pr-2 transition-colors group-hover:bg-white/[0.03]`}>
                     {(() => { const p = week(e), w = p[p.length - 1]; return (
                       <span className="flex items-center justify-end gap-1.5">
                         <Spark pts={p} w={52} h={18} />
