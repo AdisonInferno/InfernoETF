@@ -22,6 +22,10 @@ const THRESHOLDS = [0.3, 0.5, 0.7] as const;
 const IN_DB = new Set(ETFS.map((e) => e.ticker));
 const PAD = 34;
 
+const VIEW0 = { tx: 0, ty: 0, s: 1, rot: 0 };
+const ZOOM_MIN = 0.35, ZOOM_MAX = 6;
+const clampZoom = (z: number) => Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, z));
+
 const fmtRho = (v: number) => `${v < 0 ? "−" : ""}${Math.abs(v).toFixed(2)}`;
 const rest = (r: number) => 40 + 170 * (1 - r);
 const stiff = (r: number) => (r > 0 ? 0.03 + 0.55 * r * r : 0.06);
@@ -59,6 +63,12 @@ export default function MacroNexus() {
   const [pos, setPos] = useState<Record<string, { x: number; y: number }>>({});
   /** physics → screen transform: screen = (p − c) · k ; smoothed so the view doesn't jump */
   const fitRef = useRef({ cx: 0, cy: 0, k: 1 });
+  /** Camera on top of the fitted layout: pan (tx, ty), zoom (s), rotation (rot, radians) */
+  const [view, setView] = useState(VIEW0);
+  const viewRef = useRef(VIEW0);
+  useEffect(() => { viewRef.current = view; }, [view]);
+  const camRef = useRef<{ mode: "pan" | "rotate"; x0: number; y0: number; a0: number; v0: typeof VIEW0; moved: boolean } | null>(null);
+  const [panning, setPanning] = useState(false);
 
   const links = useMemo(() => correlations(win), [win]);
   const base = useMemo(() => correlations("1Y"), []);
@@ -127,9 +137,51 @@ export default function MacroNexus() {
 
   /* Dragging */
   const toSim = useCallback((cx: number, cy: number) => {
-    const r = svgRef.current!.getBoundingClientRect(), f = fitRef.current;
-    return { x: (cx - r.left - r.width / 2) / f.k + f.cx, y: (cy - r.top - r.height / 2) / f.k + f.cy };
+    const r = svgRef.current!.getBoundingClientRect(), f = fitRef.current, v = viewRef.current;
+    const qx = cx - r.left - r.width / 2 - v.tx, qy = cy - r.top - r.height / 2 - v.ty;
+    const c = Math.cos(v.rot), sn = Math.sin(v.rot);
+    const ux = (qx * c + qy * sn) / v.s, uy = (-qx * sn + qy * c) / v.s; // undo rotation + zoom
+    return { x: ux / f.k + f.cx, y: uy / f.k + f.cy };
   }, []);
+
+  /* Camera: drag background = pan · right-drag / Shift+drag = rotate · wheel = zoom at cursor */
+  const local = (e: { clientX: number; clientY: number }) => {
+    const r = svgRef.current!.getBoundingClientRect();
+    return { x: e.clientX - r.left - r.width / 2, y: e.clientY - r.top - r.height / 2 };
+  };
+  const onBgDown = (e: React.PointerEvent) => {
+    if (e.button !== 0 && e.button !== 2) return;
+    (e.currentTarget as Element).setPointerCapture(e.pointerId);
+    const p = local(e);
+    camRef.current = { mode: e.button === 2 || e.shiftKey ? "rotate" : "pan", x0: p.x, y0: p.y, a0: Math.atan2(p.y, p.x), v0: viewRef.current, moved: false };
+    setPanning(true);
+  };
+  const onBgUp = () => {
+    const c = camRef.current;
+    camRef.current = null;
+    setPanning(false);
+    if (c && !c.moved) setSel(null);
+  };
+  const rotateBy = (d: number) =>
+    setView((v) => ({ ...v, rot: v.rot + d, tx: v.tx * Math.cos(d) - v.ty * Math.sin(d), ty: v.tx * Math.sin(d) + v.ty * Math.cos(d) }));
+  const zoomAt = useCallback((factor: number, at = { x: 0, y: 0 }) =>
+    setView((v) => {
+      const s2 = clampZoom(v.s * factor), k = s2 / v.s;
+      return { ...v, s: s2, tx: at.x - (at.x - v.tx) * k, ty: at.y - (at.y - v.ty) * k };
+    }), []);
+
+  // wheel needs a non-passive listener to stop the page from scrolling
+  useEffect(() => {
+    const el = boxRef.current;
+    if (!el) return;
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      const r = el.getBoundingClientRect();
+      zoomAt(Math.exp(-Math.max(-200, Math.min(200, e.deltaY)) * 0.0012), { x: e.clientX - r.left - r.width / 2, y: e.clientY - r.top - r.height / 2 });
+    };
+    el.addEventListener("wheel", onWheel, { passive: false });
+    return () => el.removeEventListener("wheel", onWheel);
+  }, [zoomAt]);
   const onDown = (e: React.PointerEvent, id: string) => {
     const node = nodesRef.current.find((n) => n.id === id);
     if (!node) return;
@@ -139,6 +191,18 @@ export default function MacroNexus() {
     simRef.current?.alphaTarget(0.25).restart();
   };
   const onMove = (e: React.PointerEvent) => {
+    const c = camRef.current;
+    if (c) {
+      const p = local(e);
+      if (!c.moved && Math.hypot(p.x - c.x0, p.y - c.y0) < 3) return;
+      c.moved = true;
+      if (c.mode === "pan") setView({ ...c.v0, tx: c.v0.tx + p.x - c.x0, ty: c.v0.ty + p.y - c.y0 });
+      else {
+        const d = Math.atan2(p.y, p.x) - c.a0, cs = Math.cos(d), sn = Math.sin(d);
+        setView({ ...c.v0, rot: c.v0.rot + d, tx: c.v0.tx * cs - c.v0.ty * sn, ty: c.v0.tx * sn + c.v0.ty * cs });
+      }
+      return;
+    }
     const d = dragRef.current;
     if (!d) return;
     const p = toSim(e.clientX, e.clientY);
@@ -161,6 +225,13 @@ export default function MacroNexus() {
   };
 
   /* Derived */
+  const scr = useMemo(() => {
+    const c = Math.cos(view.rot), sn = Math.sin(view.rot);
+    return Object.fromEntries(Object.entries(pos).map(([id, p]) => {
+      const x = p.x * view.s, y = p.y * view.s;
+      return [id, { x: x * c - y * sn + view.tx, y: x * sn + y * c + view.ty }];
+    }));
+  }, [pos, view]);
   const focus = hover ?? sel;
   const visible = links.filter((l) => Math.abs(l.correlation_value) >= thr);
   const avgAbs = visible.length ? visible.reduce((s, l) => s + Math.abs(l.correlation_value), 0) / visible.length : 0;
@@ -199,7 +270,19 @@ export default function MacroNexus() {
           <Seg label="WINDOW" items={WINDOWS} value={win} onChange={setWin} />
           <Seg label="|ρ| ≥" items={THRESHOLDS} value={thr} onChange={setThr} fmt={(v) => v.toFixed(1)} />
           <Seg label="LABELS" items={["KEY", "ALL"] as const} value={labels} onChange={setLabels} />
-          <button type="button" onClick={resetLayout} className="ml-auto h-7 rounded-sm border border-white/[0.06] px-2.5 text-[10.5px] font-bold tracking-[0.1em] text-zinc-400 transition-colors hover:text-white">
+          <div className="ml-auto flex items-center gap-1">
+            {([["−", "Zoom out", () => zoomAt(1 / 1.25)], ["+", "Zoom in", () => zoomAt(1.25)], ["⟲", "Rotate left", () => rotateBy(-Math.PI / 12)], ["⟳", "Rotate right", () => rotateBy(Math.PI / 12)]] as const).map(([t, l, f]) => (
+              <button key={l} type="button" onClick={f} title={l} aria-label={l}
+                className="flex h-7 w-7 items-center justify-center rounded-sm border border-white/[0.06] text-[13px] text-zinc-400 transition-colors hover:text-white">{t}</button>
+            ))}
+            <span className="w-[86px] text-center text-[10px] tabular-nums tracking-[0.06em] text-zinc-500">
+              {Math.round(view.s * 100)}% · {Math.round((((view.rot * 180) / Math.PI) % 360 + 360) % 360)}°
+            </span>
+            <button type="button" onClick={() => setView(VIEW0)} className="h-7 rounded-sm border border-white/[0.06] px-2.5 text-[10.5px] font-bold tracking-[0.1em] text-zinc-400 transition-colors hover:text-white">
+              [ RESET VIEW ]
+            </button>
+          </div>
+          <button type="button" onClick={resetLayout} className="h-7 rounded-sm border border-white/[0.06] px-2.5 text-[10.5px] font-bold tracking-[0.1em] text-zinc-400 transition-colors hover:text-white">
             [ RESET LAYOUT ]
           </button>
         </header>
@@ -211,16 +294,19 @@ export default function MacroNexus() {
               width={size.w}
               height={size.h}
               viewBox={`${-size.w / 2} ${-size.h / 2} ${size.w} ${size.h}`}
-              className="block touch-none select-none"
+              className={`block touch-none select-none ${panning ? "cursor-grabbing" : "cursor-grab"}`}
               onPointerMove={onMove}
-              onClick={(e) => { if (e.target === e.currentTarget) setSel(null); }}
+              onContextMenu={(e) => e.preventDefault()}
               role="img"
               aria-label={`Correlation network, ${win} window, ${visible.length} links with |ρ| ≥ ${thr}`}
             >
+              {/* background: pan / rotate / double-click = reset view */}
+              <rect x={-size.w / 2} y={-size.h / 2} width={size.w} height={size.h} fill="transparent"
+                onPointerDown={onBgDown} onPointerUp={onBgUp} onDoubleClick={() => setView(VIEW0)} />
               {/* edges */}
-              <g>
+              <g className="pointer-events-none">
                 {visible.map((l) => {
-                  const a = pos[l.source], b = pos[l.target];
+                  const a = scr[l.source], b = scr[l.target];
                   if (!a || !b) return null;
                   const r = l.correlation_value;
                   const on = focus && (l.source === focus || l.target === focus);
@@ -235,7 +321,7 @@ export default function MacroNexus() {
               {/* edge labels */}
               <g>
                 {visible.filter(showLabel).map((l) => {
-                  const a = pos[l.source], b = pos[l.target];
+                  const a = scr[l.source], b = scr[l.target];
                   if (!a || !b) return null;
                   const r = l.correlation_value, t = `[ ρ = ${fmtRho(r)} ]`;
                   const x = (a.x + b.x) / 2, y = (a.y + b.y) / 2, w = t.length * 5.6 + 4;
@@ -251,7 +337,7 @@ export default function MacroNexus() {
               {/* nodes */}
               <g>
                 {NODES.map((n) => {
-                  const p = pos[n.id];
+                  const p = scr[n.id];
                   if (!p) return null;
                   const isSel = sel === n.id, isFocus = focus === n.id;
                   const linked = focus ? n.id === focus || Math.abs(rho(links, focus, n.id)) >= thr : true;
@@ -285,7 +371,7 @@ export default function MacroNexus() {
             <span className="flex items-center gap-1.5"><span className="h-px w-5 bg-white/40" />HIGH ρ · SHORT</span>
             <span className="flex items-center gap-1.5"><span className="h-px w-5 bg-white/10" />LOW ρ · LONG</span>
             <span className="flex items-center gap-1.5"><span className="w-5 border-t border-dashed border-white/25" />NEGATIVE ρ</span>
-            <span>DRAG · CLICK TO PIN</span>
+            <span>DRAG · PAN</span><span>WHEEL · ZOOM</span><span>RIGHT-DRAG / SHIFT+DRAG · ROTATE</span><span>DRAG NODE · MOVE</span>
           </div>
         </div>
       </section>
