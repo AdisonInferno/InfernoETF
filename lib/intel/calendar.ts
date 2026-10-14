@@ -97,6 +97,53 @@ async function earnings(fromDay: string, toDay: string, tickers: Set<string>): P
 
 const day = (d: Date) => d.toISOString().slice(0, 10);
 
+/* ── Market structure (no API key needed): NYSE holidays / early closes, monthly options expiry ── */
+const NYSE_CLOSED: [date: string, name: string][] = [
+  ["2026-01-01", "New Year's Day"], ["2026-01-19", "Martin Luther King Jr. Day"], ["2026-02-16", "Presidents' Day"],
+  ["2026-04-03", "Good Friday"], ["2026-05-25", "Memorial Day"], ["2026-06-19", "Juneteenth"],
+  ["2026-07-03", "Independence Day (observed)"], ["2026-09-07", "Labor Day"], ["2026-11-26", "Thanksgiving Day"],
+  ["2026-12-25", "Christmas Day"],
+];
+const NYSE_EARLY: [date: string, name: string][] = [["2026-11-27", "Day after Thanksgiving"], ["2026-12-24", "Christmas Eve"]];
+
+/** Third Friday of a month, "YYYY-MM-DD". */
+function thirdFriday(y: number, m0: number): string {
+  const first = new Date(Date.UTC(y, m0, 1)).getUTCDay();
+  const d = 1 + ((5 - first + 7) % 7) + 14;
+  return `${y}-${String(m0 + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+}
+
+function marketEvents(fromDay: string, toDay: string): CalEvent[] {
+  const out: CalEvent[] = [];
+  for (const [d, name] of NYSE_CLOSED) out.push({ source: "MKT", code: "CLOSED", at: `${d}T12:00:00.000Z`, title: `NYSE & Nasdaq closed · ${name}`, allDay: true });
+  for (const [d, name] of NYSE_EARLY) out.push({ source: "MKT", code: "EARLY", at: nyToUtc(d, "13:00"), title: `Early close 13:00 ET · ${name}` });
+  const [fy, fm] = fromDay.split("-").map(Number), [ty, tm] = toDay.split("-").map(Number);
+  for (let y = fy, m = fm - 1; y < ty || (y === ty && m <= tm - 1); m === 11 ? (y++, (m = 0)) : m++) {
+    let d = thirdFriday(y, m);
+    const quad = m % 3 === 2;
+    if (NYSE_CLOSED.some(([c]) => c === d)) d = day(new Date(Date.parse(`${d}T12:00:00Z`) - 86400_000)); // expiry moves to Thursday
+    out.push({ source: "MKT", code: quad ? "QUAD" : "OPEX", at: nyToUtc(d, "16:00"), title: quad ? "Quad witching · stock & index options + futures expire" : "Monthly options expiration" });
+  }
+  return out.filter((e) => { const d = e.at.slice(0, 10); return d >= fromDay && d <= toDay; });
+}
+
+/** Every event in one calendar month ("YYYY-MM"): FOMC, market structure, FRED releases, earnings of tracked tickers. */
+export async function monthEvents(month: string, tickers: string[]): Promise<{ events: CalEvent[]; missing: string[] }> {
+  const [y, m] = month.split("-").map(Number);
+  const from = `${month}-01`, to = day(new Date(Date.UTC(y, m, 0)));
+  // one day of slack on each side so time zones east/west of UTC still see edge-of-month events
+  const lo = day(new Date(Date.parse(`${from}T00:00:00Z`) - 86400_000)), hi = day(new Date(Date.parse(`${to}T00:00:00Z`) + 86400_000));
+  const missing = [!process.env.FRED_API_KEY && "FRED_API_KEY", !process.env.FINNHUB_API_KEY && "FINNHUB_API_KEY"].filter(Boolean) as string[];
+  const [fr, er] = await Promise.allSettled([
+    cached(`fred:${lo}`, () => fred(lo)),
+    cached(`earn:${lo}:${hi}:${tickers.length}`, () => earnings(lo, hi, new Set(tickers))),
+  ]);
+  const events = [...fomc(), ...marketEvents(lo, hi), ...(fr.status === "fulfilled" ? fr.value : []), ...(er.status === "fulfilled" ? er.value : [])]
+    .filter((e) => { const d = e.at.slice(0, 10); return d >= lo && d <= hi; })
+    .sort((a, b) => a.at.localeCompare(b.at));
+  return { events, missing };
+}
+
 export async function upcoming(tickers: string[], days = 14): Promise<{ events: CalEvent[]; missing: string[] }> {
   const now = new Date();
   const from = day(new Date(now.getTime() - 86400_000)), to = day(new Date(now.getTime() + days * 86400_000));
