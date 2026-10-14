@@ -241,9 +241,9 @@ export default function EtfTableScanner() {
 
   const fullTable = (
     <>
-      <table className="w-max table-fixed border-separate border-spacing-0">
+      <table className="w-full min-w-[788px] table-fixed border-separate border-spacing-0">
             <colgroup>
-              <col className="w-[250px]" />
+              <col /> {/* FUND absorbs the extra width; data columns keep equal gaps */}
               <col className="w-[132px]" />
               <col className="w-[86px]" />
               <col className="w-[96px]" />
@@ -302,7 +302,7 @@ export default function EtfTableScanner() {
 
   return (
     <div className={`absolute inset-0 grid grid-rows-[auto_minmax(0,1fr)] gap-3 p-3 max-lg:grid-cols-1 ${
-      mode === "price" ? "justify-center grid-cols-[240px_max-content_minmax(320px,420px)] max-[1500px]:grid-cols-[240px_minmax(0,1fr)_300px]" : "grid-cols-[240px_minmax(0,1fr)]"
+      mode === "price" ? "grid-cols-[240px_minmax(0,1.7fr)_minmax(300px,1fr)] min-[1900px]:grid-cols-[260px_minmax(0,1.9fr)_minmax(360px,1fr)]" : "grid-cols-[240px_minmax(0,1fr)]"
     }`}>
       {/* ── Filter deck ── */}
       <aside className={`row-span-2 flex min-h-0 flex-col overflow-hidden ${card} max-lg:row-span-1`}>

@@ -39,7 +39,7 @@ export default function RecentTickers() {
   }, [path]);
 
   return (
-    <div className="flex min-w-0 items-center gap-2 overflow-x-auto font-mono">
+    <div className="flex min-w-0 items-center gap-2 overflow-x-auto font-mono [scrollbar-width:none]">
       <span className="flex-none text-[10px] tracking-[0.14em] text-zinc-500">[ RECENT ]</span>
       <nav aria-label="Recently viewed" className="flex items-center gap-1">
         {list.map((t) => {
