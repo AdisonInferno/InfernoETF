@@ -39,23 +39,20 @@ export default function RecentTickers() {
   }, [path]);
 
   return (
-    <div className="flex min-w-0 items-center gap-2 overflow-x-auto font-mono [scrollbar-width:none]">
-      <span className="flex-none text-[10px] tracking-[0.14em] text-zinc-500">[ RECENT ]</span>
-      <nav aria-label="Recently viewed" className="flex items-center gap-1">
+    <nav aria-label="Recently viewed" className="grid w-full grid-cols-5 gap-2 font-mono">
         {list.map((t) => {
           const e = BY.get(t)!;
           const px = QUOTE[t]?.[0];
           const active = path?.toUpperCase() === `/ETF/${t}`;
           return (
             <Link key={t} href={`/etf/${t}`}
-              className={`flex flex-none items-baseline gap-1.5 rounded-sm px-1.5 py-0.5 text-[10.5px] tracking-normal tabular-nums transition-colors hover:bg-white/[0.05] ${active ? "bg-white/[0.06]" : ""}`}>
+              className={`flex min-w-0 cursor-pointer items-center justify-center gap-3 rounded-sm border px-4 py-2 text-[11px] tabular-nums transition-all duration-75 hover:border-white/[0.2] hover:bg-white/[0.08] active:translate-y-px active:bg-white/[0.12] ${active ? "border-white/[0.12] bg-white/[0.05]" : "border-transparent"}`}>
               <span className="font-bold text-zinc-100">{t}</span>
               {px != null && <span className="text-zinc-400">${px.toFixed(2)}</span>}
               <span className={e.chg1d >= 0 ? "text-emerald-500" : "text-rose-500"}>{fmtPct(e.chg1d)}</span>
             </Link>
           );
         })}
-      </nav>
-    </div>
+    </nav>
   );
 }

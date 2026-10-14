@@ -53,7 +53,7 @@ const Pct = ({ v }: { v: number }) => (
   <span className={`w-[62px] text-right font-bold ${v >= 0 ? "text-emerald-400" : "text-rose-400"}`}>{v > 0 ? "▲" : v < 0 ? "▼" : "■"} {fmtPct(v)}</span>
 );
 
-export default function MarketPulse({ rows, viewLabel }: { rows: EtfRow[]; viewLabel: string }) {
+export default function MarketPulse({ rows }: { rows: EtfRow[] }) {
   const active = [...ETFS].map((e) => ({ e, v: estDollarVolM(e) })).sort((a, b) => b.v - a.v).slice(0, 5);
   const maxV = active[0]?.v ?? 1;
   const byMove = [...rows].sort((a, b) => b.chg1d - a.chg1d);
@@ -78,7 +78,7 @@ export default function MarketPulse({ rows, viewLabel }: { rows: EtfRow[]; viewL
     <aside className="flex min-h-0 flex-col overflow-hidden rounded-sm border border-white/[0.06] bg-[#0a0a0c]">
       <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
         {/* Most active */}
-        <H t="MOST ACTIVE" sub="$ VOLUME · TODAY · EST." />
+        <H t="MOST ACTIVE" />
         <div className="py-1">
           {active.map(({ e, v }, i) => (
             <div key={e.ticker} className="relative">
@@ -94,7 +94,7 @@ export default function MarketPulse({ rows, viewLabel }: { rows: EtfRow[]; viewL
         </div>
 
         {/* Top movers in the current view */}
-        <H t="TOP MOVERS · 1D" sub={viewLabel} />
+        <H t="TOP MOVERS" />
         <div className="py-1">
           {up.map((e) => <Row key={e.ticker} e={e} right={<Pct v={e.chg1d} />} />)}
           {up.length > 0 && down.length > 0 && <div className="mx-3 my-1 h-px bg-white/[0.05]" />}
@@ -103,7 +103,7 @@ export default function MarketPulse({ rows, viewLabel }: { rows: EtfRow[]; viewL
         </div>
 
         {/* News */}
-        <H t="MARKET-MOVING NEWS" sub={news ? `${news.length} · LIVE` : "…"} />
+        <H t="MARKET-MOVING NEWS" sub="LIVE" />
         <div className="flex flex-col py-1">
           {news === null &&
             Array.from({ length: 5 }, (_, i) => <div key={i} className="mx-3 my-1.5 h-7 animate-pulse rounded-sm bg-white/[0.03]" />)}

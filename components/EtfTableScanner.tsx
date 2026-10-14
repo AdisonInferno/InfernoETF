@@ -220,7 +220,6 @@ export default function EtfTableScanner() {
   const pick = (t: string) => { setSel(t); if (hidden === "chart") setHidden("none"); };
   const openRow = (t: string) => (mode === "charts" ? pick(t) : router.push(`/etf/${t}`));
 
-  const avgYtd = rows.length ? rows.reduce((s, e) => s + e.ytd, 0) / rows.length : 0;
 
   /* Column rhythm: every data column has the same gap G before it; FUND → SECTOR gets 1.3 × G. */
   const th = "pb-2 pt-1 text-[9.5px] font-semibold tracking-[0.14em] text-zinc-500";
@@ -403,7 +402,7 @@ export default function EtfTableScanner() {
       {/* ── Market pulse (price view): most active · movers · news ── */}
       {mode === "price" && (
         <div className="row-span-2 row-start-1 flex min-h-0 flex-col max-lg:row-auto max-lg:max-h-[640px] lg:col-start-3">
-          <MarketPulse rows={rows} viewLabel={(activeSub ? activeSub.label : tabLabel).toUpperCase()} />
+          <MarketPulse rows={rows} />
         </div>
       )}
 
@@ -556,10 +555,9 @@ export default function EtfTableScanner() {
           </div>
         )}
 
-        {/* Footer glued to the table: terminal history + stats */}
-        <div className="flex flex-none items-center gap-4 border-t border-white/[0.06] bg-white/[0.015] px-3 py-1.5 font-mono text-[11px] tracking-[0.08em] [contain:inline-size]">
+        {/* Footer glued to the table: terminal history, full table width */}
+        <div className="flex-none border-t border-white/[0.06] bg-white/[0.015] px-2 py-1.5 [contain:inline-size]">
           <RecentTickers />
-          <span className="ml-auto flex-none text-zinc-600">AVG YTD <span className={avgYtd >= 0 ? "text-emerald-400" : "text-rose-400"}>{fmtPct(avgYtd)}</span></span>
         </div>
       </section>
     </div>
