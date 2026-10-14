@@ -4,6 +4,9 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { CATEGORIES, ETFS, SUBCATEGORIES, fmtAum, fmtPct, inCategory, type CategoryId, type EtfRow } from "@/lib/etfs";
+import { QUOTE } from "@/lib/fund-profiles";
+import { buildFund } from "@/components/deep-view/buildFund";
+import TradingChart from "@/components/deep-view/TradingChart";
 
 /* ───────────────────────── Filter definitions ───────────────────────── */
 
@@ -111,6 +114,35 @@ function Spark({ pts, w = 72, h = 22 }: { pts: number[]; w?: number; h?: number 
 
 const card = "rounded-sm border border-white/[0.06] bg-[#0a0a0c]";
 
+type Mode = "price" | "charts";
+/** Which half of the Charts view is tucked away */
+type Hidden = "none" | "chart" | "list";
+
+function Chevron({ dir }: { dir: "left" | "right" }) {
+  return (
+    <svg viewBox="0 0 8 12" className="h-2.5 w-2" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d={dir === "right" ? "M2 2l4 4-4 4" : "M6 2L2 6l4 4"} />
+    </svg>
+  );
+}
+
+/** Slim tab stuck to the divider — hides / reveals one half of the split view. */
+function EdgeTab({ side, dir, label, onClick }: { side: "left" | "right"; dir: "left" | "right"; label: string; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      title={label}
+      aria-label={label}
+      className={`absolute top-1/2 z-20 flex h-11 w-3.5 -translate-y-1/2 items-center justify-center border border-white/[0.08] bg-[#141418] text-zinc-400 transition-colors hover:border-red-500/40 hover:bg-red-500/[0.12] hover:text-red-300 ${
+        side === "left" ? "right-full rounded-l-sm border-r-0" : "left-full rounded-r-sm border-l-0"
+      }`}
+    >
+      <Chevron dir={dir} />
+    </button>
+  );
+}
+
 /* ───────────────────────────── Component ───────────────────────────── */
 
 export default function EtfTableScanner() {
@@ -125,6 +157,9 @@ export default function EtfTableScanner() {
   const [filters, setFilters] = useState<Filters>({});
   const [open, setOpen] = useState<Partial<Record<GroupId, boolean>>>({});
   const [sort, setSort] = useState<SortKey>("default");
+  const [mode, setMode] = useState<Mode>("price");
+  const [hidden, setHidden] = useState<Hidden>("none");
+  const [sel, setSel] = useState<string | null>(null);
 
   // A search from the header shows results across all ETFs.
   useEffect(() => {
@@ -177,6 +212,12 @@ export default function EtfTableScanner() {
     return [...list].sort(by[sort]);
   }, [base, tab, sort, activeSub]);
 
+  // Charts view: the clicked ETF (falls back to the first row when filters drop it)
+  const selected = rows.find((e) => e.ticker === sel) ?? rows[0] ?? null;
+  const fund = useMemo(() => (selected ? buildFund(selected.ticker) : null), [selected]);
+  const pick = (t: string) => { setSel(t); if (hidden === "chart") setHidden("none"); };
+  const openRow = (t: string) => (mode === "charts" ? pick(t) : router.push(`/etf/${t}`));
+
   const avgYtd = rows.length ? rows.reduce((s, e) => s + e.ytd, 0) / rows.length : 0;
 
   const th = "px-3 pb-3 pt-1 text-[10px] font-semibold tracking-[0.14em] text-zinc-500";
@@ -191,6 +232,75 @@ export default function EtfTableScanner() {
         {sort === key ? " ↓" : ""}
       </button>
     </th>
+  );
+
+  const fullTable = (
+    <>
+      <table className="w-full min-w-[900px] border-separate border-spacing-0">
+            <thead className="sticky top-0 z-10 bg-[#0a0a0c]">
+              <tr className="text-left">
+                <th className={`${th} w-[34%]`}>FUND</th>
+                <th className={`${th} w-[16%]`}>SECTOR</th>
+                {sortTh("aum", "AUM")}
+                {sortTh("ytd", "YTD")}
+                {sortTh("chg1d", "1D CHG")}
+                {sortTh("wk", "7D")}
+                <th className={`${th} w-16 text-right`}>ACTION</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((e) => (
+                <tr
+                  key={e.ticker}
+                  onClick={() => openRow(e.ticker)}
+                  className={`group cursor-pointer ${mode === "charts" && selected?.ticker === e.ticker ? "[&>td]:bg-red-500/[0.06]" : ""}`}
+                >
+                  <td className="rounded-l-sm px-3 py-[9px] transition-colors group-hover:bg-white/[0.03]">
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono text-[14px] font-bold text-zinc-50">{e.ticker}</span>
+                      {e.leverage !== "1x" && (
+                        <span className="rounded bg-amber-500/15 px-1.5 py-px font-mono text-[9.5px] font-bold text-amber-400">
+                          {e.leverage === "Inverse" ? "-3X" : e.leverage.toUpperCase()}
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-[11.5px] text-zinc-500">{e.name}</div>
+                  </td>
+                  <td className="px-3 py-[9px] transition-colors group-hover:bg-white/[0.03]">
+                    <span className="flex items-center gap-2 font-mono text-[11px] font-semibold tracking-[0.06em] text-zinc-400">
+                      {e.sector}
+                    </span>
+                  </td>
+                  <td className="px-3 py-[9px] text-right font-mono text-[12.5px] tabular-nums text-zinc-300 transition-colors group-hover:bg-white/[0.03]">{fmtAum(e.aum)}</td>
+                  <td className="px-3 py-[9px] text-right transition-colors group-hover:bg-white/[0.03]"><PctBadge v={e.ytd} /></td>
+                  <td className="px-3 py-[9px] text-right transition-colors group-hover:bg-white/[0.03]"><PctBadge v={e.chg1d} arrow /></td>
+                  <td className="px-3 py-[9px] transition-colors group-hover:bg-white/[0.03]">
+                    {(() => { const p = week(e), w = p[p.length - 1]; return (
+                      <span className="flex items-center justify-end gap-2">
+                        <Spark pts={p} />
+                        <span className={`w-[58px] text-right font-mono text-[11.5px] font-bold tabular-nums ${w >= 0 ? "text-emerald-400" : "text-rose-400"}`}>{fmtPct(w)}</span>
+                      </span>
+                    ); })()}
+                  </td>
+                  <td className="rounded-r-sm px-3 py-[9px] text-right transition-colors group-hover:bg-white/[0.03]">
+                    <Link
+                      href={`/chat?etf=${e.ticker}`}
+                      onClick={(ev) => ev.stopPropagation()}
+                      title={`/chat · ${e.ticker}`}
+                      className="ml-auto flex h-7 w-7 items-center justify-center rounded-sm bg-white/[0.04] text-red-500 transition-colors hover:bg-red-500/15"
+                    >
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6">
+                        <circle cx="11" cy="11" r="7" />
+                        <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                      </svg>
+                    </Link>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+      {rows.length === 0 && <div className="p-12 text-center text-[13px] text-zinc-500">No ETFs match the current filters.</div>}
+    </>
   );
 
   return (
@@ -295,7 +405,24 @@ export default function EtfTableScanner() {
 
       {/* ── Table card ── */}
       <section className={`flex min-h-0 min-w-0 flex-col overflow-hidden ${card}`}>
-        <div className="flex flex-none flex-wrap gap-2 px-5 pb-3 pt-4">
+        <div className="flex flex-none flex-wrap items-center gap-2 px-5 pb-3 pt-4">
+          <div role="tablist" aria-label="View" className="flex flex-none items-center rounded-sm border border-white/[0.06] bg-[#030303] p-0.5">
+            {(["price", "charts"] as const).map((m) => (
+              <button
+                key={m}
+                type="button"
+                role="tab"
+                aria-selected={mode === m}
+                onClick={() => { setMode(m); setHidden("none"); }}
+                className={`h-7 rounded-sm px-3 font-mono text-[11px] font-bold uppercase tracking-[0.1em] transition-colors ${
+                  mode === m ? "bg-white/[0.09] text-white shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)]" : "text-zinc-500 hover:text-zinc-200"
+                }`}
+              >
+                {m}
+              </button>
+            ))}
+          </div>
+          <span className="mx-1 h-5 w-px flex-none bg-white/[0.06]" />
           {CATEGORIES.map((c) => {
             const active = tab === c.id;
             const count = base.filter((e) => inTab(e, c.id)).length;
@@ -339,72 +466,91 @@ export default function EtfTableScanner() {
           </div>
         )}
 
-        <div className="min-h-0 flex-1 overflow-auto px-5">
-          <table className="w-full min-w-[900px] border-separate border-spacing-0">
-            <thead className="sticky top-0 z-10 bg-[#0a0a0c]">
-              <tr className="text-left">
-                <th className={`${th} w-[34%]`}>FUND</th>
-                <th className={`${th} w-[16%]`}>SECTOR</th>
-                {sortTh("aum", "AUM")}
-                {sortTh("ytd", "YTD")}
-                {sortTh("chg1d", "1D CHG")}
-                {sortTh("wk", "7D")}
-                <th className={`${th} w-16 text-right`}>ACTION</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((e) => (
-                <tr
-                  key={e.ticker}
-                  onClick={() => router.push(`/etf/${e.ticker}`)}
-                  className="group cursor-pointer"
-                >
-                  <td className="rounded-l-sm px-3 py-[9px] transition-colors group-hover:bg-white/[0.03]">
-                    <div className="flex items-center gap-2">
-                      <span className="font-mono text-[14px] font-bold text-zinc-50">{e.ticker}</span>
-                      {e.leverage !== "1x" && (
-                        <span className="rounded bg-amber-500/15 px-1.5 py-px font-mono text-[9.5px] font-bold text-amber-400">
-                          {e.leverage === "Inverse" ? "-3X" : e.leverage.toUpperCase()}
-                        </span>
-                      )}
-                    </div>
-                    <div className="text-[11.5px] text-zinc-500">{e.name}</div>
-                  </td>
-                  <td className="px-3 py-[9px] transition-colors group-hover:bg-white/[0.03]">
-                    <span className="flex items-center gap-2 font-mono text-[11px] font-semibold tracking-[0.06em] text-zinc-400">
-                      {e.sector}
-                    </span>
-                  </td>
-                  <td className="px-3 py-[9px] text-right font-mono text-[12.5px] tabular-nums text-zinc-300 transition-colors group-hover:bg-white/[0.03]">{fmtAum(e.aum)}</td>
-                  <td className="px-3 py-[9px] text-right transition-colors group-hover:bg-white/[0.03]"><PctBadge v={e.ytd} /></td>
-                  <td className="px-3 py-[9px] text-right transition-colors group-hover:bg-white/[0.03]"><PctBadge v={e.chg1d} arrow /></td>
-                  <td className="px-3 py-[9px] transition-colors group-hover:bg-white/[0.03]">
-                    {(() => { const p = week(e), w = p[p.length - 1]; return (
-                      <span className="flex items-center justify-end gap-2">
-                        <Spark pts={p} />
-                        <span className={`w-[58px] text-right font-mono text-[11.5px] font-bold tabular-nums ${w >= 0 ? "text-emerald-400" : "text-rose-400"}`}>{fmtPct(w)}</span>
-                      </span>
-                    ); })()}
-                  </td>
-                  <td className="rounded-r-sm px-3 py-[9px] text-right transition-colors group-hover:bg-white/[0.03]">
-                    <Link
-                      href={`/chat?etf=${e.ticker}`}
-                      onClick={(ev) => ev.stopPropagation()}
-                      title={`/chat · ${e.ticker}`}
-                      className="ml-auto flex h-7 w-7 items-center justify-center rounded-sm bg-white/[0.04] text-red-500 transition-colors hover:bg-red-500/15"
-                    >
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6">
-                        <circle cx="11" cy="11" r="7" />
-                        <line x1="21" y1="21" x2="16.65" y2="16.65" />
-                      </svg>
+        {mode === "price" ? (
+          <div className="min-h-0 flex-1 overflow-auto px-5">{fullTable}</div>
+        ) : (
+          <div className="flex min-h-0 flex-1 px-5 pb-4 max-lg:flex-col max-lg:gap-4 max-lg:overflow-y-auto">
+            {/* ── Chart of the clicked ETF ── */}
+            {hidden !== "chart" && (
+              <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-2 pr-3.5 max-lg:min-h-[480px] max-lg:pr-0">
+                {selected && (
+                  <div className="flex flex-none items-baseline gap-3 font-mono">
+                    <span className="text-[15px] font-bold text-zinc-50">{selected.ticker}</span>
+                    <span className="truncate text-[11.5px] text-zinc-500">{selected.name}</span>
+                    <Link href={`/etf/${selected.ticker}`} className="ml-auto flex-none text-[10.5px] font-bold tracking-[0.12em] text-zinc-500 transition-colors hover:text-white">
+                      [ DEEP VIEW → ]
                     </Link>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          {rows.length === 0 && <div className="p-12 text-center text-[13px] text-zinc-500">No ETFs match the current filters.</div>}
-        </div>
+                  </div>
+                )}
+                {/* TradingChart has a fixed height in Deep View — stretch it to fill the pane here */}
+                <div className="min-h-0 flex-1 [&>div]:h-full!">
+                  {fund ? (
+                    <TradingChart key={fund.tic} fund={fund} />
+                  ) : (
+                    <div className="flex h-full items-center justify-center rounded-sm border border-white/[0.06] font-mono text-[11px] tracking-[0.1em] text-zinc-600">
+                      {selected ? `NO CHART DATA FOR ${selected.ticker}` : "NO ETF SELECTED"}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* ── Divider with hide / show tabs ── */}
+            <div className="relative w-px flex-none bg-white/[0.06] max-lg:hidden">
+              {hidden === "none" && <EdgeTab side="left" dir="right" label="Hide list" onClick={() => setHidden("list")} />}
+              {hidden === "none" && <EdgeTab side="right" dir="left" label="Hide chart" onClick={() => setHidden("chart")} />}
+              {hidden === "list" && <EdgeTab side="left" dir="left" label="Show list" onClick={() => setHidden("none")} />}
+              {hidden === "chart" && <EdgeTab side="right" dir="right" label="Show chart" onClick={() => setHidden("none")} />}
+            </div>
+
+            {/* ── List (compact) or the full table when the chart is hidden ── */}
+            {hidden === "chart" ? (
+              <div className="min-h-0 min-w-0 flex-1 overflow-auto pl-3.5">{fullTable}</div>
+            ) : hidden === "none" ? (
+              <div className="flex min-h-0 w-[36%] min-w-[320px] max-w-[480px] flex-none flex-col pl-3.5 max-lg:w-full max-lg:max-w-none max-lg:pl-0">
+                <div className="flex flex-none items-center justify-between pb-2 font-mono text-[10px] font-semibold tracking-[0.14em] text-zinc-500">
+                  <span>LIST · {activeSub ? activeSub.label : tabLabel}</span>
+                  <span className="text-zinc-600">{rows.length}</span>
+                </div>
+                <div className="min-h-0 flex-1 overflow-y-auto rounded-sm border border-white/[0.06]">
+                  {rows.map((e) => {
+                    const on = selected?.ticker === e.ticker;
+                    const px = QUOTE[e.ticker]?.[0];
+                    return (
+                      <button
+                        key={e.ticker}
+                        type="button"
+                        onClick={() => pick(e.ticker)}
+                        aria-current={on}
+                        className={`flex w-full items-center gap-3 border-b border-white/[0.04] px-3 py-2 text-left transition-colors last:border-b-0 ${
+                          on ? "bg-red-500/[0.07] shadow-[inset_2px_0_0_#ef4444]" : "hover:bg-white/[0.03]"
+                        }`}
+                      >
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-mono text-[12.5px] font-bold text-zinc-50">{e.ticker}</span>
+                            {e.leverage !== "1x" && (
+                              <span className="rounded-sm bg-amber-500/15 px-1 font-mono text-[9px] font-bold text-amber-400">{e.leverage === "Inverse" ? "-3X" : e.leverage.toUpperCase()}</span>
+                            )}
+                          </div>
+                          <div className="truncate text-[10.5px] text-zinc-500">{e.name}</div>
+                        </div>
+                        <span className="flex-none max-xl:hidden"><Spark pts={week(e)} w={48} h={18} /></span>
+                        <div className="w-[72px] flex-none text-right font-mono tabular-nums">
+                          <div className={`text-[12px] ${on ? "text-white" : "text-zinc-300"}`}>{px != null ? `$${px.toFixed(2)}` : "—"}</div>
+                          <div className={`text-[10.5px] font-bold ${e.chg1d >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
+                            {e.chg1d > 0 ? "▲" : e.chg1d < 0 ? "▼" : "■"} {fmtPct(e.chg1d)}
+                          </div>
+                        </div>
+                      </button>
+                    );
+                  })}
+                  {rows.length === 0 && <div className="p-8 text-center text-[12px] text-zinc-500">No ETFs match the current filters.</div>}
+                </div>
+              </div>
+            ) : null}
+          </div>
+        )}
 
         <div className="flex flex-none flex-wrap items-center gap-5 border-t border-white/[0.06] bg-white/[0.015] px-3 py-3 font-mono text-[11px] tracking-[0.08em]">
           <span className="text-zinc-600">AVG YTD <span className={avgYtd >= 0 ? "text-emerald-400" : "text-rose-400"}>{fmtPct(avgYtd)}</span></span>
