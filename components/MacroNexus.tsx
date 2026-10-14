@@ -26,6 +26,21 @@ const VIEW0 = { tx: 0, ty: 0, s: 1, rot: 0 };
 const ZOOM_MIN = 0.35, ZOOM_MAX = 6;
 const clampZoom = (z: number) => Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, z));
 
+/* ── Data-driven edge styling ──────────────────────────────
+   colour = sign & strength · width + alpha = |ρ| tier · negatives also dashed (not colour-only) */
+const TONE = {
+  pos: { stroke: "#10b981", text: "#34d399" }, // ρ > 0.6   muted emerald
+  neg: { stroke: "#e11d48", text: "#fb7185" }, // ρ < −0.3  muted rose
+  weak: { stroke: "#52525b", text: "#71717a" }, // everything else, zinc
+} as const;
+function edgeStyle(r: number) {
+  const a = Math.abs(r);
+  const tone = r > 0.6 ? TONE.pos : r < -0.3 ? TONE.neg : TONE.weak;
+  const tier = a > 0.8 ? { width: 2, alpha: 0.8, label: 1 } : a >= 0.6 ? { width: 1.5, alpha: 0.45, label: 0.8 } : { width: 1, alpha: 0.2, label: 0.5 };
+  return { ...tone, ...tier, dash: r < 0 ? "4 3" : undefined };
+}
+const FADE = 0.05;
+
 const fmtRho = (v: number) => `${v < 0 ? "−" : ""}${Math.abs(v).toFixed(2)}`;
 const rest = (r: number) => 40 + 170 * (1 - r);
 const stiff = (r: number) => (r > 0 ? 0.03 + 0.55 * r * r : 0.06);
@@ -256,6 +271,17 @@ export default function MacroNexus() {
   const topPos = sorted.slice(0, 8);
   const topNeg = sorted.slice(-6).reverse();
 
+  /** Spotlight: the focused node + its direct neighbours over the drawn (|ρ| ≥ threshold) edges */
+  const lit = useMemo(() => {
+    if (!focus) return null;
+    const set = new Set([focus]);
+    for (const l of links) if (Math.abs(l.correlation_value) >= thr && (l.source === focus || l.target === focus)) set.add(l.source === focus ? l.target : l.source);
+    return set;
+  }, [focus, links, thr]);
+  const touches = (l: NexusLink) => !focus || l.source === focus || l.target === focus;
+  /** weak first, strong on top */
+  const drawn = [...visible].sort((a, b) => Math.abs(a.correlation_value) - Math.abs(b.correlation_value));
+
   const showLabel = (l: NexusLink) =>
     labels === "ALL" || (focus ? l.source === focus || l.target === focus : Math.abs(l.correlation_value) >= 0.85);
 
@@ -305,31 +331,31 @@ export default function MacroNexus() {
                 onPointerDown={onBgDown} onPointerUp={onBgUp} onDoubleClick={() => setView(VIEW0)} />
               {/* edges */}
               <g className="pointer-events-none">
-                {visible.map((l) => {
+                {drawn.map((l) => {
                   const a = scr[l.source], b = scr[l.target];
                   if (!a || !b) return null;
-                  const r = l.correlation_value;
-                  const on = focus && (l.source === focus || l.target === focus);
-                  const op = focus ? (on ? 0.5 : 0.025) : r > 0 ? 0.05 + 0.17 * r : 0.05;
+                  const st = edgeStyle(l.correlation_value);
+                  const on = touches(l);
                   return (
                     <line key={l.source + l.target} x1={a.x} y1={a.y} x2={b.x} y2={b.y}
-                      stroke={r < 0 && on ? "#fb7185" : "#ffffff"} strokeOpacity={op} strokeWidth={1}
-                      strokeDasharray={r < 0 ? "3 3" : undefined} vectorEffect="non-scaling-stroke" />
+                      stroke={st.stroke} strokeWidth={st.width} strokeDasharray={st.dash} strokeLinecap="butt"
+                      strokeOpacity={focus ? (on ? 1 : FADE) : st.alpha}
+                      className="transition-[stroke-opacity] duration-150" vectorEffect="non-scaling-stroke" />
                   );
                 })}
               </g>
               {/* edge labels */}
               <g>
-                {visible.filter(showLabel).map((l) => {
+                {drawn.filter(showLabel).map((l) => {
                   const a = scr[l.source], b = scr[l.target];
                   if (!a || !b) return null;
-                  const r = l.correlation_value, t = `[ ρ = ${fmtRho(r)} ]`;
+                  const r = l.correlation_value, t = `[ ρ = ${fmtRho(r)} ]`, st = edgeStyle(r);
                   const x = (a.x + b.x) / 2, y = (a.y + b.y) / 2, w = t.length * 5.6 + 4;
-                  const dim = focus && !(l.source === focus || l.target === focus);
+                  const op = focus ? (touches(l) ? 1 : FADE) : st.label;
                   return (
-                    <g key={"t" + l.source + l.target} opacity={dim ? 0.15 : 1} className="pointer-events-none">
+                    <g key={"t" + l.source + l.target} opacity={op} className="pointer-events-none transition-opacity duration-150">
                       <rect x={x - w / 2} y={y - 6.5} width={w} height={13} fill="#030303" />
-                      <text x={x} y={y + 3} textAnchor="middle" fontSize={9.5} className={r < 0 ? "fill-rose-400/80" : "fill-zinc-400"}>{t}</text>
+                      <text x={x} y={y + 3} textAnchor="middle" fontSize={9.5} fill={st.text} fontWeight={Math.abs(r) > 0.8 ? 600 : 400}>{t}</text>
                     </g>
                   );
                 })}
@@ -340,13 +366,13 @@ export default function MacroNexus() {
                   const p = scr[n.id];
                   if (!p) return null;
                   const isSel = sel === n.id, isFocus = focus === n.id;
-                  const linked = focus ? n.id === focus || Math.abs(rho(links, focus, n.id)) >= thr : true;
+                  const linked = !lit || lit.has(n.id);
                   return (
                     <g
                       key={n.id}
                       transform={`translate(${p.x},${p.y})`}
-                      opacity={linked ? 1 : 0.25}
-                      className="cursor-grab active:cursor-grabbing"
+                      opacity={linked ? 1 : FADE}
+                      className="cursor-grab transition-opacity duration-150 active:cursor-grabbing"
                       onPointerDown={(e) => onDown(e, n.id)}
                       onPointerUp={() => onUp(n.id)}
                       onPointerEnter={() => setHover(n.id)}
@@ -368,9 +394,15 @@ export default function MacroNexus() {
 
           {/* legend */}
           <div className="pointer-events-none absolute bottom-2 left-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-[9.5px] tracking-[0.08em] text-zinc-600">
-            <span className="flex items-center gap-1.5"><span className="h-px w-5 bg-white/40" />HIGH ρ · SHORT</span>
-            <span className="flex items-center gap-1.5"><span className="h-px w-5 bg-white/10" />LOW ρ · LONG</span>
-            <span className="flex items-center gap-1.5"><span className="w-5 border-t border-dashed border-white/25" />NEGATIVE ρ</span>
+            {([["ρ > 0.8", 0.95], ["ρ 0.6–0.8", 0.7], ["WEAK", 0.3], ["ρ < −0.3", -0.5]] as const).map(([t, v]) => {
+              const st = edgeStyle(v);
+              return (
+                <span key={t} className="flex items-center gap-1.5">
+                  <svg width="20" height="4" aria-hidden><line x1="0" y1="2" x2="20" y2="2" stroke={st.stroke} strokeOpacity={Math.max(st.alpha, 0.5)} strokeWidth={st.width} strokeDasharray={st.dash} /></svg>
+                  {t}
+                </span>
+              );
+            })}
             <span>DRAG · PAN</span><span>WHEEL · ZOOM</span><span>RIGHT-DRAG / SHIFT+DRAG · ROTATE</span><span>DRAG NODE · MOVE</span>
           </div>
         </div>
@@ -409,7 +441,7 @@ export default function MacroNexus() {
                   <span className="font-bold text-zinc-200">{n.ticker}</span>
                   <span className="relative h-2.5 bg-white/[0.03]">
                     <span className="absolute inset-y-0 left-1/2 w-px bg-white/10" />
-                    <span className={`absolute inset-y-0 ${r >= 0 ? "left-1/2 bg-zinc-300/70" : "right-1/2 bg-rose-400/60"}`} style={{ width: `${Math.abs(r) * 50}%` }} />
+                    <span className={`absolute inset-y-0 ${r >= 0 ? "left-1/2" : "right-1/2"}`} style={{ width: `${Math.abs(r) * 50}%`, background: edgeStyle(r).stroke, opacity: 0.75 }} />
                   </span>
                   <span className={`text-right ${r < 0 ? "text-rose-400" : "text-zinc-200"}`}>{fmtRho(r)}</span>
                   <span className={`text-right text-[10px] ${win === "1Y" || Math.abs(d) < 0.005 ? "text-zinc-600" : d > 0 ? "text-emerald-400" : "text-rose-400"}`}>
