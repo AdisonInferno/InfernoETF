@@ -10,6 +10,7 @@ const NAV = [
   { href: "/scanner", label: "SCANNER" },
   { href: "/portfolio", label: "PORTFOLIO" },
   { href: "/news", label: "NEWS" },
+  { href: "/etf-tools", label: "ETF TOOLS" },
 ];
 
 /* Swap for your own logo: put logo.svg in /public and use <img src="/logo.svg" />. */

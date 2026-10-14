@@ -1,5 +1,6 @@
-import PagePlaceholder from "@/components/PagePlaceholder";
+import { redirect } from "next/navigation";
 
+/** Old address — tools now live under /etf-tools. */
 export default function ToolsPage() {
-  return <PagePlaceholder title="Tools" description="Calculators for fees, compounding and DCA." />;
+  redirect("/etf-tools");
 }
