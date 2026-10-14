@@ -356,6 +356,7 @@ export default function MarketIntel() {
 
         <CommoditiesPanel key={`c-${key}`} items={d?.commodities.items ?? []} loading={loading} ready={!!d} picks={d?.picks?.commodities ?? []} />
 
+        <div className="flex min-w-0 flex-col gap-4">
         <section className={`${card} flex min-w-0 flex-col gap-3 p-4`}>
           <div className="flex items-baseline justify-between">
             <h2 className="m-0 font-mono text-[12px] font-bold tracking-[0.16em] text-zinc-200">[ MACRO ]</h2>
@@ -385,8 +386,10 @@ export default function MarketIntel() {
           {!loading && d && d.macro.calendar.missing.length > 0 && (
             <p className="m-0 text-[10.5px] text-amber-400/80">Add {d.macro.calendar.missing.join(" + ")} to .env.local for the full calendar.</p>
           )}
-          <EventCalendar />
         </section>
+
+        <EventCalendar />
+        </div>
       </div>
     </div>
   );

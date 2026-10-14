@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 
-/* Month calendar for the MACRO pillar.
+/* Month calendar — its own card on the NEWS page (under MACRO).
    Days with an event are filled (colour = most important source) and list their codes;
    clicking a day shows its events underneath. */
 
@@ -68,12 +68,13 @@ export default function EventCalendar() {
   const monthName = new Date(ym.y, ym.m, 1).toLocaleDateString("en-US", { month: "long", year: "numeric" }).toUpperCase();
 
   return (
-    <div className="flex min-h-[420px] flex-1 flex-col gap-2.5 border-t border-white/[0.06] pt-3">
+    <section className="flex min-h-[460px] min-w-0 flex-1 flex-col gap-2.5 rounded-sm border border-white/[0.06] bg-[#0a0a0c] p-4">
       {/* Header: title · month switcher */}
       <div className="flex items-center justify-between gap-2">
-        <span className="font-mono text-[10px] font-bold tracking-[0.16em] text-zinc-500">
-          EVENT CALENDAR <span className="text-zinc-700">·</span> <span className="text-zinc-400">{loading ? "…" : monthCount}</span>
-        </span>
+        <h2 className="m-0 flex items-baseline gap-2 font-mono text-[12px] font-bold tracking-[0.16em] text-zinc-200">
+          [ EVENT CALENDAR ]
+          <span className="text-[10px] tracking-[0.12em] text-zinc-500">{loading ? "…" : `${monthCount} EVENTS`}</span>
+        </h2>
         <div className="flex items-center gap-1.5">
           <button type="button" onClick={() => shift(-1)} className={navBtn} aria-label="Previous month">‹</button>
           <button type="button" onClick={() => { setYm({ y: today.getFullYear(), m: today.getMonth() }); setPicked(null); }}
@@ -154,6 +155,6 @@ export default function EventCalendar() {
       </div>
 
       {st?.error && !loading && <p className="m-0 text-[10.5px] text-rose-400">⚠ Calendar unavailable ({st.error}).</p>}
-    </div>
+    </section>
   );
 }
