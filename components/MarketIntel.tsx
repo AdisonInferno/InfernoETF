@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import EventCalendar from "@/components/EventCalendar";
 
 /* Market Intel
    ┌ region ─────────────────────────────────────────────────────────┐
@@ -61,7 +62,7 @@ const BASIS: Record<Insight["basis"], string> = {
   ai: "SRC: LLM PARSE OF PRESS RELEASE · VERIFY IN FILING",
   none: "",
 };
-const BADGE: Record<string, string> = { FED: "bg-amber-400/10 text-amber-300", FRED: "bg-sky-400/10 text-sky-300", EARN: "bg-zinc-400/10 text-zinc-300" };
+const BADGE: Record<string, string> = { FED: "bg-amber-400/10 text-amber-300", FRED: "bg-sky-400/10 text-sky-300", EARN: "bg-red-500/15 text-red-300", MKT: "bg-violet-400/15 text-violet-300" };
 
 /** 5-bar importance meter */
 function Weight({ n }: { n: number }) {
@@ -355,6 +356,7 @@ export default function MarketIntel() {
 
         <CommoditiesPanel key={`c-${key}`} items={d?.commodities.items ?? []} loading={loading} ready={!!d} picks={d?.picks?.commodities ?? []} />
 
+        <div className="flex min-w-0 flex-col gap-4">
         <section className={`${card} flex min-w-0 flex-col gap-3 p-4`}>
           <div className="flex items-baseline justify-between">
             <h2 className="m-0 font-mono text-[12px] font-bold tracking-[0.16em] text-zinc-200">[ MACRO ]</h2>
@@ -385,6 +387,9 @@ export default function MarketIntel() {
             <p className="m-0 text-[10.5px] text-amber-400/80">Add {d.macro.calendar.missing.join(" + ")} to .env.local for the full calendar.</p>
           )}
         </section>
+
+        <EventCalendar />
+        </div>
       </div>
     </div>
   );

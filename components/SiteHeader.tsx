@@ -134,9 +134,6 @@ export default function SiteHeader() {
         <Link href="/scanner" className="flex items-center gap-3 justify-self-start">
           <LogoMark />
           <span className="text-[17px] font-bold tracking-[0.28em] text-white">INFERNO</span>
-          <span className="rounded-[3px] border border-red-500/70 px-1.5 py-[1px] font-mono text-[12px] font-bold tracking-[0.14em] text-red-500">
-            ETF
-          </span>
         </Link>
 
         <SearchBox />
