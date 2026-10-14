@@ -18,14 +18,23 @@ Rules:
 - Polish number format: "1 234,56" means 1234.56 (space = thousands separator, comma = decimal). Remove currency symbols and spaces.
 - Negative numbers may be shown with "-" or in red; keep the sign.
 - symbol: the ticker exactly as shown, including any suffix (e.g. "VWCE.DE", "NVDA.US", "CDR.PL", "CSPX.UK").
-- name: the full instrument name if visible, else null.
+  XTB often shows ONLY the instrument name (e.g. "Intuitive Machines", "Lubawa", "Space Innovators"). Then set
+  symbolShown=false and put your best exchange ticker in symbol (e.g. "LUNR", "LBW.PL", "RCAT", "KTOS", "SPOT", "MNST").
+  Never leave symbol empty.
+- symbolShown: true only if the ticker itself is printed on screen.
+- name: the instrument name exactly as shown (without the "Akcje"/"ETF" tag).
 - quantity: the "Wolumen"/"Volume"/"Ilość" column (number of shares/units).
 - avgOpenPrice: "Cena otwarcia"/"Open price".
 - currentPrice: "Cena rynkowa"/"Market price"/"Bieżąca cena".
 - marketValue: "Wartość"/"Market value"/"Wartość rynkowa" (in account currency).
 - profit: "Zysk"/"Zysk netto"/"Profit"/"Gross profit" (in account currency).
 - accountCurrency: the account currency shown on screen (e.g. "PLN", "EUR", "USD"), or null.
-- kind: "etf" if the instrument is an ETF/ETC/ETN, otherwise "stock".
+- sector: the GICS sector that best describes the company, or for a thematic ETF its dominant sector
+  (defense / space / aerospace → "Industrials", quantum / semis / software → "Technology", smart grid → "Utilities").
+- kind: "etf" if the row is tagged ETF/ETC/ETN, "stock" if tagged "Akcje"/"Stock" or otherwise.
+- Column names in Polish XTB: "Wolumen" = quantity, "Wartość" = marketValue, "Aktualna cena" = currentPrice,
+  "Cena otwarcia" = avgOpenPrice (can be 0.00, e.g. shares received from a spin-off — keep 0), "Zysk netto" = profit,
+  "Zysk netto %" = profitPct.
 - totalMarketValue / totalProfit: the totals/summary row or account summary if visible, else null.
 - Ignore pending orders, closed positions, cash balance rows, headers and footers.
 - If the image is not a positions table, return an empty positions array.`;
@@ -42,16 +51,19 @@ const SCHEMA = {
         type: Type.OBJECT,
         properties: {
           symbol: { type: Type.STRING },
+          symbolShown: { type: Type.BOOLEAN },
           name: { type: Type.STRING, nullable: true },
           kind: { type: Type.STRING, enum: ["etf", "stock"] },
+          sector: { type: Type.STRING, enum: ["Technology", "Communication", "Consumer Disc.", "Consumer Staples", "Health Care", "Financials", "Industrials", "Energy", "Utilities", "Materials", "Real Estate"] },
           quantity: { type: Type.NUMBER, nullable: true },
           avgOpenPrice: { type: Type.NUMBER, nullable: true },
           currentPrice: { type: Type.NUMBER, nullable: true },
           marketValue: { type: Type.NUMBER, nullable: true },
           profit: { type: Type.NUMBER, nullable: true },
+          profitPct: { type: Type.NUMBER, nullable: true },
         },
-        required: ["symbol", "kind", "quantity", "avgOpenPrice", "currentPrice", "marketValue", "profit"],
-        propertyOrdering: ["symbol", "name", "kind", "quantity", "avgOpenPrice", "currentPrice", "marketValue", "profit"],
+        required: ["symbol", "symbolShown", "name", "kind", "sector", "quantity", "avgOpenPrice", "currentPrice", "marketValue", "profit"],
+        propertyOrdering: ["name", "symbol", "symbolShown", "kind", "sector", "quantity", "avgOpenPrice", "currentPrice", "marketValue", "profit", "profitPct"],
       },
     },
   },

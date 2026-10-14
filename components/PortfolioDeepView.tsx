@@ -149,7 +149,7 @@ function lookRows(p: Position, n: number) {
   return [...m.values()].sort((a, b) => b.inFund - a.inFund).slice(0, n);
 }
 
-function PortfolioEtfs({ positions, onClose }: { positions: Position[]; onClose?: () => void }) {
+export function OpenPositions({ positions, onClose }: { positions: Position[]; onClose?: () => void }) {
   const [open, setOpen] = useState<string | null>(null);
   const { lots, save } = useLots();
   /** Total look-through weight of every stock across the whole portfolio, % */
@@ -242,7 +242,7 @@ function PortfolioEtfs({ positions, onClose }: { positions: Position[]; onClose?
                       <span className="flex min-w-0 flex-col">
                         <span className="flex items-center gap-2">
                           <span className="font-mono text-[14px] font-bold text-zinc-50">{p.asset.ticker}</span>
-                          <span className="rounded-sm bg-white/[0.06] px-1.5 py-px font-mono text-[9px] font-bold tracking-[0.1em] text-zinc-400">{etf ? "ETF" : "STOCK"}</span>
+                          <span className="rounded-sm bg-white/[0.06] px-1.5 py-px font-mono text-[9px] font-bold tracking-[0.1em] text-zinc-400">{p.asset.kind === "etf" ? "ETF" : "STOCK"}</span>
                         </span>
                         <span className="truncate text-[11px] text-zinc-500">{p.asset.name}</span>
                       </span>
@@ -328,10 +328,10 @@ function PortfolioEtfs({ positions, onClose }: { positions: Position[]; onClose?
 
 /* ───────────────────── Resizable split row ───────────────────── */
 
-type PaneId = "sector" | "etfs";
-const PANE_TITLE: Record<PaneId, string> = { sector: "Sector Overlap", etfs: "Open positions" };
-const LAYOUT_KEY = "inferno.portfolio.split.v3";
-const DEFAULT_RATIO = 0.7;
+type PaneId = "sector" | "flows";
+const PANE_TITLE: Record<PaneId, string> = { sector: "Sector Overlap", flows: "Capital flow / Sector shift" };
+const LAYOUT_KEY = "inferno.portfolio.split.v5";
+const DEFAULT_RATIO = 0.6;
 
 /** Narrow "+" rail that brings a hidden panel back. */
 function AddRail({ id, onAdd }: { id: PaneId; onAdd: () => void }) {
@@ -355,15 +355,15 @@ function AddRail({ id, onAdd }: { id: PaneId; onAdd: () => void }) {
  * Open positions (left, 70%) ⇄ Sector Overlap (right): one joined strip, equal heights, a draggable divider
  * to trade width between them (double-click resets), X to hide a panel, + to bring it back.
  */
-function SplitRow({ positions }: { positions: Position[] }) {
-  const [shown, setShown] = useState<Record<PaneId, boolean>>({ sector: true, etfs: true });
+function SplitRow({ positions, flows }: { positions: Position[]; flows: React.ReactNode }) {
+  const [shown, setShown] = useState<Record<PaneId, boolean>>({ sector: true, flows: true });
 
   // Remember which panels are open per browser.
   useEffect(() => {
     try {
       const v = JSON.parse(window.localStorage.getItem(LAYOUT_KEY) ?? "null") as { shown?: Record<PaneId, boolean> } | null;
       // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time restore from browser storage
-      if (v?.shown && "etfs" in v.shown) setShown(v.shown);
+      if (v?.shown && "flows" in v.shown) setShown(v.shown);
     } catch { /* ignore */ }
   }, []);
   useEffect(() => {
@@ -373,10 +373,10 @@ function SplitRow({ positions }: { positions: Position[] }) {
   const hide = (id: PaneId) => setShown((s) => ({ ...s, [id]: false }));
   const show = (id: PaneId) => setShown((s) => ({ ...s, [id]: true }));
 
-  if (!shown.sector && !shown.etfs) {
+  if (!shown.sector && !shown.flows) {
     return (
       <div className="flex gap-3">
-        {(["etfs", "sector"] as PaneId[]).map((id) => (
+        {(["flows", "sector"] as PaneId[]).map((id) => (
           <button key={id} type="button" onClick={() => show(id)} className="flex flex-1 items-center justify-center gap-2 rounded-sm border border-dashed border-white/[0.08] py-3 font-mono text-[11px] font-bold tracking-[0.12em] text-zinc-500 transition-colors hover:border-red-500/40 hover:text-white">
             <span className="text-[15px]">+</span> {PANE_TITLE[id].toUpperCase()}
           </button>
@@ -385,14 +385,13 @@ function SplitRow({ positions }: { positions: Position[] }) {
     );
   }
 
-  if (shown.sector && shown.etfs) {
-    // Positions keep full rows (table is 860px wide) — the divider stops before rows would need to scroll.
+  if (shown.sector && shown.flows) {
     return (
       <ResizableSplit
-        storageKey="inferno.portfolio.split.v4"
-        minPx={[900, 380]}
+        storageKey="inferno.portfolio.split.v5"
+        minPx={[300, 380]}
         initial={DEFAULT_RATIO}
-        left={() => <PortfolioEtfs positions={positions} onClose={() => hide("etfs")} />}
+        left={() => <FlowsPane flows={flows} onClose={() => hide("flows")} />}
         right={() => <SectorOverlap positions={positions} onClose={() => hide("sector")} />}
       />
     );
@@ -400,10 +399,10 @@ function SplitRow({ positions }: { positions: Position[] }) {
 
   return (
     <div className="flex items-stretch gap-3">
-      {shown.etfs ? (
-        <div className="min-w-0 flex-1"><PortfolioEtfs positions={positions} onClose={() => hide("etfs")} /></div>
+      {shown.flows ? (
+        <div className="min-w-0 flex-1"><FlowsPane flows={flows} onClose={() => hide("flows")} /></div>
       ) : (
-        <AnimatePresence initial={false}><AddRail key="add-etfs" id="etfs" onAdd={() => show("etfs")} /></AnimatePresence>
+        <AnimatePresence initial={false}><AddRail key="add-flows" id="flows" onAdd={() => show("flows")} /></AnimatePresence>
       )}
       {shown.sector ? (
         <div className="min-w-0 flex-1"><SectorOverlap positions={positions} onClose={() => hide("sector")} /></div>
@@ -416,12 +415,23 @@ function SplitRow({ positions }: { positions: Position[] }) {
 
 /* ───────────────────── Composition ───────────────────── */
 
-export default function PortfolioDeepView({ positions }: { positions: Position[] }) {
+/** Capital flow + sector shift bars (rendered by the page, which owns the timeframe) with a close button. */
+function FlowsPane({ flows, onClose }: { flows: React.ReactNode; onClose: () => void }) {
+  return (
+    <div className="relative h-full min-w-0">
+      <div className="absolute right-2 top-2 z-10"><CloseBtn onClick={onClose} title="Capital flow / Sector shift" /></div>
+      {flows}
+    </div>
+  );
+}
+
+/** Bottom row of the deep view: flows (left) ⇄ sector overlap (right). Open positions sit next to the chart (page). */
+export default function PortfolioDeepView({ positions, flows }: { positions: Position[]; flows: React.ReactNode }) {
   if (!positions.length) return null;
   return (
     <div className="flex flex-col gap-4">
       <motion.div custom={0} variants={reveal} initial="hidden" animate="show">
-        <SplitRow positions={positions} />
+        <SplitRow positions={positions} flows={flows} />
       </motion.div>
     </div>
   );

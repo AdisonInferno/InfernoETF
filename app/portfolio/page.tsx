@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { AnimatePresence, LayoutGroup, motion, useReducedMotion, type Variants } from "framer-motion";
 import { useEffect, useMemo, useRef, useState } from "react";
-import PortfolioDeepView, { SEG_COLORS } from "@/components/PortfolioDeepView";
+import PortfolioDeepView, { OpenPositions, SEG_COLORS } from "@/components/PortfolioDeepView";
 import PortfolioPerformance, { type RangeTf } from "@/components/PortfolioPerformance";
 import PortfolioFlows from "@/components/PortfolioFlows";
 import ResizableSplit from "@/components/ResizableSplit";
@@ -451,6 +451,14 @@ export default function PortfolioPage() {
     // flex-none: the page grows with its content (never squeezed to the viewport);
     // falling cards are clipped by <main> while its scroll is locked during the transition.
     <div className="relative mx-auto flex min-h-full w-full max-w-[3200px] flex-none flex-col gap-3 overflow-x-clip bg-[#030303] px-3 min-[1800px]:px-6 pb-5 pt-3">
+      {/* XTB import over an existing portfolio: replaces positions after review */}
+      {importing && showMine && (
+        <div className="fixed inset-0 z-[80] overflow-y-auto bg-[#030303]/85 p-4" onClick={() => setImporting(false)}>
+          <div className="mx-auto mt-10 max-w-[1500px]" onClick={(e) => e.stopPropagation()}>
+            <XtbImport onImport={importXtb} onClose={() => setImporting(false)} />
+          </div>
+        </div>
+      )}
       <motion.div layout="position" className="font-mono text-[10px] tracking-[0.14em] text-zinc-600">
         [ DASHBOARD / <span className={isDeep ? "" : "text-zinc-300"}>PORTFOLIO</span>
         {isDeep && <> / <span className="text-zinc-300">DEEP VIEW</span></>} ]
@@ -512,10 +520,12 @@ export default function PortfolioPage() {
                         </div>
                       ))}
                     </motion.div>
+                    <button type="button" onClick={() => setImporting(true)} className={ghostBtn}>[ IMPORT XTB ]</button>
                     <Link href="/portfolio/holdings" className={ghostBtn}>[ HOLDINGS → ]</Link>
                   </>
                 ) : (
                   <>
+                    <button type="button" onClick={() => setImporting(true)} className={ghostBtn}>[ IMPORT XTB ]</button>
                     <button type="button" onClick={() => setEditing(true)} className={ghostBtn}>[ EDIT ]</button>
                     <button type="button" onClick={goDeep} className="rounded-sm bg-red-500 px-3 py-1.5 font-mono text-[11px] font-bold tracking-[0.08em] text-white transition-colors hover:bg-red-400">
                       [ DEEP VIEW → ]
@@ -533,14 +543,14 @@ export default function PortfolioPage() {
             {isExpanded ? (
               <motion.div layout="position" onClick={(e) => e.stopPropagation()}>
                 <ResizableSplit
-                  storageKey="inferno.portfolio.deep.top.v1"
-                  minPx={[480, 300]}
-                  initial={0.58}
-                  height={{ initial: 420, min: 320, max: 900 }}
+                  storageKey="inferno.portfolio.deep.top.v2"
+                  minPx={[420, 880]}
+                  initial={0.42}
+                  height={{ initial: 520, min: 360, max: 1100 }}
                   left={(h) => <PortfolioPerformance positions={parsed.positions} chartHeight={h ? Math.max(120, h - 178) : 200} tf={perfTf} onTfChange={setPerfTf} />}
-                  right={() => (
-                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1, transition: { delay: 0.2 } }} className="h-full overflow-y-auto">
-                      <PortfolioFlows positions={parsed.positions} tf={perfTf} />
+                  right={(h) => (
+                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1, transition: { delay: 0.2 } }} className={h ? "h-full overflow-y-auto" : ""}>
+                      <OpenPositions positions={parsed.positions} />
                     </motion.div>
                   )}
                 />
@@ -620,7 +630,7 @@ export default function PortfolioPage() {
             <AnimatePresence initial={false}>
               {isExpanded && (
                 <motion.div key="deep" layout="position" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, transition: { duration: 0.15 } }}>
-                  <PortfolioDeepView positions={parsed.positions} />
+                  <PortfolioDeepView positions={parsed.positions} flows={<PortfolioFlows positions={parsed.positions} tf={perfTf} />} />
                 </motion.div>
               )}
             </AnimatePresence>
@@ -680,7 +690,7 @@ export default function PortfolioPage() {
               {parsed.errors.length > 0 && <p className="font-mono text-[11px] text-amber-400">⚠ {parsed.errors.join(" · ")}</p>}
             </div>
 
-            {importing && <XtbImport onImport={importXtb} onClose={() => setImporting(false)} />}
+            {importing && !showMine && <XtbImport onImport={importXtb} onClose={() => setImporting(false)} />}
 
             <div className="flex flex-wrap justify-end gap-2">
               {!importing && (

@@ -277,7 +277,8 @@ export function sectorExposure(positions: Position[]) {
   for (const { asset, weight } of positions) {
     if (asset.kind === "stock") { add(asset.sector === "Consumer" ? "Consumer Disc." : asset.sector, asset.ticker, weight); continue; }
     const prof = PROFILE_OF[asset.ticker];
-    if (!prof) continue;
+    // Imported funds outside our database: no holdings data, count the whole position in its own sector.
+    if (!prof) { add(asset.sector || "Other", asset.ticker, weight); continue; }
     if (prof.sectors) {
       const tot = prof.sectors.reduce((a, [, v]) => a + v, 0);
       prof.sectors.forEach(([sub, v]) => add(SUB_PARENT[sub] ?? "Other", asset.ticker, (weight * v) / tot));

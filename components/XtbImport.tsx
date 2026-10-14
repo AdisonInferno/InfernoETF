@@ -7,8 +7,10 @@ import { isKnownTicker, type Asset, type Lot } from "@/lib/portfolio";
 
 interface RawPos {
   symbol: string;
+  symbolShown?: boolean;
   name: string | null;
   kind: "etf" | "stock";
+  sector?: string;
   quantity: number | null;
   avgOpenPrice: number | null;
   currentPrice: number | null;
@@ -26,9 +28,11 @@ interface ApiResult {
 interface Row {
   id: number;
   source: string; // symbol as shown at the broker
+  inferred: boolean; // ticker guessed from the name (not printed on screen)
   ticker: string; // our ticker
   name: string;
   kind: "etf" | "stock";
+  sector: string;
   qty: string;
   avg: string;
   price: string;
@@ -74,10 +78,12 @@ function merge(list: RawPos[]): Row[] {
   }
   return [...by.values()].map((p, i) => ({
     id: i,
-    source: p.symbol + (p.n > 1 ? ` ×${p.n}` : ""),
+    source: (p.symbolShown === false ? p.name ?? p.symbol : p.symbol) + (p.n > 1 ? ` ×${p.n}` : ""),
+    inferred: p.symbolShown === false,
     ticker: toTicker(p.symbol),
     name: p.name ?? p.symbol,
     kind: p.kind,
+    sector: p.sector ?? "Other",
     qty: str(p.quantity),
     avg: str(p.avgOpenPrice != null ? +p.avgOpenPrice.toFixed(4) : null),
     price: str(p.currentPrice),
@@ -92,10 +98,10 @@ function rowIssues(r: Row): string[] {
   const q = num(r.qty), a = num(r.avg), p = num(r.price), v = num(r.value), pl = num(r.pl);
   if (!/^[A-Z][A-Z0-9.]{0,6}$/.test(r.ticker)) out.push("ticker");
   if (q == null || q <= 0) out.push("qty");
-  if (a == null || a <= 0) out.push("avg");
+  if (a == null || a < 0) out.push("avg"); // 0 is valid (e.g. spin-off shares)
   if (v == null && (q == null || p == null)) out.push("value");
   // Profit direction must match price vs. open price (currency-independent check).
-  if (a != null && p != null && pl != null && Math.abs(p - a) / a > 0.005 && Math.sign(p - a) !== Math.sign(pl)) out.push("P/L sign");
+  if (a != null && a > 0 && p != null && pl != null && Math.abs(p - a) / a > 0.005 && Math.sign(p - a) !== Math.sign(pl)) out.push("P/L sign");
   return out;
 }
 
@@ -179,7 +185,7 @@ export default function XtbImport({ onImport, onClose }: { onImport: (r: ImportR
       const price = num(r.price) ?? undefined;
       lots[r.ticker] = { qty: num(r.qty)!, avg: num(r.avg)!, price, value: calc.vals[i], pl: num(r.pl) ?? undefined, ccy };
       if (!isKnownTicker(r.ticker)) {
-        customs[r.ticker] = { ticker: r.ticker, name: r.name, price: price ?? num(r.avg)!, chg1d: 0, ytd: 0, sector: "Other", kind: r.kind, dd2022: -30 };
+        customs[r.ticker] = { ticker: r.ticker, name: r.name, price: price ?? num(r.avg)!, chg1d: 0, ytd: 0, sector: r.sector, kind: r.kind, dd2022: -30 };
       }
     });
     onImport({ prompt: `${rows.map((r) => r.ticker).join(" ")} ${w.join("/")}`, lots, customs });
@@ -233,11 +239,12 @@ export default function XtbImport({ onImport, onClose }: { onImport: (r: ImportR
                     return (
                       <div key={r.id} className="grid grid-cols-[110px_86px_minmax(0,1fr)_repeat(5,88px)_22px] items-center gap-2 px-1">
                         <span className="truncate font-mono text-[11px] text-zinc-500" title={r.source}>{r.source}</span>
-                        <input value={r.ticker} onChange={(e) => set(r.id, "ticker", e.target.value)} className={`${cell} text-left font-bold ${iss.includes("ticker") || calc.dupTickers.includes(r.ticker) ? bad : ""}`} />
+                        <input value={r.ticker} onChange={(e) => set(r.id, "ticker", e.target.value)} className={`${cell} text-left font-bold ${iss.includes("ticker") || calc.dupTickers.includes(r.ticker) ? bad : r.inferred ? "border-sky-500/40" : ""}`} />
                         <span className="flex min-w-0 items-center gap-1.5">
                           <span className={`flex-none rounded-sm px-1 font-mono text-[8.5px] font-bold tracking-[0.08em] ${known ? "bg-emerald-500/10 text-emerald-400" : "bg-amber-500/10 text-amber-400"}`} title={known ? "W bazie Inferno" : "Spoza bazy: dodam jako własną pozycję (bez składu i sektorów)"}>
                             {known ? "DB" : "NEW"}
                           </span>
+                          {r.inferred && <span className="flex-none rounded-sm bg-sky-500/10 px-1 font-mono text-[8.5px] font-bold tracking-[0.08em] text-sky-300" title="Ticker odgadnięty z nazwy — sprawdź">GUESS</span>}
                           <span className="truncate text-[11.5px] text-zinc-400">{r.name}</span>
                         </span>
                         <input value={r.qty} onChange={(e) => set(r.id, "qty", e.target.value)} className={`${cell} ${iss.includes("qty") ? bad : ""}`} />
