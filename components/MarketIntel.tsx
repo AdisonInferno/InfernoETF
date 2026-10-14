@@ -3,6 +3,18 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import EventCalendar from "@/components/EventCalendar";
+import AwaitedEvents from "@/components/AwaitedEvents";
+import NewsCharts, { proxiesFor } from "@/components/NewsCharts";
+
+/** [ CHART ▾ ] toggle used on every news card */
+function ChartBtn({ open, onClick }: { open: boolean; onClick: () => void }) {
+  return (
+    <button type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); onClick(); }} aria-expanded={open}
+      className={`flex-none rounded-sm border px-1.5 py-0.5 font-mono text-[9.5px] font-bold tracking-[0.1em] transition-colors ${open ? "border-amber-400/40 bg-amber-400/10 text-amber-300" : "border-white/[0.08] text-zinc-500 hover:text-white"}`}>
+      CHART {open ? "▴" : "▾"}
+    </button>
+  );
+}
 
 /* Market Intel
    ┌ region ─────────────────────────────────────────────────────────┐
@@ -18,7 +30,7 @@ interface Filing { ticker: string; company: string; form: string; acceptedAt: st
 interface Insight { direction: "up" | "down" | "neutral"; headline: string; detail: string; basis: "form4" | "xbrl" | "rules" | "ai" | "none"; importance: number; sector?: string }
 interface Commodity { id: string; ts: number; headline: string; url: string; source: string; commodity: string; tag: { sectors: string[]; importance: number; why: string; basis: "ai" | "rules" } }
 interface Ev { source: string; code: string; at: string; title: string; allDay?: boolean }
-interface MacroNews { id: string; ts: number; headline: string; url: string; source: string }
+interface MacroNews { id: string; ts: number; headline: string; url: string; source: string; tickers?: string[] }
 interface Data {
   picks?: { filers: string[]; commodities: string[] };
   sentiment: { sectors: Sector[]; articles: number };
@@ -158,6 +170,7 @@ function useFetch<T>(url: string | null) {
 
 /* ── SEC filings: fetch every insight, then sort by importance or time ── */
 function FilingsPanel({ filings: sectorFilings, error: sectorError, loading: sectorLoading, picks }: { filings: Filing[]; error?: string; loading: boolean; picks: string[] }) {
+  const [openChart, setOpenChart] = useState<string | null>(null);
   const [pick, setPick] = useState<string | null>(null);
   const one = useFetch<{ filings: Filing[]; error?: string }>(pick ? `/api/intel/filings?ticker=${encodeURIComponent(pick)}` : null);
   const pickedFilings = one.data?.filings;
@@ -204,16 +217,19 @@ function FilingsPanel({ filings: sectorFilings, error: sectorError, loading: sec
         const ins = insights[f.accession];
         const a = ARROW[ins?.direction ?? "neutral"];
         return (
-          <a key={f.accession} href={f.url} target="_blank" rel="noreferrer" className="group relative flex flex-col gap-1.5 rounded-sm border border-white/[0.06] bg-[#030303] px-3.5 py-3 transition-colors hover:border-white/[0.12] focus-visible:border-white/[0.2] focus-visible:outline-none">
+          <div key={f.accession} className="group relative flex flex-col gap-1.5 rounded-sm border border-white/[0.06] bg-[#030303] px-3.5 py-3 transition-colors hover:border-white/[0.12]">
             <div className="flex items-center justify-between gap-2">
               <span className="flex min-w-0 items-center gap-2">
                 <span className="whitespace-nowrap rounded-sm bg-sky-400/10 px-2 py-0.5 text-[11.5px] font-bold text-sky-300">{f.ticker} · {f.form}</span>
                 {ins ? <span className={`flex h-5 w-5 flex-none items-center justify-center rounded-sm text-[10px] ${a.chip}`} aria-label={a.word}>{a.icon}</span> : <span className="h-5 w-5 animate-pulse rounded-sm bg-white/[0.05]" />}
                 {ins && <Weight n={ins.importance} />}
               </span>
-              <span className="whitespace-nowrap text-[10.5px] text-zinc-500">{when(f.acceptedAt)}</span>
+              <span className="flex items-center gap-2">
+                <span className="whitespace-nowrap text-[10.5px] text-zinc-500">{when(f.acceptedAt)}</span>
+                <ChartBtn open={openChart === f.accession} onClick={() => setOpenChart((o) => (o === f.accession ? null : f.accession))} />
+              </span>
             </div>
-            <span className="font-sans text-[13.5px] text-zinc-200 group-hover:text-white">{f.description}</span>
+            <a href={f.url} target="_blank" rel="noreferrer" className="font-sans text-[13.5px] text-zinc-200 hover:text-white hover:underline">{f.description}</a>
             {ins ? (
               <span className="flex min-w-0 items-center gap-2">
                 <span className={`min-w-0 truncate text-[11.5px] ${a.text}`}>{ins.headline}</span>
@@ -221,7 +237,8 @@ function FilingsPanel({ filings: sectorFilings, error: sectorError, loading: sec
               </span>
             ) : <span className="h-3 w-2/3 animate-pulse rounded bg-white/[0.04]" />}
             {ins?.detail && <Why title={`${a.icon} WHY ${a.word} · IMPORTANCE ${ins.importance}/5`} cls={a.text} body={ins.detail} foot={BASIS[ins.basis]} />}
-          </a>
+            {openChart === f.accession && <NewsCharts symbols={[f.ticker, "SPY"]} ts={Date.parse(f.acceptedAt) / 1000} />}
+          </div>
         );
       })}
       {!loading && !error && rows.length === 0 && <p className="m-0 text-[11px] text-zinc-600">{pick ? `No SEC filings for ${pick} (not an SEC-registered ticker?).` : "No SEC filers tracked for this sector in this region."}</p>}
@@ -231,6 +248,7 @@ function FilingsPanel({ filings: sectorFilings, error: sectorError, loading: sec
 
 /* ── Commodities: sector-relevant by default, or one commodity picked from the tiles ── */
 function CommoditiesPanel({ items: sectorItems, loading: sectorLoading, ready, picks }: { items: Commodity[]; loading: boolean; ready: boolean; picks: string[] }) {
+  const [openChart, setOpenChart] = useState<string | null>(null);
   const [pick, setPick] = useState<string | null>(null);
   const one = useFetch<{ items: Commodity[] }>(pick ? `/api/intel/commodity?name=${encodeURIComponent(pick)}` : null);
   const items = pick ? one.data?.items ?? [] : sectorItems;
@@ -246,15 +264,18 @@ function CommoditiesPanel({ items: sectorItems, loading: sectorLoading, ready, p
           {!loading && items.map((c) => {
             const all = c.tag.sectors.includes("all");
             return (
-              <a key={c.id} href={c.url || undefined} target="_blank" rel="noreferrer" className="group relative flex flex-col gap-1.5 rounded-sm border border-white/[0.06] bg-[#030303] px-3.5 py-3 transition-colors hover:border-white/[0.12]">
+              <div key={c.id} className="group relative flex flex-col gap-1.5 rounded-sm border border-white/[0.06] bg-[#030303] px-3.5 py-3 transition-colors hover:border-white/[0.12]">
                 <div className="flex items-center justify-between gap-2">
                   <span className="flex items-center gap-2">
                     <span className="rounded-sm bg-amber-400/10 px-2 py-0.5 text-[11px] font-bold text-amber-300">{c.commodity.toUpperCase()}</span>
                     <Weight n={c.tag.importance} />
                   </span>
-                  <span className="text-[10.5px] text-zinc-500">{when(c.ts * 1000)}</span>
+                  <span className="flex items-center gap-2">
+                    <span className="text-[10.5px] text-zinc-500">{when(c.ts * 1000)}</span>
+                    <ChartBtn open={openChart === c.id} onClick={() => setOpenChart((o) => (o === c.id ? null : c.id))} />
+                  </span>
                 </div>
-                <span className="line-clamp-2 font-sans text-[13px] text-zinc-200 group-hover:text-white">{c.headline}</span>
+                <a href={c.url || undefined} target="_blank" rel="noreferrer" className="line-clamp-2 font-sans text-[13px] text-zinc-200 hover:text-white hover:underline">{c.headline}</a>
                 <span className="flex items-center gap-2">
                   <span className="min-w-0 truncate text-[11px] text-zinc-400">{c.tag.why}</span>
                   <span className="ml-auto flex flex-none gap-1">
@@ -262,7 +283,8 @@ function CommoditiesPanel({ items: sectorItems, loading: sectorLoading, ready, p
                   </span>
                 </span>
                 <Why title={`IMPACT · IMPORTANCE ${c.tag.importance}/5`} cls="text-amber-300" body={`${c.tag.why}. Source: ${c.source}.`} foot={c.tag.basis === "ai" ? "SRC: LLM TAG OF HEADLINE · UNVERIFIED" : "SRC: KEYWORD RULES"} />
-              </a>
+                {openChart === c.id && <NewsCharts symbols={proxiesFor(c.commodity)} ts={c.ts} />}
+              </div>
             );
           })}
           {one.error && <p className="m-0 text-[11px] text-amber-400">⚠ {one.error}</p>}
@@ -272,6 +294,7 @@ function CommoditiesPanel({ items: sectorItems, loading: sectorLoading, ready, p
 }
 
 export default function MarketIntel() {
+  const [openMacro, setOpenMacro] = useState<string | null>(null);
   const [region, setRegion] = useState<Region>("us");
   const [sector, setSector] = useState<SectorId>("tech");
   const key = `${region}:${sector}`;
@@ -376,10 +399,14 @@ export default function MarketIntel() {
             <div className="flex flex-col gap-2 border-t border-white/[0.06] pt-3">
               <span className={label}>MACRO NEWS</span>
               {d.macro.news.map((n) => (
-                <a key={n.id} href={n.url || undefined} target="_blank" rel="noreferrer" className="flex gap-3 text-[12.5px] hover:text-white">
-                  <span className="w-[52px] flex-none pt-0.5 text-[10px] text-zinc-600">{when(n.ts * 1000).replace(/ \d\d:\d\d$/, "")}</span>
-                  <span className="line-clamp-2 font-sans text-zinc-300">{n.headline}</span>
-                </a>
+                <div key={n.id} className="flex flex-col gap-1.5">
+                  <div className="flex items-start gap-3 text-[12.5px]">
+                    <span className="w-[52px] flex-none pt-0.5 text-[10px] text-zinc-600">{when(n.ts * 1000).replace(/ \d\d:\d\d$/, "")}</span>
+                    <a href={n.url || undefined} target="_blank" rel="noreferrer" className="line-clamp-2 min-w-0 flex-1 font-sans text-zinc-300 hover:text-white">{n.headline}</a>
+                    <ChartBtn open={openMacro === n.id} onClick={() => setOpenMacro((o) => (o === n.id ? null : n.id))} />
+                  </div>
+                  {openMacro === n.id && <NewsCharts symbols={[...(n.tickers ?? []), "SPY", "TLT", "UUP"]} ts={n.ts} />}
+                </div>
               ))}
             </div>
           )}
@@ -388,6 +415,7 @@ export default function MarketIntel() {
           )}
         </section>
 
+        <AwaitedEvents />
         <EventCalendar />
         </div>
       </div>

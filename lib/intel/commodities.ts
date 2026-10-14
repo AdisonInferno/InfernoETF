@@ -161,5 +161,5 @@ export async function macroNews(days = 7, limit = 6) {
   return (await queryArchive({ from, limit: 1000 }))
     .filter((a) => a.kind === "macro")
     .slice(0, limit)
-    .map((a) => ({ id: a.id, ts: a.ts, headline: a.headline, url: a.url, source: a.source }));
+    .map((a) => ({ id: a.id, ts: a.ts, headline: a.headline, url: a.url, source: a.source, tickers: a.relevant.slice(0, 3) }));
 }
