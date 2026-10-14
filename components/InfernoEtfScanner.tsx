@@ -106,6 +106,10 @@ const PROVIDERS: Provider[] = ["BlackRock", "Vanguard", "State Street", "Invesco
 
 /* ───────────────────────────── Helpers ─────────────────────────────── */
 
+/** Quick-jump labels */
+const SHORT: Record<string, string> = {
+  TECHNOLOGY: "TECH", FINANCIALS: "FIN", HEALTHCARE: "HLTH", "ENERGY & UTILITIES": "ENRG", CONSUMER: "CONS", "BROAD MARKET (CORE)": "CORE",
+};
 const SECTOR_GAP = 8; // half-gutter between sector cards
 const HEADER_H = 28; // sector card title bar
 const MONO = "font-mono";
@@ -221,6 +225,14 @@ export default function InfernoEtfScanner() {
   const [tip, setTip] = useState<{ etf: Etf; x: number; y: number } | null>(null);
   const [size, setSize] = useState({ w: 960, h: 560 });
   const mapRef = useRef<HTMLDivElement>(null);
+  /** Quick-jump: one ref per sector card; the jumped-to sector is spotlighted until cleared */
+  const sectorRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const [jump, setJump] = useState<string | null>(null);
+  const jumpTo = (title: string) => {
+    if (jump === title) { setJump(null); return; }
+    setJump(title);
+    sectorRefs.current[title]?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
 
   useEffect(() => {
     const el = mapRef.current;
@@ -371,15 +383,34 @@ export default function InfernoEtfScanner() {
           <span className={`${MONO} text-[11px] text-[#52525B]`}>{count} ETF</span>
         </div>
 
+        {/* Sector quick-jump */}
+        <nav aria-label="Jump to sector" className={`${MONO} flex flex-none flex-wrap items-center gap-1 px-1 text-[10.5px]`}>
+          <span className="mr-1 tracking-[0.12em] text-zinc-500">[ JUMP TO:</span>
+          {SECTORS.map(({ title }, i) => (
+            <span key={title} className="flex items-center gap-1">
+              {i > 0 && <span className="text-zinc-700">|</span>}
+              <button type="button" onClick={() => jumpTo(title)} aria-pressed={jump === title}
+                className={`rounded-sm px-1.5 py-0.5 font-bold tracking-[0.1em] transition-colors ${jump === title ? "bg-red-500/[0.12] text-red-300" : "text-zinc-400 hover:bg-white/[0.05] hover:text-white"}`}>
+                {SHORT[title] ?? title}
+              </button>
+            </span>
+          ))}
+          <span className="ml-1 tracking-[0.12em] text-zinc-500">]</span>
+          {jump && <button type="button" onClick={() => setJump(null)} className="ml-2 text-zinc-600 hover:text-white">✕ CLEAR</button>}
+        </nav>
+
         {/* Treemap */}
         <div ref={mapRef} className="relative min-h-[420px] flex-auto overflow-hidden bg-[#030303]">
           {sectors.map((s) => (
             <div
               key={s.title}
+              ref={(el) => { sectorRefs.current[s.title] = el; }}
               onMouseEnter={() => setHoverSector(s.title)}
               onMouseLeave={() => setHoverSector(null)}
-              className="absolute box-border overflow-hidden rounded-sm border border-white/[0.06] bg-[#0a0a0c]"
-              style={{ left: s.x, top: s.y, width: s.w, height: s.h, zIndex: hoverSector === s.title ? 5 : 1 }}
+              className={`absolute box-border scroll-mt-3 overflow-hidden rounded-sm border bg-[#0a0a0c] transition-opacity duration-200 ${
+                jump === s.title ? "border-red-500/60" : "border-white/[0.06]"
+              } ${jump && jump !== s.title ? "opacity-25" : ""}`}
+              style={{ left: s.x, top: s.y, width: s.w, height: s.h, zIndex: hoverSector === s.title || jump === s.title ? 5 : 1 }}
             >
               <div className="absolute inset-x-0 top-0 flex h-7 items-center justify-between gap-2 overflow-hidden px-3.5">
                 <span className="min-w-0 truncate text-[10px] font-semibold tracking-[0.12em] text-[#A1A1AA]">
