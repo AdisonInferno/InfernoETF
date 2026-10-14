@@ -6,6 +6,15 @@ export const dynamic = "force-dynamic";
 
 // Vision extraction wants the strongest model; override with GEMINI_IMPORT_MODEL in .env.local.
 const MODEL = process.env.GEMINI_IMPORT_MODEL ?? process.env.GEMINI_MODEL ?? "gemini-3.5-flash";
+/** Free-tier quotas are per model: when one is exhausted (429) or unavailable (404), try the next. */
+const FALLBACKS = [...new Set([MODEL, "gemini-3.6-flash", "gemini-3.5-flash", "gemini-3.5-flash-lite", "gemini-2.5-flash", "gemini-2.5-flash-lite"])];
+
+function errInfo(err: unknown) {
+  const msg = err instanceof Error ? err.message : String(err);
+  const code = Number((msg.match(/"code"\s*:\s*(\d{3})/) ?? [])[1] ?? (err as { status?: number })?.status ?? 0);
+  const retry = Number((msg.match(/retry in ([\d.]+)s/i) ?? msg.match(/"retryDelay"\s*:\s*"(\d+)s"/) ?? [])[1] ?? 0);
+  return { msg, code, retry };
+}
 const MAX_BYTES = 8 * 1024 * 1024;
 
 const PROMPT = `You are a precise OCR + table extraction engine for a brokerage screenshot (usually XTB xStation, Polish or English UI).
@@ -89,16 +98,30 @@ export async function POST(req: Request) {
   const data = Buffer.from(await file.arrayBuffer()).toString("base64");
   const ai = new GoogleGenAI({ apiKey });
 
-  try {
-    const res = await ai.models.generateContent({
-      model: MODEL,
-      contents: [{ role: "user", parts: [{ inlineData: { mimeType: file.type, data } }, { text: PROMPT }] }],
-      config: { temperature: 0, responseMimeType: "application/json", responseSchema: SCHEMA },
-    });
-    const json = JSON.parse(res.text ?? "{}");
-    return Response.json({ ...json, model: MODEL });
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : "Unknown error";
-    return Response.json({ error: `Błąd modelu: ${msg}` }, { status: 502 });
+  let quota = 0, maxRetry = 0, last = "";
+  for (const model of FALLBACKS) {
+    try {
+      const res = await ai.models.generateContent({
+        model,
+        contents: [{ role: "user", parts: [{ inlineData: { mimeType: file.type, data } }, { text: PROMPT }] }],
+        config: { temperature: 0, responseMimeType: "application/json", responseSchema: SCHEMA },
+      });
+      const json = JSON.parse(res.text ?? "{}");
+      return Response.json({ ...json, model });
+    } catch (err) {
+      const e = errInfo(err);
+      last = e.msg;
+      if (e.code === 429) { quota++; maxRetry = Math.max(maxRetry, e.retry); continue; } // daily limit of this model → next one
+      if (e.code === 404 || e.code === 400 && /model/i.test(e.msg)) continue; // model not available for this key
+      return Response.json({ error: `Błąd modelu (${model}): ${e.msg.slice(0, 300)}` }, { status: 502 });
+    }
   }
+  if (quota) {
+    const h = maxRetry ? Math.ceil(maxRetry / 3600) : null;
+    return Response.json({
+      error: `Dzienny darmowy limit Gemini wyczerpany na wszystkich dostępnych modelach${h ? ` — odnowi się za ok. ${h} godz.` : "."} ` +
+        "Na stałe: włącz płatny plan w Google AI Studio (aistudio.google.com → Get API key → Set up billing).",
+    }, { status: 429 });
+  }
+  return Response.json({ error: `Brak dostępnego modelu Gemini dla tego klucza. ${last.slice(0, 200)}` }, { status: 502 });
 }
