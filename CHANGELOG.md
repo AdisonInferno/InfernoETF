@@ -4,8 +4,10 @@ _Generowany automatycznie z historii git. Zmiany oddalone o mniej niż godzinę 
 
 ## czwartek, 15 października 2026
 
-### Sesja #11 · 23:26–00:52 · 15 zmian · AdisonInferno
+### Sesja #11 · 23:26–00:59 · 17 zmian · AdisonInferno
 
+- `00:59` XTB import: retry + fall back to the next Gemini model when one is overloaded (503)
+- `00:52` Dziennik zmian
 - `00:52` Portfolio: DELETE PORTFOLIO (with confirm) clears positions, lots and imported instruments; start again from scratch
 - `00:51` Dziennik zmian
 - `00:51` Dziennik zmian
