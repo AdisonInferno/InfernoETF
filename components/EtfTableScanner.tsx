@@ -1,12 +1,11 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { CATEGORIES, ETFS, SUBCATEGORIES, fmtAum, fmtPct, inCategory, type CategoryId, type EtfRow } from "@/lib/etfs";
 import { QUOTE } from "@/lib/fund-profiles";
 import { buildFund } from "@/components/deep-view/buildFund";
-import TradingChart from "@/components/deep-view/TradingChart";
+import EtfDeepDiveCockpit from "@/components/EtfDeepDiveCockpit";
 import MarketPulse from "@/components/MarketPulse";
 import RecentTickers from "@/components/RecentTickers";
 
@@ -473,48 +472,13 @@ export default function EtfTableScanner() {
             {/* ── Chart of the clicked ETF ── */}
             {hidden !== "chart" && (
               <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-2 pr-3.5 max-lg:min-h-[480px] max-lg:pr-0">
-                {selected && (
-                  <div className="flex flex-none items-baseline gap-3 font-mono">
-                    <span className="text-[15px] font-bold text-zinc-50">{selected.ticker}</span>
-                    <span className="truncate text-[11.5px] text-zinc-500">{selected.name}</span>
-                    <Link href={`/etf/${selected.ticker}`} className="ml-auto flex-none text-[10.5px] font-bold tracking-[0.12em] text-zinc-500 transition-colors hover:text-white">
-                      [ DEEP VIEW → ]
-                    </Link>
+                {selected && fund ? (
+                  <EtfDeepDiveCockpit key={selected.ticker} etf={selected} fund={fund} />
+                ) : (
+                  <div className="flex h-full items-center justify-center rounded-sm border border-white/[0.06] font-mono text-[11px] tracking-[0.1em] text-zinc-600">
+                    {selected ? `NO DATA FOR ${selected.ticker}` : "NO ETF SELECTED"}
                   </div>
                 )}
-                {selected && fund && (
-                  <div className="grid flex-none grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] gap-3 rounded-sm border border-white/[0.06] bg-[#030303] px-3 py-2 font-mono max-xl:grid-cols-1">
-                    <div className="flex min-w-0 flex-col gap-1">
-                      <span className="text-[9.5px] font-semibold tracking-[0.14em] text-zinc-600">WHAT IT IS</span>
-                      <p className="m-0 font-sans text-[12px] leading-snug text-zinc-300">
-                        {selected.issuer} fund tracking <span className="text-zinc-100">{selected.sector.toLowerCase()}</span> · {fund.positions} positions ·
-                        AUM ${selected.aum >= 100 ? selected.aum.toFixed(0) : selected.aum.toFixed(1)}B · TER {fund.ter.toFixed(2)}% ·
-                        {selected.dividendYield ? ` yield ${selected.dividendYield.toFixed(1)}%` : " accumulating"} · {selected.volatility.toLowerCase()} volatility
-                        {selected.leverage !== "1x" ? ` · ${selected.leverage} leveraged — daily reset, not for buy & hold` : ""}.
-                      </p>
-                    </div>
-                    <div className="flex min-w-0 flex-col gap-1">
-                      <span className="text-[9.5px] font-semibold tracking-[0.14em] text-zinc-600">TOP 5 HOLDINGS</span>
-                      {fund.holdings.slice(0, 5).map((h) => (
-                        <div key={h.tic} className="grid grid-cols-[52px_minmax(0,1fr)_44px] items-center gap-2 text-[11px] tabular-nums">
-                          <span className="font-bold text-zinc-100">{h.tic}</span>
-                          <span className="relative h-[6px] bg-white/[0.04]"><span className="absolute inset-y-0 left-0 bg-red-500/60" style={{ width: `${Math.min(100, (h.w / Math.max(1, fund.holdings[0].w)) * 100)}%` }} /></span>
-                          <span className="text-right text-zinc-300">{h.w.toFixed(1)}%</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                {/* TradingChart has a fixed height in Deep View — stretch it to fill the pane here */}
-                <div className="min-h-0 flex-1 [&>div]:h-full!">
-                  {fund ? (
-                    <TradingChart key={fund.tic} fund={fund} />
-                  ) : (
-                    <div className="flex h-full items-center justify-center rounded-sm border border-white/[0.06] font-mono text-[11px] tracking-[0.1em] text-zinc-600">
-                      {selected ? `NO CHART DATA FOR ${selected.ticker}` : "NO ETF SELECTED"}
-                    </div>
-                  )}
-                </div>
               </div>
             )}
 
