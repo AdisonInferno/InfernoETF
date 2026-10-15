@@ -4,8 +4,10 @@ _Generowany automatycznie z historii git. Zmiany oddalone o mniej niż godzinę 
 
 ## czwartek, 15 października 2026
 
-### Sesja #11 · 23:26–00:44 · 10 zmian · AdisonInferno
+### Sesja #11 · 23:26–00:51 · 12 zmian · AdisonInferno
 
+- `00:51` Portfolio deep view: look-through news feed (newest / weight-adjusted, why-it-matters badges), risk telemetry tags, PnL attribution, tabs OVERVIEW/COMPOSITION MAP/CHARTS/NEWS/ANALYZE/TOOLS
+- `00:44` Dziennik zmian
 - `00:44` ETF Tools: Sector Split master/detail (sub-sector table ↔ ETF vs parent-benchmark cockpit: relative chart, beta, spread, correlation, top holding)
 - `00:38` Dziennik zmian
 - `00:37` Dziennik zmian
