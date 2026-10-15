@@ -4,8 +4,10 @@ _Generowany automatycznie z historii git. Zmiany oddalone o mniej niż godzinę 
 
 ## czwartek, 15 października 2026
 
-### Sesja #11 · 23:26–00:01 · 2 zmian · AdisonInferno
+### Sesja #11 · 23:26–00:10 · 4 zmian · AdisonInferno
 
+- `00:10` Portfolio holdings in the analytical tools: ★ PORTFOLIO tab in the scanner table, MY PORTFOLIO sector on the market map, holdings as nodes + MY PORTFOLIO filter in Macro Nexus
+- `00:01` Dziennik zmian
 - `00:01` Portfolio deep view: live USD prices (FX auto-conversion), sortable/filterable positions table with timeframes, interactive chart with vertical timeframe slider, PORTFOLIO / DEEP VIEW breadcrumb, nav resets to overview, import opens deep view
 - `23:26` Changelog grouped into work sessions (<60 min gap), auto-refreshed by AKTUALIZUJ.bat
 
