@@ -74,7 +74,7 @@ export async function insightFor(a: { id: string; headline: string; summary: str
     } catch (e) {
       last = e;
       const msg = e instanceof Error ? e.message : String(e);
-      if (/"code"\s*:\s*(429|404)|RESOURCE_EXHAUSTED|not found/i.test(msg)) continue; // quota / model → next model
+      if (/"code"\s*:\s*(429|404|500|503|504)|RESOURCE_EXHAUSTED|UNAVAILABLE|high demand|not found/i.test(msg)) continue; // quota / model → next model
       throw e;
     }
   }
