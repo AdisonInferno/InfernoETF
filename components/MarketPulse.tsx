@@ -181,9 +181,6 @@ export default function MarketPulse({ rows }: { rows: EtfRow[] }) {
           )}
         </div>
       </div>
-      <div className="flex-none border-t border-white/[0.06] px-3 py-1.5 font-mono text-[9px] tracking-[0.06em] text-zinc-600">
-        VOLUME = MODEL ESTIMATE · TICKER COLOUR = IMPACT ON THAT COMPANY · HOVER = AI READ
-      </div>
     </aside>
   );
 }

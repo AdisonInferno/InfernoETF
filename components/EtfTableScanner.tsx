@@ -218,7 +218,8 @@ export default function EtfTableScanner() {
   const selected = rows.find((e) => e.ticker === sel) ?? rows[0] ?? null;
   const fund = useMemo(() => (selected ? buildFund(selected.ticker) : null), [selected]);
   const pick = (t: string) => { setSel(t); if (hidden === "chart") setHidden("none"); };
-  const openRow = (t: string) => (mode === "charts" ? pick(t) : router.push(`/etf/${t}`));
+  // Clicking a fund opens the CHARTS view (chart + note + top holdings, list on the right); Deep View is one click further.
+  const openRow = (t: string) => { setSel(t); setHidden("none"); setMode("charts"); };
 
 
   /* Column rhythm: every data column has the same gap G before it; FUND → SECTOR gets 1.3 × G. */
@@ -240,11 +241,11 @@ export default function EtfTableScanner() {
 
   const fullTable = (
     <>
-      <table className="w-full min-w-[788px] table-fixed border-separate border-spacing-0">
+      <table className="w-full min-w-[818px] table-fixed border-separate border-spacing-0">
             <colgroup>
               {/* base widths + an equal share of any extra width → gaps grow evenly, FUND→SECTOR stays tight */}
-              {[250, 132, 86, 96, 104, 124].map((w, i) => (
-                <col key={i} style={{ width: `calc(${w}px + (100% - 792px) / 6)` }} />
+              {[250, 132, 86, 96, 104, 150].map((w, i) => (
+                <col key={i} style={{ width: `calc(${w}px + (100% - 818px) / 6)` }} />
               ))}
             </colgroup>
             <thead className="sticky top-0 z-10 bg-[#0a0a0c]">
@@ -284,7 +285,7 @@ export default function EtfTableScanner() {
                   <td className={`${gap} rounded-r-sm py-[8px] pr-2 transition-colors group-hover:bg-white/[0.03]`}>
                     {(() => { const p = week(e), w = p[p.length - 1]; return (
                       <span className="flex items-center justify-end gap-1.5">
-                        <Spark pts={p} w={52} h={18} />
+                        <Spark pts={p} w={84} h={28} />
                         <span className={`w-[50px] text-right font-mono text-[11px] font-bold tabular-nums ${w >= 0 ? "text-emerald-400" : "text-rose-400"}`}>{fmtPct(w)}</span>
                       </span>
                     ); })()}
@@ -378,10 +379,6 @@ export default function EtfTableScanner() {
                 [ {p.label.toUpperCase()} ]
               </button>
             ))}
-            <div className="flex items-center gap-2 pt-1 font-mono text-[11px] font-semibold tracking-[0.06em] text-emerald-400">
-              <span className="h-1.5 w-1.5 bg-emerald-400" />
-              MATCHING ASSETS: <span className="text-white">{rows.length}</span> ETFs
-            </div>
           </div>
         </div>
         <div className="flex flex-none items-center justify-between border-t border-white/[0.06] bg-white/[0.015] px-5 py-3">
@@ -483,6 +480,29 @@ export default function EtfTableScanner() {
                     <Link href={`/etf/${selected.ticker}`} className="ml-auto flex-none text-[10.5px] font-bold tracking-[0.12em] text-zinc-500 transition-colors hover:text-white">
                       [ DEEP VIEW → ]
                     </Link>
+                  </div>
+                )}
+                {selected && fund && (
+                  <div className="grid flex-none grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] gap-3 rounded-sm border border-white/[0.06] bg-[#030303] px-3 py-2 font-mono max-xl:grid-cols-1">
+                    <div className="flex min-w-0 flex-col gap-1">
+                      <span className="text-[9.5px] font-semibold tracking-[0.14em] text-zinc-600">WHAT IT IS</span>
+                      <p className="m-0 font-sans text-[12px] leading-snug text-zinc-300">
+                        {selected.issuer} fund tracking <span className="text-zinc-100">{selected.sector.toLowerCase()}</span> · {fund.positions} positions ·
+                        AUM ${selected.aum >= 100 ? selected.aum.toFixed(0) : selected.aum.toFixed(1)}B · TER {fund.ter.toFixed(2)}% ·
+                        {selected.dividendYield ? ` yield ${selected.dividendYield.toFixed(1)}%` : " accumulating"} · {selected.volatility.toLowerCase()} volatility
+                        {selected.leverage !== "1x" ? ` · ${selected.leverage} leveraged — daily reset, not for buy & hold` : ""}.
+                      </p>
+                    </div>
+                    <div className="flex min-w-0 flex-col gap-1">
+                      <span className="text-[9.5px] font-semibold tracking-[0.14em] text-zinc-600">TOP 5 HOLDINGS</span>
+                      {fund.holdings.slice(0, 5).map((h) => (
+                        <div key={h.tic} className="grid grid-cols-[52px_minmax(0,1fr)_44px] items-center gap-2 text-[11px] tabular-nums">
+                          <span className="font-bold text-zinc-100">{h.tic}</span>
+                          <span className="relative h-[6px] bg-white/[0.04]"><span className="absolute inset-y-0 left-0 bg-red-500/60" style={{ width: `${Math.min(100, (h.w / Math.max(1, fund.holdings[0].w)) * 100)}%` }} /></span>
+                          <span className="text-right text-zinc-300">{h.w.toFixed(1)}%</span>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 )}
                 {/* TradingChart has a fixed height in Deep View — stretch it to fill the pane here */}
