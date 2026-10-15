@@ -4,6 +4,11 @@ _Generowany automatycznie z historii git. Zmiany oddalone o mniej niż godzinę 
 
 ## czwartek, 15 października 2026
 
+### Sesja #11 · 23:26–00:01 · 2 zmian · AdisonInferno
+
+- `00:01` Portfolio deep view: live USD prices (FX auto-conversion), sortable/filterable positions table with timeframes, interactive chart with vertical timeframe slider, PORTFOLIO / DEEP VIEW breadcrumb, nav resets to overview, import opens deep view
+- `23:26` Changelog grouped into work sessions (<60 min gap), auto-refreshed by AKTUALIZUJ.bat
+
 ### Sesja #10 · 15:29–16:02 · 6 zmian · AdisonInferno
 
 - `16:02` Holdings news: importance 1-3 badge, cyan glow for filings
