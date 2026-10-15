@@ -2,6 +2,8 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { ETFS, type EtfRow } from "@/lib/etfs";
+import { QUOTE } from "@/lib/fund-profiles";
 
 /* ─────────────────────────────── Types ─────────────────────────────── */
 
@@ -39,61 +41,30 @@ interface Rect {
 
 /* ───────────────────────────── Mock data ───────────────────────────── */
 
-const SECTORS: Sector[] = [
-  {
-    title: "TECHNOLOGY",
-    etfs: [
-      { ticker: "QQQ", name: "Invesco QQQ Trust", provider: "Invesco", aum: 320, change1d: 1.12, price: 512.8, note: "Semiconductor strength and AI capex headlines drive Nasdaq-100 outperformance." },
-      { ticker: "XLK", name: "Technology Select Sector SPDR", provider: "State Street", aum: 78, change1d: 1.65, price: 236.4, note: "Surging on broad tech rally and semiconductor earnings beat." },
-      { ticker: "VGT", name: "Vanguard Information Technology ETF", provider: "Vanguard", aum: 72, change1d: 1.58, price: 612.3, note: "Mega-cap software and chip names lead on lower real yields." },
-      { ticker: "SMH", name: "VanEck Semiconductor ETF", provider: "Other", aum: 24, change1d: 2.48, price: 262.1, note: "Chip leaders rally on record hyperscaler capex guidance." },
-      { ticker: "SOXX", name: "iShares Semiconductor ETF", provider: "BlackRock", aum: 14, change1d: 2.31, price: 231.7, note: "Foundry and equipment names extend momentum." },
-      { ticker: "IGV", name: "iShares Expanded Tech-Software ETF", provider: "BlackRock", aum: 11, change1d: 0.27, price: 104.9, note: "Software mixed after cloud guidance; AI monetization still unproven." },
-    ],
-  },
-  {
-    title: "FINANCIALS",
-    etfs: [
-      { ticker: "XLF", name: "Financial Select Sector SPDR", provider: "State Street", aum: 52, change1d: 0.71, price: 48.9, note: "Steeper yield curve supports bank net interest margins." },
-      { ticker: "VFH", name: "Vanguard Financials ETF", provider: "Vanguard", aum: 11, change1d: 0.64, price: 118.2, note: "Large banks firm ahead of stress-test results." },
-      { ticker: "KRE", name: "SPDR S&P Regional Banking ETF", provider: "State Street", aum: 3.2, change1d: -0.82, price: 58.4, note: "Regionals slip on commercial real-estate loss provisions." },
-      { ticker: "KBE", name: "SPDR S&P Bank ETF", provider: "State Street", aum: 2.1, change1d: 0.12, price: 54.1, note: "Money-center strength offsets regional weakness." },
-    ],
-  },
-  {
-    title: "HEALTHCARE",
-    etfs: [
-      { ticker: "XLV", name: "Health Care Select Sector SPDR", provider: "State Street", aum: 40, change1d: 0.09, price: 148.6, note: "Managed-care rebound offsets biotech softness." },
-      { ticker: "VHT", name: "Vanguard Health Care ETF", provider: "Vanguard", aum: 16, change1d: 0.14, price: 262.7, note: "Large-cap pharma steady; devices mixed." },
-      { ticker: "IBB", name: "iShares Biotechnology ETF", provider: "BlackRock", aum: 8, change1d: -0.95, price: 131.2, note: "Biotech slides on sector-wide drug-pricing headlines." },
-      { ticker: "XBI", name: "SPDR S&P Biotech ETF", provider: "State Street", aum: 6.5, change1d: -1.38, price: 89.6, note: "Small-cap biotech sold on funding-cost worries and trial setbacks." },
-    ],
-  },
-  {
-    title: "ENERGY & UTILITIES",
-    etfs: [
-      { ticker: "XLE", name: "Energy Select Sector SPDR", provider: "State Street", aum: 36, change1d: -2.34, price: 87.2, note: "Crude retreats on rising inventories and OPEC+ supply talk." },
-      { ticker: "XLU", name: "Utilities Select Sector SPDR", provider: "State Street", aum: 17, change1d: 0.64, price: 79.9, note: "Data-center power-demand narrative sustains the bid." },
-      { ticker: "VDE", name: "Vanguard Energy ETF", provider: "Vanguard", aum: 9, change1d: -2.21, price: 118.5, note: "Integrated majors follow crude lower." },
-    ],
-  },
-  {
-    title: "CONSUMER",
-    etfs: [
-      { ticker: "XLY", name: "Consumer Discretionary Select SPDR", provider: "State Street", aum: 21, change1d: 0.92, price: 214.5, note: "Retail sales beat lifts e-commerce and autos." },
-      { ticker: "XLP", name: "Consumer Staples Select Sector SPDR", provider: "State Street", aum: 16, change1d: -0.46, price: 81.7, note: "Defensive names lag as risk appetite improves." },
-      { ticker: "VCR", name: "Vanguard Consumer Discretionary ETF", provider: "Vanguard", aum: 6.4, change1d: 0.88, price: 361.4, note: "Discretionary bid on resilient spending data." },
-    ],
-  },
-  {
-    title: "BROAD MARKET (CORE)",
-    etfs: [
-      { ticker: "IVV", name: "iShares Core S&P 500 ETF", provider: "BlackRock", aum: 560, change1d: 0.41, price: 587.1, note: "Tracks the S&P 500 higher; steady core inflows." },
-      { ticker: "VOO", name: "Vanguard S&P 500 ETF", provider: "Vanguard", aum: 540, change1d: 0.42, price: 537.4, note: "Mirrors S&P gains on megacap earnings revisions." },
-      { ticker: "VTI", name: "Vanguard Total Stock Market ETF", provider: "Vanguard", aum: 450, change1d: 0.38, price: 288.6, note: "Small-cap breadth slightly lags large caps." },
-    ],
-  },
+/** Map sectors built from the full ETF database (lib/etfs). Order = default tile order. */
+const MAP_SECTORS: { title: string; short: string; test: (e: EtfRow) => boolean }[] = [
+  { title: "INDEXES", short: "IDX", test: (e) => e.category === "indexes" },
+  { title: "TECHNOLOGY", short: "TECH", test: (e) => e.category === "ai-tech" },
+  { title: "DEFENSE", short: "DEF", test: (e) => e.category === "defense" },
+  { title: "FINANCIALS", short: "FIN", test: (e) => e.category === "financials" },
+  { title: "ENERGY", short: "ENRG", test: (e) => e.category === "energy" || e.sector === "UTILITIES" },
+  { title: "COMMODITIES", short: "CMDTY", test: (e) => e.category === "commodities" },
+  { title: "INDUSTRIALS", short: "IND", test: (e) => e.category === "industry" },
+  { title: "HEALTHCARE", short: "HLTH", test: (e) => ["BIG PHARMA", "HEALTHCARE", "BIOTECH"].includes(e.sector) },
+  { title: "CONSUMER", short: "CONS", test: (e) => ["CONSUMER", "STAPLES"].includes(e.sector) },
+  { title: "CRYPTO", short: "CRYPTO", test: (e) => ["BITCOIN", "ETHEREUM"].includes(e.sector) },
+  { title: "BONDS & FX", short: "BND/FX", test: (e) => ["TREASURIES", "US DOLLAR"].includes(e.sector) },
 ];
+const KNOWN: Provider[] = ["BlackRock", "Vanguard", "State Street", "Invesco"];
+const toEtf = (e: EtfRow): Etf => ({
+  ticker: e.ticker, name: e.name, provider: (KNOWN as string[]).includes(e.issuer) ? (e.issuer as Provider) : "Other",
+  aum: e.aum, change1d: e.chg1d, price: QUOTE[e.ticker]?.[0] ?? 0, note: `${e.sector} · ${e.issuer}`,
+});
+const SECTORS: Sector[] = MAP_SECTORS.map(({ title, test }) => ({
+  title,
+  etfs: ETFS.filter((e) => e.leverage === "1x" && test(e)).map(toEtf),
+})).filter((s) => s.etfs.length);
+const SHORT: Record<string, string> = Object.fromEntries(MAP_SECTORS.map((m) => [m.title, m.short]));
 
 const MACRO: MacroEtf[] = [
   { ticker: "UUP", name: "Invesco DB US Dollar Index Fund", provider: "Invesco", tag: "US Dollar Index", aum: 1.9, change1d: 0.21, price: 29.4, note: "Dollar bid on relative US growth and policy-rate expectations." },
@@ -102,14 +73,10 @@ const MACRO: MacroEtf[] = [
   { ticker: "SPY", name: "SPDR S&P 500 ETF Trust", provider: "State Street", tag: "S&P 500", aum: 580, change1d: 0.42, price: 584.2, note: "Broad tape firm as megacap earnings revisions lift index EPS estimates." },
 ];
 
-const PROVIDERS: Provider[] = ["BlackRock", "Vanguard", "State Street", "Invesco"];
+const PROVIDERS: Provider[] = ["BlackRock", "Vanguard", "State Street", "Invesco", "Other"];
 
 /* ───────────────────────────── Helpers ─────────────────────────────── */
 
-/** Quick-jump labels */
-const SHORT: Record<string, string> = {
-  TECHNOLOGY: "TECH", FINANCIALS: "FIN", HEALTHCARE: "HLTH", "ENERGY & UTILITIES": "ENRG", CONSUMER: "CONS", "BROAD MARKET (CORE)": "CORE",
-};
 const SECTOR_GAP = 8; // half-gutter between sector cards
 const HEADER_H = 28; // sector card title bar
 const MONO = "font-mono";
@@ -225,14 +192,10 @@ export default function InfernoEtfScanner() {
   const [tip, setTip] = useState<{ etf: Etf; x: number; y: number } | null>(null);
   const [size, setSize] = useState({ w: 960, h: 560 });
   const mapRef = useRef<HTMLDivElement>(null);
-  /** Quick-jump: one ref per sector card; the jumped-to sector is spotlighted until cleared */
-  const sectorRefs = useRef<Record<string, HTMLDivElement | null>>({});
-  const [jump, setJump] = useState<string | null>(null);
-  const jumpTo = (title: string) => {
-    if (jump === title) { setJump(null); return; }
-    setJump(title);
-    sectorRefs.current[title]?.scrollIntoView({ behavior: "smooth", block: "start" });
-  };
+  /** Zoom / compare: empty = whole market. Click = zoom into one sector, right-click = add/remove (compare). */
+  const [focus, setFocus] = useState<string[]>([]);
+  const zoom = (t: string) => setFocus((f) => (f.length === 1 && f[0] === t ? [] : [t]));
+  const compare = (t: string) => setFocus((f) => (f.includes(t) ? f.filter((x) => x !== t) : [...f, t]));
 
   useEffect(() => {
     const el = mapRef.current;
@@ -255,10 +218,8 @@ export default function InfernoEtfScanner() {
     const cmp =
       sort === "aum" ? (a: Etf, b: Etf) => b.aum - a.aum : (a: Etf, b: Etf) => b.change1d - a.change1d;
 
-    let total = 0;
-    const groups = SECTORS.map(({ title, etfs }) => {
+    const groups = SECTORS.filter((g) => !focus.length || focus.includes(g.title)).map(({ title, etfs }) => {
       const rows = etfs.filter((e) => !disabled[e.provider]).sort(cmp);
-      total += rows.length;
       const avg = rows.length ? rows.reduce((s, e) => s + e.change1d, 0) / rows.length : 0;
       return {
         title,
@@ -281,8 +242,8 @@ export default function InfernoEtfScanner() {
       return { ...item, x: x + SECTOR_GAP, y: y + SECTOR_GAP, w: cardW, h: cardH, tiles };
     });
 
-    return { sectors: laid, count: total };
-  }, [sort, disabled, size, weightOf]);
+    return { sectors: laid, count: groups.reduce((n, g) => n + g.rows.length, 0) };
+  }, [sort, disabled, size, weightOf, focus]);
 
   const providerCounts = useMemo(() => {
     const all = SECTORS.flatMap((s) => s.etfs);
@@ -375,28 +336,25 @@ export default function InfernoEtfScanner() {
 
       {/* ── Main ── */}
       <main className="flex min-h-0 min-w-0 flex-col gap-3 overflow-y-auto">
-        <div className="flex flex-none flex-wrap items-baseline justify-between gap-3 px-1">
-          <span className="text-[11px] font-semibold tracking-[0.08em] text-[#A1A1AA]">
-            EQUITY ETF MAP · {equalWeight ? "EQUAL WEIGHT" : "MARKET WEIGHT"} ·{" "}
-            {sort === "aum" ? "BY AUM" : "BY % CHANGE"}
-          </span>
-          <span className={`${MONO} text-[11px] text-[#52525B]`}>{count} ETF</span>
-        </div>
-
-        {/* Sector quick-jump */}
-        <nav aria-label="Jump to sector" className={`${MONO} flex flex-none flex-wrap items-center gap-1 px-1 text-[10.5px]`}>
-          <span className="mr-1 tracking-[0.12em] text-zinc-500">[ JUMP TO:</span>
-          {SECTORS.map(({ title }, i) => (
-            <span key={title} className="flex items-center gap-1">
-              {i > 0 && <span className="text-zinc-700">|</span>}
-              <button type="button" onClick={() => jumpTo(title)} aria-pressed={jump === title}
-                className={`rounded-sm px-1.5 py-0.5 font-bold tracking-[0.1em] transition-colors ${jump === title ? "bg-red-500/[0.12] text-red-300" : "text-zinc-400 hover:bg-white/[0.05] hover:text-white"}`}>
+        {/* Sector zoom / compare bar */}
+        <nav aria-label="Sectors" className={`${MONO} flex flex-none flex-wrap items-center gap-1 px-1 text-[11px]`}>
+          <button type="button" onClick={() => setFocus([])} aria-pressed={!focus.length}
+            className={`rounded-sm px-2 py-1 font-bold tracking-[0.1em] transition-colors duration-75 ${!focus.length ? "bg-white/[0.09] text-white" : "text-zinc-500 hover:bg-white/[0.05] hover:text-white"}`}>
+            ALL
+          </button>
+          {SECTORS.map(({ title }) => {
+            const on = focus.includes(title);
+            return (
+              <button key={title} type="button" onClick={() => zoom(title)} onContextMenu={(e) => { e.preventDefault(); compare(title); }}
+                aria-pressed={on} title="Click: zoom · Right-click: add to compare"
+                className={`rounded-sm px-2 py-1 font-bold tracking-[0.1em] transition-colors duration-75 ${
+                  on ? "bg-red-500/[0.14] text-red-300 shadow-[inset_0_0_0_1px_rgba(239,68,68,0.35)]" : focus.length ? "text-zinc-600 hover:text-zinc-200" : "text-zinc-400 hover:bg-white/[0.05] hover:text-white"
+                }`}>
                 {SHORT[title] ?? title}
               </button>
-            </span>
-          ))}
-          <span className="ml-1 tracking-[0.12em] text-zinc-500">]</span>
-          {jump && <button type="button" onClick={() => setJump(null)} className="ml-2 text-zinc-600 hover:text-white">✕ CLEAR</button>}
+            );
+          })}
+          <span className="ml-auto text-[10px] tracking-[0.08em] text-zinc-600">{focus.length > 1 ? `COMPARE · ${focus.length} SECTORS` : "RIGHT-CLICK = COMPARE"} · {count} ETF</span>
         </nav>
 
         {/* Treemap */}
@@ -404,18 +362,17 @@ export default function InfernoEtfScanner() {
           {sectors.map((s) => (
             <div
               key={s.title}
-              ref={(el) => { sectorRefs.current[s.title] = el; }}
+              onContextMenu={(e) => { e.preventDefault(); compare(s.title); }}
               onMouseEnter={() => setHoverSector(s.title)}
               onMouseLeave={() => setHoverSector(null)}
-              className={`absolute box-border scroll-mt-3 overflow-hidden rounded-sm border bg-[#0a0a0c] transition-opacity duration-200 ${
-                jump === s.title ? "border-red-500/60" : "border-white/[0.06]"
-              } ${jump && jump !== s.title ? "opacity-25" : ""}`}
-              style={{ left: s.x, top: s.y, width: s.w, height: s.h, zIndex: hoverSector === s.title || jump === s.title ? 5 : 1 }}
+              className={`absolute box-border overflow-hidden rounded-sm border bg-[#0a0a0c] ${focus.includes(s.title) ? "border-red-500/40" : "border-white/[0.06]"}`}
+              style={{ left: s.x, top: s.y, width: s.w, height: s.h, zIndex: hoverSector === s.title ? 5 : 1 }}
             >
               <div className="absolute inset-x-0 top-0 flex h-7 items-center justify-between gap-2 overflow-hidden px-3.5">
-                <span className="min-w-0 truncate text-[10px] font-semibold tracking-[0.12em] text-[#A1A1AA]">
-                  {s.title}
-                </span>
+                <button type="button" onClick={() => zoom(s.title)} title="Click: zoom · Right-click: compare"
+                  className="min-w-0 truncate text-left text-[10.5px] font-semibold tracking-[0.12em] text-[#A1A1AA] hover:text-white">
+                  {s.title}{focus.length === 1 && focus[0] === s.title ? "  ← ALL" : ""}
+                </button>
                 <span className={`${MONO} flex-none text-[10px] font-semibold`} style={{ color: trendColor(s.avg) }}>
                   {fmtPct(s.avg)}
                 </span>
@@ -457,21 +414,22 @@ export default function InfernoEtfScanner() {
         </div>
 
         {/* Macro baseline */}
-        <div className="mt-2 box-border flex w-full flex-none flex-wrap items-center justify-between gap-4 rounded-sm border border-white/[0.06] bg-[#0a0a0c] px-3 py-4">
-          <span className={`${MONO} text-[11px] font-semibold tracking-[0.14em] text-[#71717A]`}>[ MACRO BASELINE ]</span>
-          <div className="flex flex-wrap items-center gap-2.5">
+        <div className="mt-1 box-border w-full flex-none rounded-sm border border-white/[0.06] bg-[#0a0a0c] p-2">
+          <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
             {MACRO.map((m) => {
               const up = m.change1d >= 0;
               return (
                 <div
                   key={m.ticker}
                   {...hoverHandlers(m)}
-                  className="flex cursor-pointer items-center gap-2.5 rounded-sm border border-white/[0.06] bg-white/[0.03] px-3.5 py-2 transition-colors duration-150 hover:bg-white/10"
+                  className="flex cursor-pointer items-center justify-between gap-3 rounded-sm border border-white/[0.06] bg-white/[0.03] px-4 py-3 transition-all duration-75 hover:border-white/[0.2] hover:bg-white/[0.08]"
                 >
-                  <span className={`${MONO} text-[13px] font-bold text-[#FAFAFA]`}>{m.ticker}</span>
-                  <span className="text-[11px] uppercase tracking-[0.06em] text-[#71717A]">{m.tag}</span>
+                  <span className="flex items-baseline gap-2.5">
+                    <span className={`${MONO} text-[16px] font-bold text-[#FAFAFA]`}>{m.ticker}</span>
+                    <span className="text-[11.5px] uppercase tracking-[0.06em] text-[#71717A]">{m.tag}</span>
+                  </span>
                   <span
-                    className={`${MONO} rounded-sm px-2 py-0.5 text-xs font-bold ${
+                    className={`${MONO} rounded-sm px-2 py-1 text-[13px] font-bold ${
                       up ? "bg-emerald-500/10 text-[#34D399]" : "bg-rose-500/10 text-[#FB7185]"
                     }`}
                   >

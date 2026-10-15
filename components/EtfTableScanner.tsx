@@ -299,7 +299,7 @@ export default function EtfTableScanner() {
 
   return (
     <div className={`absolute inset-0 grid grid-rows-[auto_minmax(0,1fr)] gap-3 p-3 max-lg:grid-cols-1 ${
-      mode === "price" ? "grid-cols-[240px_minmax(0,1.7fr)_minmax(300px,1fr)] min-[1900px]:grid-cols-[260px_minmax(0,1.9fr)_minmax(360px,1fr)]" : "grid-cols-[240px_minmax(0,1fr)]"
+      mode === "price" ? "grid-cols-[240px_minmax(0,1fr)_380px] min-[1900px]:grid-cols-[260px_minmax(0,1fr)_440px]" : "grid-cols-[240px_minmax(0,1fr)]"
     }`}>
       {/* ── Filter deck ── */}
       <aside className={`row-span-2 flex min-h-0 flex-col overflow-hidden ${card} max-lg:row-span-1`}>
