@@ -4,6 +4,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useRouter } from "next/navigation";
 import { ETFS, type EtfRow } from "@/lib/etfs";
 import { QUOTE } from "@/lib/fund-profiles";
+import { useMyPortfolio } from "@/lib/my-portfolio";
 
 /* ─────────────────────────────── Types ─────────────────────────────── */
 
@@ -91,7 +92,9 @@ const SECTORS: Sector[] = MAP_SECTORS.map(({ title, test }) => ({
   title,
   etfs: ETFS.filter((e) => e.leverage === "1x" && test(e)).map(toEtf),
 })).filter((s) => s.etfs.length);
-const SHORT: Record<string, string> = Object.fromEntries(MAP_SECTORS.map((m) => [m.title, m.short]));
+const SHORT: Record<string, string> = { ...Object.fromEntries(MAP_SECTORS.map((m) => [m.title, m.short])), "MY PORTFOLIO": "★ MINE" };
+/** Average sector size ($B) — the portfolio sector is drawn as one average-sized sector, split by your weights */
+const AVG_SECTOR_AUM = SECTORS.reduce((s, g) => s + g.etfs.reduce((a, e) => a + e.aum, 0), 0) / SECTORS.length;
 
 /* ── COUNTRIES universe: 3 main equity indices per market (ILLUSTRATIVE levels/moves).
       aum = approx. market cap of the country's listed equities in $B → drives MKT WEIGHT. ── */
@@ -304,7 +307,23 @@ export default function InfernoEtfScanner() {
   const [tf, setTf] = useState<TfKey>("1D");
   /** Map universe: ETFs by sector, or countries by their main indices */
   const [universe, setUniverse] = useState<"ETF" | "COUNTRIES">("ETF");
-  const groupsSrc = universe === "ETF" ? SECTORS : COUNTRY_SECTORS;
+  /* Your portfolio as its own sector (ETF view): every holding, tile size = its weight in the portfolio */
+  const mine = useMyPortfolio();
+  const mineSector = useMemo<Sector | null>(() => {
+    if (!mine.length) return null;
+    return {
+      title: "MY PORTFOLIO",
+      etfs: mine.map(({ asset: a, weight }) => {
+        const row = ETFS.find((e) => e.ticker === a.ticker);
+        const base = row ? toEtf(row) : {
+          ticker: a.ticker, name: a.name, provider: "Other" as Provider, aum: 0, change1d: a.chg1d, price: a.price,
+          note: `${a.sector} · stock`, perf: perfFor(a.ticker, a.chg1d, a.ytd, "High"),
+        };
+        return { ...base, aum: (AVG_SECTOR_AUM * weight) / 100, note: `${weight}% of my portfolio · ${base.note}` };
+      }),
+    };
+  }, [mine]);
+  const groupsSrc = useMemo(() => (universe === "ETF" ? (mineSector ? [mineSector, ...SECTORS] : SECTORS) : COUNTRY_SECTORS), [universe, mineSector]);
   const shortOf = universe === "ETF" ? SHORT : COUNTRY_SHORT;
   const pickUniverse = (u: "ETF" | "COUNTRIES") => { setUniverse(u); setFocus([]); setTip(null); };
   const zoom = (t: string) => setFocus((f) => (f.length === 1 && f[0] === t ? [] : [t]));
@@ -332,7 +351,7 @@ export default function InfernoEtfScanner() {
       sort === "aum" ? (a: Etf, b: Etf) => b.aum - a.aum : (a: Etf, b: Etf) => b.perf[tf] - a.perf[tf];
 
     const groups = groupsSrc.filter((g) => !focus.length || focus.includes(g.title)).map(({ title, etfs }) => {
-      const rows = etfs.filter((e) => universe !== "ETF" || !disabled[e.provider]).sort(cmp);
+      const rows = etfs.filter((e) => universe !== "ETF" || title === "MY PORTFOLIO" || !disabled[e.provider]).sort(cmp);
       const avg = rows.length ? rows.reduce((s, e) => s + e.perf[tf], 0) / rows.length : 0;
       return {
         title,
@@ -364,7 +383,7 @@ export default function InfernoEtfScanner() {
   }, []);
 
   const hoverHandlers = (etf: Etf) => ({
-    onClick: () => { if (universe === "ETF") router.push(`/etf/${etf.ticker}`); },
+    onClick: () => { if (universe === "ETF" && ETFS.some((e) => e.ticker === etf.ticker)) router.push(`/etf/${etf.ticker}`); },
     onMouseEnter: (e: React.MouseEvent) => setTip({ etf, x: e.clientX, y: e.clientY }),
     onMouseMove: (e: React.MouseEvent) => setTip({ etf, x: e.clientX, y: e.clientY }),
     onMouseLeave: () => setTip(null),
@@ -490,13 +509,13 @@ export default function InfernoEtfScanner() {
               onContextMenu={(e) => { e.preventDefault(); compare(s.title); }}
               onMouseEnter={() => setHoverSector(s.title)}
               onMouseLeave={() => setHoverSector(null)}
-              className={`absolute box-border overflow-hidden rounded-sm border bg-[#0a0a0c] ${focus.includes(s.title) ? "border-red-500/40" : "border-white/[0.06]"}`}
+              className={`absolute box-border overflow-hidden rounded-sm border bg-[#0a0a0c] ${focus.includes(s.title) ? "border-red-500/40" : s.title === "MY PORTFOLIO" ? "border-emerald-400/40 shadow-[inset_0_0_18px_rgba(52,211,153,0.08)]" : "border-white/[0.06]"}`}
               style={{ left: s.x, top: s.y, width: s.w, height: s.h, zIndex: hoverSector === s.title ? 5 : 1 }}
             >
               <div className="absolute inset-x-0 top-0 flex h-[34px] items-center justify-between gap-2 overflow-hidden px-3.5">
                 <button type="button" onClick={() => zoom(s.title)} title="Click: zoom · Right-click: compare"
-                  className={`${MONO} min-w-0 truncate text-left text-[13px] font-bold tracking-[0.1em] text-zinc-200 hover:text-white`}>
-                  {s.title}{focus.length === 1 && focus[0] === s.title ? "  ← ALL" : ""}
+                  className={`${MONO} min-w-0 truncate text-left text-[13px] font-bold tracking-[0.1em] hover:text-white ${s.title === "MY PORTFOLIO" ? "text-emerald-300" : "text-zinc-200"}`}>
+                  {s.title === "MY PORTFOLIO" ? "★ " : ""}{s.title}{focus.length === 1 && focus[0] === s.title ? "  ← ALL" : ""}
                 </button>
                 <span className={`${MONO} flex-none text-[12px] font-bold`} style={{ color: trendColor(s.avg) }}>
                   {fmtPct(s.avg)}

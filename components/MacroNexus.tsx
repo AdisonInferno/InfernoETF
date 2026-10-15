@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { forceCenter, forceCollide, forceLink, forceManyBody, forceSimulation, type Simulation, type SimulationLinkDatum, type SimulationNodeDatum } from "d3-force";
-import { NODES, WINDOWS, correlations, rho, type NexusLink, type Window } from "@/lib/macro-nexus";
+import { NODES as BASE_NODES, WINDOWS, correlations, portfolioNodes, rho, type NexusLink, type NexusNode, type Window } from "@/lib/macro-nexus";
+import { useMyPortfolio } from "@/lib/my-portfolio";
 import { ETFS } from "@/lib/etfs";
 
 /* ─────────────────────────────────────────────────────────────
@@ -70,8 +71,15 @@ export default function MacroNexus() {
   const camRef = useRef<{ mode: "pan" | "rotate"; x0: number; y0: number; a0: number; v0: typeof VIEW0; moved: boolean } | null>(null);
   const [panning, setPanning] = useState(false);
 
-  const links = useMemo(() => correlations(win), [win]);
-  const base = useMemo(() => correlations("1Y"), []);
+  /* Portfolio holdings join the network: new nodes for holdings outside it, a ring on the ones already in it */
+  const mine = useMyPortfolio();
+  const extra = useMemo(() => portfolioNodes(mine.map((p) => p.asset)), [mine]);
+  const held = useMemo(() => new Set(mine.map((p) => p.asset.ticker)), [mine]);
+  const [onlyMine, setOnlyMine] = useState(false);
+  const NODES: NexusNode[] = useMemo(() => [...BASE_NODES, ...extra.map(({ id, ticker, name, group }) => ({ id, ticker, name, group }))], [extra]);
+  const nodeKey = NODES.map((n) => n.id).join(",");
+  const links = useMemo(() => correlations(win, extra), [win, extra]);
+  const base = useMemo(() => correlations("1Y", extra), [extra]);
 
   const boxRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
@@ -125,7 +133,8 @@ export default function MacroNexus() {
       });
     simRef.current = sim;
     return () => { sim.stop(); cancelAnimationFrame(raf); simRef.current = null; };
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- rebuilt only when the node set changes
+  }, [nodeKey]);
 
   useEffect(() => {
     const sim = simRef.current;
@@ -133,7 +142,7 @@ export default function MacroNexus() {
     const simLinks: SimLink[] = links.map((l) => ({ source: l.source, target: l.target, rho: l.correlation_value }));
     sim.force("link", forceLink<SimNode, SimLink>(simLinks).id((n) => n.id).distance((l) => rest(l.rho)).strength((l) => stiff(l.rho)));
     sim.alpha(0.8).restart();
-  }, [links]);
+  }, [links, nodeKey]);
 
   /* Dragging */
   const toSim = useCallback((cx: number, cy: number) => {
@@ -244,7 +253,7 @@ export default function MacroNexus() {
     const groups: Record<string, string[]> = {};
     for (const n of NODES) (groups[find(n.id)] ??= []).push(n.id);
     return Object.values(groups).sort((a, b) => b.length - a.length);
-  }, [links, thr]);
+  }, [links, thr, NODES]);
 
   const node = sel ? NODES.find((n) => n.id === sel) ?? null : null;
   const peers = node
@@ -270,6 +279,12 @@ export default function MacroNexus() {
           <Seg label="WINDOW" items={WINDOWS} value={win} onChange={setWin} />
           <Seg label="|ρ| ≥" items={THRESHOLDS} value={thr} onChange={setThr} fmt={(v) => v.toFixed(1)} />
           <Seg label="LABELS" items={["KEY", "ALL"] as const} value={labels} onChange={setLabels} />
+          {held.size > 0 && (
+            <button type="button" onClick={() => setOnlyMine((v) => !v)} aria-pressed={onlyMine}
+              className={`h-7 rounded-sm border px-2.5 text-[10.5px] font-bold tracking-[0.08em] transition-colors ${onlyMine ? "border-emerald-400/50 bg-emerald-400/10 text-emerald-300" : "border-white/[0.08] text-zinc-400 hover:text-white"}`}>
+              ● MY PORTFOLIO
+            </button>
+          )}
           <div className="ml-auto flex items-center gap-1">
             {([["−", "Zoom out", () => zoomAt(1 / 1.25)], ["+", "Zoom in", () => zoomAt(1.25)], ["⟲", "Rotate left", () => rotateBy(-Math.PI / 12)], ["⟳", "Rotate right", () => rotateBy(Math.PI / 12)]] as const).map(([t, l, f]) => (
               <button key={l} type="button" onClick={f} title={l} aria-label={l}
@@ -310,7 +325,8 @@ export default function MacroNexus() {
                   if (!a || !b) return null;
                   const r = l.correlation_value;
                   const on = focus && (l.source === focus || l.target === focus);
-                  const op = focus ? (on ? 0.5 : 0.025) : r > 0 ? 0.05 + 0.17 * r : 0.05;
+                  const mineEdge = onlyMine && held.has(l.source) && held.has(l.target);
+                  const op = focus ? (on ? 0.5 : 0.025) : onlyMine ? (mineEdge ? 0.45 : 0.015) : r > 0 ? 0.05 + 0.17 * r : 0.05;
                   return (
                     <line key={l.source + l.target} x1={a.x} y1={a.y} x2={b.x} y2={b.y}
                       stroke={r < 0 && on ? "#fb7185" : "#ffffff"} strokeOpacity={op} strokeWidth={1}
@@ -325,7 +341,7 @@ export default function MacroNexus() {
                   if (!a || !b) return null;
                   const r = l.correlation_value, t = `[ ρ = ${fmtRho(r)} ]`;
                   const x = (a.x + b.x) / 2, y = (a.y + b.y) / 2, w = t.length * 5.6 + 4;
-                  const dim = focus && !(l.source === focus || l.target === focus);
+                  const dim = (focus && !(l.source === focus || l.target === focus)) || (onlyMine && !(held.has(l.source) && held.has(l.target)));
                   return (
                     <g key={"t" + l.source + l.target} opacity={dim ? 0.15 : 1} className="pointer-events-none">
                       <rect x={x - w / 2} y={y - 6.5} width={w} height={13} fill="#030303" />
@@ -340,7 +356,8 @@ export default function MacroNexus() {
                   const p = scr[n.id];
                   if (!p) return null;
                   const isSel = sel === n.id, isFocus = focus === n.id;
-                  const linked = focus ? n.id === focus || Math.abs(rho(links, focus, n.id)) >= thr : true;
+                  const linked = focus ? n.id === focus || Math.abs(rho(links, focus, n.id)) >= thr : onlyMine ? held.has(n.id) : true;
+                  const isMine = held.has(n.id);
                   return (
                     <g
                       key={n.id}
@@ -355,8 +372,9 @@ export default function MacroNexus() {
                       aria-label={`${n.ticker} ${n.name}`}
                     >
                       <circle r={12} fill="transparent" />
-                      <circle r={isFocus ? 4 : 3} className={isSel ? "fill-red-500" : isFocus ? "fill-white" : "fill-zinc-300"} />
-                      <text y={-9} textAnchor="middle" fontSize={11.5} className={isSel ? "fill-red-400" : isFocus ? "fill-white" : "fill-zinc-300"}>
+                      {isMine && <circle r={7} fill="none" stroke="#34d399" strokeOpacity={0.7} strokeWidth={1.2} />}
+                      <circle r={isFocus ? 4 : 3} className={isSel ? "fill-red-500" : isFocus ? "fill-white" : isMine ? "fill-emerald-400" : "fill-zinc-300"} />
+                      <text y={-9} textAnchor="middle" fontSize={11.5} className={isSel ? "fill-red-400" : isFocus ? "fill-white" : isMine ? "fill-emerald-300" : "fill-zinc-300"}>
                         [ {n.ticker} ]
                       </text>
                     </g>
@@ -371,6 +389,7 @@ export default function MacroNexus() {
             <span className="flex items-center gap-1.5"><span className="h-px w-5 bg-white/40" />HIGH ρ · SHORT</span>
             <span className="flex items-center gap-1.5"><span className="h-px w-5 bg-white/10" />LOW ρ · LONG</span>
             <span className="flex items-center gap-1.5"><span className="w-5 border-t border-dashed border-white/25" />NEGATIVE ρ</span>
+            {held.size > 0 && <span className="flex items-center gap-1.5 text-emerald-400/80"><span className="h-2 w-2 rounded-full border border-emerald-400" />IN MY PORTFOLIO</span>}
             <span>DRAG · PAN</span><span>WHEEL · ZOOM</span><span>RIGHT-DRAG / SHIFT+DRAG · ROTATE</span><span>DRAG NODE · MOVE</span>
           </div>
         </div>

@@ -6,6 +6,7 @@ import { CATEGORIES, ETFS, SUBCATEGORIES, fmtAum, fmtPct, inCategory, type Categ
 import { QUOTE } from "@/lib/fund-profiles";
 import { buildFund } from "@/components/deep-view/buildFund";
 import EtfDeepDiveCockpit from "@/components/EtfDeepDiveCockpit";
+import { useMyPortfolio } from "@/lib/my-portfolio";
 import MarketPulse from "@/components/MarketPulse";
 import RecentTickers from "@/components/RecentTickers";
 
@@ -58,7 +59,7 @@ const GROUPS: { id: GroupId; label: string; options: string[]; test: (e: EtfRow,
   { id: "currency", label: "CURRENCY", options: uniq("currency"), test: (e, o) => e.currency === o },
 ];
 
-type TabId = (typeof CATEGORIES)[number]["id"];
+type TabId = (typeof CATEGORIES)[number]["id"] | "portfolio";
 type SortKey = "default" | "aum" | "ytd" | "chg1d" | "wk";
 
 const PRESETS: { icon: string; label: string; tab: TabId; filters: Filters; sort: SortKey }[] = [
@@ -183,10 +184,19 @@ export default function EtfTableScanner() {
     if (query) router.replace("/scanner");
   };
 
+  /* My portfolio as its own tab: ETFs from the database + single stocks as extra rows */
+  const mine = useMyPortfolio();
+  const mineW = useMemo<Record<string, number>>(() => Object.fromEntries(mine.map((p) => [p.asset.ticker, p.weight])), [mine]);
+  const stockRows = useMemo<EtfRow[]>(() => mine.filter((p) => !ETFS.some((e) => e.ticker === p.asset.ticker)).map(({ asset: a }) => ({
+    ticker: a.ticker, name: a.name, issuer: "Stock", category: "others", sector: a.sector.toUpperCase(), sectorIcon: "",
+    aum: NaN, ytd: a.ytd, chg1d: a.chg1d, volatility: "High", dividendYield: 0, leverage: "1x", region: "", exchange: "", currency: "USD",
+  })), [mine]);
+  const stockSet = useMemo(() => new Set(stockRows.map((r) => r.ticker)), [stockRows]);
+
   // Filters + search, before the category tab is applied (tab counts come from this).
   const base = useMemo(() => {
     const s = query.toLowerCase();
-    return ETFS.filter(
+    return [...ETFS, ...stockRows].filter(
       (e) =>
         (!s || e.ticker.toLowerCase().includes(s) || e.name.toLowerCase().includes(s)) &&
         GROUPS.every((g) => {
@@ -194,24 +204,28 @@ export default function EtfTableScanner() {
           return !sel?.length || sel.some((o) => g.test(e, o));
         })
     );
-  }, [filters, query]);
+  }, [filters, query, stockRows]);
 
-  const inTab = (e: EtfRow, t: TabId) => (t === "all" ? true : t === "trending" ? e.trending !== undefined : inCategory(e, t));
-  const subs = tab === "all" || tab === "trending" ? [] : (SUBCATEGORIES[tab as CategoryId] ?? []);
+  const inTab = (e: EtfRow, t: TabId) =>
+    t === "portfolio" ? e.ticker in mineW
+    : stockSet.has(e.ticker) ? false // single stocks only live in the portfolio tab
+    : t === "all" ? true : t === "trending" ? e.trending !== undefined : inCategory(e, t);
+  const subs = tab === "all" || tab === "trending" || tab === "portfolio" ? [] : (SUBCATEGORIES[tab as CategoryId] ?? []);
   const activeSub = subs.find((s) => s.id === sub);
-  const tabLabel = CATEGORIES.find((c) => c.id === tab)?.label ?? "";
+  const tabLabel = tab === "portfolio" ? "MY PORTFOLIO" : CATEGORIES.find((c) => c.id === tab)?.label ?? "";
 
   const rows = useMemo(() => {
     const list = base.filter((e) => inTab(e, tab) && (!activeSub || activeSub.tickers.includes(e.ticker)));
     const by: Record<SortKey, (a: EtfRow, b: EtfRow) => number> = {
-      default: tab === "trending" ? (a, b) => (a.trending ?? 99) - (b.trending ?? 99) : (a, b) => b.aum - a.aum,
-      aum: (a, b) => b.aum - a.aum,
+      default: tab === "portfolio" ? (a, b) => (mineW[b.ticker] ?? 0) - (mineW[a.ticker] ?? 0)
+        : tab === "trending" ? (a, b) => (a.trending ?? 99) - (b.trending ?? 99) : (a, b) => b.aum - a.aum,
+      aum: (a, b) => (Number.isFinite(b.aum) ? b.aum : -1) - (Number.isFinite(a.aum) ? a.aum : -1),
       ytd: (a, b) => b.ytd - a.ytd,
       chg1d: (a, b) => b.chg1d - a.chg1d,
       wk: (a, b) => wk(b) - wk(a),
     };
     return [...list].sort(by[sort]);
-  }, [base, tab, sort, activeSub]);
+  }, [base, tab, sort, activeSub, mineW, stockSet]);
 
   // Charts view: the clicked ETF (falls back to the first row when filters drop it)
   const selected = rows.find((e) => e.ticker === sel) ?? rows[0] ?? null;
@@ -267,6 +281,10 @@ export default function EtfTableScanner() {
                   <td className="rounded-l-sm py-[8px] pl-2.5 transition-colors group-hover:bg-white/[0.03]">
                     <div className="flex min-w-0 items-center gap-2">
                       <span className="font-mono text-[14px] font-bold text-zinc-50">{e.ticker}</span>
+                      {mineW[e.ticker] != null && (
+                        <span className="rounded-sm bg-emerald-400/10 px-1.5 py-px font-mono text-[9.5px] font-bold text-emerald-300" title="Weight in your portfolio">★ {mineW[e.ticker]}%</span>
+                      )}
+                      {stockSet.has(e.ticker) && <span className="rounded-sm bg-white/[0.06] px-1.5 py-px font-mono text-[9px] font-bold tracking-[0.1em] text-zinc-400">STOCK</span>}
                       {e.leverage !== "1x" && (
                         <span className="rounded bg-amber-500/15 px-1.5 py-px font-mono text-[9.5px] font-bold text-amber-400">
                           {e.leverage === "Inverse" ? "-3X" : e.leverage.toUpperCase()}
@@ -278,7 +296,7 @@ export default function EtfTableScanner() {
                   <td className={`${gapFirst} py-[8px] text-right transition-colors group-hover:bg-white/[0.03]`}>
                     <span className="block truncate font-mono text-[10.5px] font-semibold tracking-[0.06em] text-zinc-400">{e.sector}</span>
                   </td>
-                  <td className={`${gap} py-[8px] text-right font-mono text-[12px] tabular-nums text-zinc-300 transition-colors group-hover:bg-white/[0.03]`}>{fmtAum(e.aum)}</td>
+                  <td className={`${gap} py-[8px] text-right font-mono text-[12px] tabular-nums text-zinc-300 transition-colors group-hover:bg-white/[0.03]`}>{Number.isFinite(e.aum) ? fmtAum(e.aum) : <span className="text-zinc-600">—</span>}</td>
                   <td className={`${gap} py-[8px] text-right transition-colors group-hover:bg-white/[0.03]`}><PctBadge v={e.ytd} /></td>
                   <td className={`${gap} py-[8px] text-right transition-colors group-hover:bg-white/[0.03]`}><PctBadge v={e.chg1d} arrow /></td>
                   <td className={`${gap} rounded-r-sm py-[8px] pr-2 transition-colors group-hover:bg-white/[0.03]`}>
@@ -422,6 +440,19 @@ export default function EtfTableScanner() {
             ))}
           </div>
           <span className="mx-1 h-5 w-px flex-none bg-white/[0.06]" />
+          {mine.length > 0 && (
+            <button
+              type="button"
+              onClick={() => { setTab("portfolio"); setSort("default"); }}
+              title="Positions from your portfolio"
+              className={`flex flex-none items-center gap-2 rounded-none px-3.5 py-1.5 font-mono text-[11.5px] font-bold tracking-[0.06em] transition-colors ${
+                tab === "portfolio" ? "bg-emerald-400/[0.12] text-emerald-300 shadow-[inset_0_0_0_1px_rgba(52,211,153,0.4)]" : "bg-emerald-400/[0.04] text-emerald-400/80 hover:bg-emerald-400/[0.1] hover:text-emerald-300"
+              }`}
+            >
+              ★ PORTFOLIO
+              <span className="text-[10px] font-medium text-emerald-400/60">{base.filter((e) => inTab(e, "portfolio")).length}</span>
+            </button>
+          )}
           {CATEGORIES.map((c) => {
             const active = tab === c.id;
             const count = base.filter((e) => inTab(e, c.id)).length;

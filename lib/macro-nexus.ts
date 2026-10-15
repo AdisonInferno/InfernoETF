@@ -8,7 +8,7 @@
 export type Window = "30D" | "90D" | "1Y";
 export const WINDOWS: Window[] = ["30D", "90D", "1Y"];
 
-export type Group = "EQUITY" | "TECH" | "CYCLICAL" | "ENERGY" | "DEFENSE" | "METALS" | "RATES" | "CREDIT" | "FX" | "REAL ASSETS" | "INTL" | "CRYPTO";
+export type Group = "PORTFOLIO" | "EQUITY" | "TECH" | "CYCLICAL" | "ENERGY" | "DEFENSE" | "METALS" | "RATES" | "CREDIT" | "FX" | "REAL ASSETS" | "INTL" | "CRYPTO";
 
 export interface NexusNode { id: string; ticker: string; name: string; group: Group }
 export interface NexusLink { source: string; target: string; correlation_value: number }
@@ -18,7 +18,8 @@ export interface NexusLink { source: string; target: string; correlation_value: 
 type F = "EQ" | "GRW" | "CYC" | "RATE" | "INFL" | "GOLD" | "USD" | "DEF" | "CRY";
 const FACTORS: F[] = ["EQ", "GRW", "CYC", "RATE", "INFL", "GOLD", "USD", "DEF", "CRY"];
 
-const ASSETS: (NexusNode & { load: Partial<Record<F, number>>; idio: number })[] = [
+type ModelAsset = NexusNode & { load: Partial<Record<F, number>>; idio: number };
+const ASSETS: ModelAsset[] = [
   { id: "SPY", ticker: "SPY", name: "S&P 500", group: "EQUITY", load: { EQ: 1, GRW: 0.3, CYC: 0.2 }, idio: 0.12 },
   { id: "QQQ", ticker: "QQQ", name: "Nasdaq 100", group: "TECH", load: { EQ: 0.95, GRW: 0.7, RATE: 0.08 }, idio: 0.18 },
   { id: "XLK", ticker: "XLK", name: "Technology", group: "TECH", load: { EQ: 0.9, GRW: 0.8 }, idio: 0.25 },
@@ -56,22 +57,62 @@ function noise(key: string): number {
 /** Shorter windows = regime noise on the loadings (±12% at 30D, ±6% at 90D). */
 const JITTER: Record<Window, number> = { "30D": 0.12, "90D": 0.06, "1Y": 0 };
 
-const cache = new Map<Window, NexusLink[]>();
+const cache = new Map<string, NexusLink[]>();
+
+function matrix(assets: ModelAsset[], win: Window): NexusLink[] {
+  const vec = assets.map((a) => FACTORS.map((f) => (a.load[f] ?? 0) * (1 + JITTER[win] * noise(`${win}:${a.id}:${f}`))));
+  const varOf = (i: number) => vec[i].reduce((s, v) => s + v * v, 0) + assets[i].idio ** 2;
+  const out: NexusLink[] = [];
+  for (let i = 0; i < assets.length; i++)
+    for (let j = i + 1; j < assets.length; j++) {
+      const cov = vec[i].reduce((s, v, k) => s + v * vec[j][k], 0);
+      out.push({ source: assets[i].id, target: assets[j].id, correlation_value: Math.round((cov / Math.sqrt(varOf(i) * varOf(j))) * 100) / 100 });
+    }
+  return out;
+}
 
 /** Every pair once (i < j), coefficient rounded to 2 decimals. */
-export function correlations(win: Window): NexusLink[] {
-  const hit = cache.get(win);
+export function correlations(win: Window, extra: ModelAsset[] = []): NexusLink[] {
+  const k = `${win}|${extra.map((e) => e.id).join(",")}`;
+  const hit = cache.get(k);
   if (hit) return hit;
-  const vec = ASSETS.map((a) => FACTORS.map((f) => (a.load[f] ?? 0) * (1 + JITTER[win] * noise(`${win}:${a.id}:${f}`))));
-  const varOf = (i: number) => vec[i].reduce((s, v) => s + v * v, 0) + ASSETS[i].idio ** 2;
-  const out: NexusLink[] = [];
-  for (let i = 0; i < ASSETS.length; i++)
-    for (let j = i + 1; j < ASSETS.length; j++) {
-      const cov = vec[i].reduce((s, v, k) => s + v * vec[j][k], 0);
-      out.push({ source: ASSETS[i].id, target: ASSETS[j].id, correlation_value: Math.round((cov / Math.sqrt(varOf(i) * varOf(j))) * 100) / 100 });
-    }
-  cache.set(win, out);
+  const out = matrix([...ASSETS, ...extra], win);
+  cache.set(k, out);
   return out;
+}
+
+/* ── Portfolio positions as extra nodes ──
+   A holding that isn't already in the network gets factor loadings from its sector
+   (same factor model → its correlations stay consistent with everything else). */
+const SECTOR_LOAD: [RegExp, Partial<Record<F, number>>][] = [
+  [/semi/i, { EQ: 0.9, GRW: 0.9 }],
+  [/tech|software|information|ai\b/i, { EQ: 0.9, GRW: 0.8 }],
+  [/communic|media|internet/i, { EQ: 0.85, GRW: 0.55 }],
+  [/defen|aerospace/i, { EQ: 0.6, DEF: 0.75 }],
+  [/energy|oil|gas/i, { EQ: 0.5, CYC: 0.4, INFL: 0.8 }],
+  [/financ|bank|insur/i, { EQ: 0.85, CYC: 0.6, RATE: -0.25 }],
+  [/industr|transport/i, { EQ: 0.85, CYC: 0.5 }],
+  [/material|mining|metal/i, { EQ: 0.7, CYC: 0.4, INFL: 0.4 }],
+  [/gold|silver|precious/i, { GOLD: 0.95, USD: -0.3 }],
+  [/bond|treasur|fixed/i, { RATE: 0.9, EQ: -0.15 }],
+  [/util/i, { EQ: 0.45, RATE: 0.5 }],
+  [/real estate|reit/i, { EQ: 0.7, RATE: 0.5 }],
+  [/health|pharma|bio/i, { EQ: 0.7, GRW: 0.2 }],
+  [/staples/i, { EQ: 0.55, RATE: 0.25 }],
+  [/consumer|retail|discretion/i, { EQ: 0.9, CYC: 0.35, GRW: 0.3 }],
+  [/crypto|bitcoin|ether/i, { EQ: 0.35, GRW: 0.3, CRY: 1 }],
+];
+
+export const IN_NEXUS = new Set(ASSETS.map((a) => a.id));
+
+export function portfolioNodes(pos: { ticker: string; name: string; sector: string; kind: "etf" | "stock" }[]): ModelAsset[] {
+  return pos
+    .filter((p) => !IN_NEXUS.has(p.ticker))
+    .map((p) => ({
+      id: p.ticker, ticker: p.ticker, name: p.name, group: "PORTFOLIO" as Group,
+      load: SECTOR_LOAD.find(([re]) => re.test(p.sector))?.[1] ?? { EQ: 0.85, CYC: 0.2 },
+      idio: p.kind === "stock" ? 0.6 : 0.3,
+    }));
 }
 
 /** ρ lookup for a pair, any order */
