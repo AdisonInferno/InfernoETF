@@ -93,6 +93,37 @@ const SECTORS: Sector[] = MAP_SECTORS.map(({ title, test }) => ({
 })).filter((s) => s.etfs.length);
 const SHORT: Record<string, string> = Object.fromEntries(MAP_SECTORS.map((m) => [m.title, m.short]));
 
+/* ── COUNTRIES universe: 3 main equity indices per market (ILLUSTRATIVE levels/moves).
+      aum = approx. market cap of the country's listed equities in $B → drives MKT WEIGHT. ── */
+type Ix = [code: string, name: string, level: number, chg1d: number, ytd: number];
+const COUNTRIES: { title: string; short: string; capB: number; vol: "Low" | "Medium" | "High"; ix: Ix[] }[] = [
+  { title: "UNITED STATES", short: "US", capB: 62000, vol: "Low", ix: [["SPX", "S&P 500", 6680, 0.42, 14.2], ["NDX", "Nasdaq 100", 24480, 0.87, 18.9], ["DJI", "Dow Jones 30", 46350, 0.21, 9.8]] },
+  { title: "JAPAN", short: "JP", capB: 6800, vol: "Medium", ix: [["N225", "Nikkei 225", 47900, -0.36, 21.4], ["TOPIX", "TOPIX", 3230, -0.18, 16.1], ["TSEG", "TSE Growth 250", 780, 0.64, 12.7]] },
+  { title: "CHINA", short: "CN", capB: 11500, vol: "High", ix: [["SHCOMP", "Shanghai Composite", 3880, 0.52, 15.6], ["CSI300", "CSI 300", 4620, 0.71, 17.3], ["SZCOMP", "Shenzhen Component", 13180, 1.12, 26.4]] },
+  { title: "HONG KONG", short: "HK", capB: 4600, vol: "High", ix: [["HSI", "Hang Seng", 25900, -0.84, 28.8], ["HSCEI", "HS China Enterprises", 9240, -0.97, 26.9], ["HSTECH", "Hang Seng Tech", 6050, -1.41, 34.1]] },
+  { title: "UNITED KINGDOM", short: "UK", capB: 3300, vol: "Low", ix: [["UKX", "FTSE 100", 9440, 0.31, 15.4], ["MCX", "FTSE 250", 22080, 0.12, 5.2], ["ASX", "FTSE All-Share", 5150, 0.27, 13.8]] },
+  { title: "GERMANY", short: "DE", capB: 2500, vol: "Medium", ix: [["DAX", "DAX 40", 24350, 0.45, 22.3], ["MDAX", "MDAX", 30600, -0.22, 19.1], ["TECDAX", "TecDAX", 3720, 0.68, 12.0]] },
+  { title: "FRANCE", short: "FR", capB: 3100, vol: "Medium", ix: [["CAC", "CAC 40", 7980, -0.19, 8.1], ["SBF120", "SBF 120", 6150, -0.21, 7.4], ["CACMID", "CAC Mid 60", 15200, -0.43, 6.2]] },
+  { title: "INDIA", short: "IN", capB: 5200, vol: "Medium", ix: [["NIFTY", "Nifty 50", 25200, 0.38, 6.6], ["SENSEX", "BSE Sensex", 82300, 0.35, 5.3], ["BANKNIFTY", "Nifty Bank", 56400, 0.61, 11.2]] },
+  { title: "SOUTH KOREA", short: "KR", capB: 2300, vol: "High", ix: [["KOSPI", "KOSPI", 3610, 1.24, 50.4], ["KOSDAQ", "KOSDAQ", 860, 0.88, 26.8], ["KS200", "KOSPI 200", 490, 1.36, 55.1]] },
+  { title: "TAIWAN", short: "TW", capB: 2900, vol: "High", ix: [["TAIEX", "TAIEX", 26800, 1.58, 16.4], ["TPEX", "TPEx", 270, 0.91, 7.9], ["TW50", "FTSE TWSE Taiwan 50", 24900, 1.72, 19.8]] },
+  { title: "CANADA", short: "CA", capB: 3700, vol: "Low", ix: [["TSX", "S&P/TSX Composite", 30100, 0.29, 21.6], ["TSX60", "S&P/TSX 60", 1810, 0.33, 22.2], ["TSXV", "TSX Venture", 860, 0.94, 43.5]] },
+  { title: "SWITZERLAND", short: "CH", capB: 2100, vol: "Low", ix: [["SMI", "SMI", 12640, -0.27, 9.0], ["SPI", "Swiss Performance", 17150, -0.24, 10.1], ["SMIM", "SMI Mid", 2780, -0.52, 8.3]] },
+  { title: "AUSTRALIA", short: "AU", capB: 1900, vol: "Low", ix: [["XJO", "S&P/ASX 200", 8920, 0.18, 9.3], ["XAO", "All Ordinaries", 9190, 0.21, 10.0], ["XFL", "S&P/ASX 50", 8350, 0.12, 8.1]] },
+  { title: "BRAZIL", short: "BR", capB: 900, vol: "High", ix: [["IBOV", "Ibovespa", 143800, -0.63, 19.6], ["IBXX", "IBrX 100", 60200, -0.58, 18.7], ["SMLL", "Small Cap", 2240, -1.05, 25.9]] },
+  { title: "POLAND", short: "PL", capB: 250, vol: "Medium", ix: [["WIG20", "WIG20", 2960, 0.74, 35.1], ["MWIG40", "mWIG40", 7550, 0.41, 26.4], ["SWIG80", "sWIG80", 28200, 0.22, 21.0]] },
+];
+const COUNTRY_SECTORS: Sector[] = COUNTRIES.map((c) => ({
+  title: c.title,
+  etfs: c.ix.map(([code, name, level, chg1d, ytd], i) => ({
+    ticker: code, name, provider: "Other" as Provider,
+    aum: c.capB * [0.55, 0.3, 0.15][i], // index share of the country's weight on the map
+    change1d: chg1d, price: level, note: `${c.title} · main equity index`,
+    perf: perfFor(code, chg1d, ytd, c.vol),
+  })),
+}));
+const COUNTRY_SHORT: Record<string, string> = Object.fromEntries(COUNTRIES.map((c) => [c.title, c.short]));
+
 const MACRO: MacroEtf[] = ([
   { ticker: "UUP", name: "Invesco DB US Dollar Index Fund", provider: "Invesco", tag: "US Dollar Index", aum: 1.9, change1d: 0.21, price: 29.4, note: "Dollar bid on relative US growth and policy-rate expectations." },
   { ticker: "GLD", name: "SPDR Gold Shares", provider: "State Street", tag: "Gold", aum: 72, change1d: 0.9, price: 243.7, note: "Gold edges up as real yields ease and central-bank buying persists." },
@@ -271,6 +302,11 @@ export default function InfernoEtfScanner() {
   const [focus, setFocus] = useState<string[]>([]);
   /** Scrubber: the ONLY thing it changes — all timeframes are already inside every Etf.perf */
   const [tf, setTf] = useState<TfKey>("1D");
+  /** Map universe: ETFs by sector, or countries by their main indices */
+  const [universe, setUniverse] = useState<"ETF" | "COUNTRIES">("ETF");
+  const groupsSrc = universe === "ETF" ? SECTORS : COUNTRY_SECTORS;
+  const shortOf = universe === "ETF" ? SHORT : COUNTRY_SHORT;
+  const pickUniverse = (u: "ETF" | "COUNTRIES") => { setUniverse(u); setFocus([]); setTip(null); };
   const zoom = (t: string) => setFocus((f) => (f.length === 1 && f[0] === t ? [] : [t]));
   const compare = (t: string) => setFocus((f) => (f.includes(t) ? f.filter((x) => x !== t) : [...f, t]));
 
@@ -295,8 +331,8 @@ export default function InfernoEtfScanner() {
     const cmp =
       sort === "aum" ? (a: Etf, b: Etf) => b.aum - a.aum : (a: Etf, b: Etf) => b.perf[tf] - a.perf[tf];
 
-    const groups = SECTORS.filter((g) => !focus.length || focus.includes(g.title)).map(({ title, etfs }) => {
-      const rows = etfs.filter((e) => !disabled[e.provider]).sort(cmp);
+    const groups = groupsSrc.filter((g) => !focus.length || focus.includes(g.title)).map(({ title, etfs }) => {
+      const rows = etfs.filter((e) => universe !== "ETF" || !disabled[e.provider]).sort(cmp);
       const avg = rows.length ? rows.reduce((s, e) => s + e.perf[tf], 0) / rows.length : 0;
       return {
         title,
@@ -320,7 +356,7 @@ export default function InfernoEtfScanner() {
     });
 
     return { sectors: laid, count: groups.reduce((n, g) => n + g.rows.length, 0) };
-  }, [sort, disabled, size, weightOf, focus, tf]);
+  }, [sort, disabled, size, weightOf, focus, tf, groupsSrc, universe]);
 
   const providerCounts = useMemo(() => {
     const all = SECTORS.flatMap((s) => s.etfs);
@@ -328,7 +364,7 @@ export default function InfernoEtfScanner() {
   }, []);
 
   const hoverHandlers = (etf: Etf) => ({
-    onClick: () => router.push(`/etf/${etf.ticker}`),
+    onClick: () => { if (universe === "ETF") router.push(`/etf/${etf.ticker}`); },
     onMouseEnter: (e: React.MouseEvent) => setTip({ etf, x: e.clientX, y: e.clientY }),
     onMouseMove: (e: React.MouseEvent) => setTip({ etf, x: e.clientX, y: e.clientY }),
     onMouseLeave: () => setTip(null),
@@ -345,6 +381,14 @@ export default function InfernoEtfScanner() {
       <aside className="flex min-h-0 flex-col gap-5 self-stretch overflow-y-auto rounded-sm border border-white/[0.06] bg-[#0a0a0c] p-3">
         <div className="flex flex-col gap-1">
           <span className={`${MONO} text-[13px] font-semibold tracking-[0.12em] text-[#FAFAFA]`}>[ ETF MARKET MAP ]</span>
+        </div>
+
+        <div className="flex flex-col gap-2.5">
+          <SectionLabel>UNIVERSE</SectionLabel>
+          <div className="flex gap-1.5">
+            <ToggleButton active={universe === "ETF"} onClick={() => pickUniverse("ETF")}>ETFs</ToggleButton>
+            <ToggleButton active={universe === "COUNTRIES"} onClick={() => pickUniverse("COUNTRIES")}>COUNTRIES</ToggleButton>
+          </div>
         </div>
 
         <div className="flex flex-col gap-2.5">
@@ -371,6 +415,7 @@ export default function InfernoEtfScanner() {
           </div>
         </div>
 
+        {universe === "ETF" && (
         <div className="flex flex-col gap-2.5">
           <SectionLabel>PROVIDER FILTER</SectionLabel>
           <div className="flex flex-col gap-1.5">
@@ -399,6 +444,7 @@ export default function InfernoEtfScanner() {
             })}
           </div>
         </div>
+        )}
 
         <div className="flex flex-col gap-2.5">
           <SectionLabel>COLOR SCALE · {tf}</SectionLabel>
@@ -419,7 +465,7 @@ export default function InfernoEtfScanner() {
             className={`rounded-sm px-2 py-1 font-bold tracking-[0.1em] transition-colors duration-75 ${!focus.length ? "bg-white/[0.09] text-white" : "text-zinc-500 hover:bg-white/[0.05] hover:text-white"}`}>
             ALL
           </button>
-          {SECTORS.map(({ title }) => {
+          {groupsSrc.map(({ title }) => {
             const on = focus.includes(title);
             return (
               <button key={title} type="button" onClick={() => zoom(title)} onContextMenu={(e) => { e.preventDefault(); compare(title); }}
@@ -427,11 +473,11 @@ export default function InfernoEtfScanner() {
                 className={`rounded-sm px-2 py-1 font-bold tracking-[0.1em] transition-colors duration-75 ${
                   on ? "bg-red-500/[0.14] text-red-300 shadow-[inset_0_0_0_1px_rgba(239,68,68,0.35)]" : focus.length ? "text-zinc-600 hover:text-zinc-200" : "text-zinc-400 hover:bg-white/[0.05] hover:text-white"
                 }`}>
-                {SHORT[title] ?? title}
+                {shortOf[title] ?? title}
               </button>
             );
           })}
-          <span className="ml-auto text-[10px] tracking-[0.08em] text-zinc-600">{focus.length > 1 ? `COMPARE · ${focus.length} SECTORS` : "RIGHT-CLICK = COMPARE"} · {count} ETF</span>
+          <span className="ml-auto text-[10px] tracking-[0.08em] text-zinc-600">{focus.length > 1 ? `COMPARE · ${focus.length} ${universe === "ETF" ? "SECTORS" : "COUNTRIES"}` : "RIGHT-CLICK = COMPARE"} · {count} {universe === "ETF" ? "ETF" : "INDICES · ILLUSTRATIVE"}</span>
         </nav>
 
         <TimeframeScrubber value={tf} onChange={setTf} />
