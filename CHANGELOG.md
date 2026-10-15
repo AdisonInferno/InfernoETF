@@ -4,8 +4,10 @@ _Generowany automatycznie z historii git. Zmiany oddalone o mniej niż godzinę 
 
 ## czwartek, 15 października 2026
 
-### Sesja #11 · 23:26–00:59 · 17 zmian · AdisonInferno
+### Sesja #12 · 23:26–00:59 · 19 zmian · AdisonInferno
 
+- `00:59` AI news insight: also fall back to the next model on 503 overload
+- `00:59` Dziennik zmian
 - `00:59` XTB import: retry + fall back to the next Gemini model when one is overloaded (503)
 - `00:52` Dziennik zmian
 - `00:52` Portfolio: DELETE PORTFOLIO (with confirm) clears positions, lots and imported instruments; start again from scratch
@@ -24,7 +26,7 @@ _Generowany automatycznie z historii git. Zmiany oddalone o mniej niż godzinę 
 - `00:01` Portfolio deep view: live USD prices (FX auto-conversion), sortable/filterable positions table with timeframes, interactive chart with vertical timeframe slider, PORTFOLIO / DEEP VIEW breadcrumb, nav resets to overview, import opens deep view
 - `23:26` Changelog grouped into work sessions (<60 min gap), auto-refreshed by AKTUALIZUJ.bat
 
-### Sesja #10 · 15:29–16:02 · 6 zmian · AdisonInferno
+### Sesja #11 · 15:29–16:02 · 6 zmian · AdisonInferno
 
 - `16:02` Holdings news: importance 1-3 badge, cyan glow for filings
 - `16:01` Market map: COUNTRIES universe (3 main indices per country)
@@ -35,7 +37,7 @@ _Generowany automatycznie z historii git. Zmiany oddalone o mniej niż godzinę 
 
 ## środa, 14 października 2026
 
-### Sesja #9 · 22:18–23:28 · 7 zmian · AdisonInferno
+### Sesja #10 · 22:18–23:28 · 7 zmian · AdisonInferno
 
 - `23:28` Scanner: cleaner Market Pulse headers, full-width recent-ticker bar with tactile buttons
 - `22:57` NEWS: 'Market is waiting for' impact ranking + price charts under every news item
@@ -45,7 +47,7 @@ _Generowany automatycznie z historii git. Zmiany oddalone o mniej niż godzinę 
 - `22:28` Market map sector quick-jump + persistent Recent Tickers bar
 - `22:18` Scanner: denser table + Market Pulse rail
 
-### Sesja #8 · 17:49–19:35 · 7 zmian · Claude, AdisonInferno
+### Sesja #9 · 17:49–19:35 · 7 zmian · Claude, AdisonInferno
 
 - `19:35` XTB import: fall back to other Gemini models on daily quota (429), Polish quota message
 - `19:17` Zmiany lokalne
@@ -55,41 +57,52 @@ _Generowany automatycznie z historii git. Zmiany oddalone o mniej niż godzinę 
 - `17:55` ETF Tools: Macro Nexus cross-asset correlation network
 - `17:49` Usuń napis ETF z loga
 
-### Sesja #7 · 13:00–13:00 · 1 zmian · AdisonInferno
+### Sesja #8 · 13:00–13:00 · 1 zmian · AdisonInferno
 
 - `13:00` Portfolio: XTB import from header (name→ticker guess, sectors), non-DB stocks, deep view re-layout
 
 ## poniedziałek, 12 października 2026
 
-### Sesja #6 · 21:29–21:40 · 2 zmian · AdisonInferno
+### Sesja #7 · 21:29–21:40 · 2 zmian · AdisonInferno
 
 - `21:40` Scanner: PRICE / CHARTS split view with collapsible chart and list
 - `21:29` Sync: ResizableSplit, XTB import, scanner changes
 
 ## niedziela, 11 października 2026
 
-### Sesja #5 · 22:00–22:20 · 2 zmian · AdisonInferno
+### Sesja #6 · 22:00–22:20 · 2 zmian · AdisonInferno
 
 - `22:20` checkpoint przed zmianami
 - `22:00` Intel: SEC filings + commodities (WIP)
 
-### Sesja #4 · 00:04–00:04 · 1 zmian · AdisonInferno
+### Sesja #5 · 00:04–00:04 · 1 zmian · AdisonInferno
 
 - `00:04` SEC filings: direction arrows + hover insight
 
 ## sobota, 10 października 2026
 
-### Sesja #3 · 03:29–04:00 · 2 zmian · AdisonInferno
+### Sesja #4 · 03:29–04:00 · 2 zmian · AdisonInferno
 
 - `04:00` news archive: hourly collector + 1y backfill
 - `03:29` Market Map: Surface-Elevation styling, remove shadows and extra labels
 
 ## czwartek, 8 października 2026
 
-### Sesja #2 · 15:24–15:24 · 1 zmian · AdisonInferno
+### Sesja #3 · 15:24–15:24 · 1 zmian · AdisonInferno
 
 - `15:24` composition map: map → table → chart
 
-### Sesja #1 · 01:57–01:57 · 1 zmian · AdisonInferno
+## środa, 7 października 2026
+
+### Sesja #2 · 23:57–01:57 · 4 zmian · AdisonInferno
 
 - `01:57` wykres portfela vs S&P 500
+- `01:28` portfolio deep view z animacja
+- `00:37` skrot startowy
+- `23:57` INFERNO ETF: scanner, deep view, czat AI
+
+## piątek, 2 października 2026
+
+### Sesja #1 · 02:13–02:13 · 1 zmian · AdisonInferno
+
+- `02:13` Initial commit from Create Next App
