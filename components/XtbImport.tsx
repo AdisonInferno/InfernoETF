@@ -28,6 +28,7 @@ interface ApiResult {
 interface Row {
   id: number;
   source: string; // symbol as shown at the broker
+  sym?: string; // broker symbol incl. exchange suffix (e.g. "CDR.PL") → used for live quotes / currency
   inferred: boolean; // ticker guessed from the name (not printed on screen)
   ticker: string; // our ticker
   name: string;
@@ -80,6 +81,7 @@ function merge(list: RawPos[]): Row[] {
     id: i,
     source: (p.symbolShown === false ? p.name ?? p.symbol : p.symbol) + (p.n > 1 ? ` ×${p.n}` : ""),
     inferred: p.symbolShown === false,
+    sym: /\.[A-Z]{2}$/.test(p.symbol.toUpperCase().trim()) ? p.symbol.toUpperCase().trim() : undefined,
     ticker: toTicker(p.symbol),
     name: p.name ?? p.symbol,
     kind: p.kind,
@@ -183,7 +185,7 @@ export default function XtbImport({ onImport, onClose }: { onImport: (r: ImportR
     const customs: Record<string, Asset> = {};
     rows.forEach((r, i) => {
       const price = num(r.price) ?? undefined;
-      lots[r.ticker] = { qty: num(r.qty)!, avg: num(r.avg)!, price, value: calc.vals[i], pl: num(r.pl) ?? undefined, ccy };
+      lots[r.ticker] = { qty: num(r.qty)!, avg: num(r.avg)!, price, value: calc.vals[i], pl: num(r.pl) ?? undefined, ccy, sym: r.sym };
       if (!isKnownTicker(r.ticker)) {
         customs[r.ticker] = { ticker: r.ticker, name: r.name, price: price ?? num(r.avg)!, chg1d: 0, ytd: 0, sector: r.sector, kind: r.kind, dd2022: -30 };
       }

@@ -161,6 +161,8 @@ export default function SiteHeader() {
             <Link
               key={n.href}
               href={n.href}
+              // Same page again → tell it to reset to its first view (e.g. portfolio deep view → overview)
+              onClick={() => { if (pathname === n.href) window.dispatchEvent(new CustomEvent("inferno:nav-same", { detail: n.href })); }}
               className={`whitespace-nowrap rounded-sm border px-3.5 py-1.5 text-[12px] font-semibold tracking-[0.08em] transition-colors ${
                 active
                   ? "border-red-500/40 bg-red-500/[0.12] text-red-400"

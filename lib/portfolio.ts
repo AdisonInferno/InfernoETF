@@ -78,6 +78,8 @@ export interface Lot {
   pl?: number;
   /** Account currency, e.g. "PLN" */
   ccy?: string;
+  /** Broker symbol with exchange suffix, e.g. "CDR.PL" (live quote + instrument currency) */
+  sym?: string;
 }
 
 const LOTS_KEY = "inferno.portfolio.lots.v1";

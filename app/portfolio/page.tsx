@@ -3,7 +3,9 @@
 import Link from "next/link";
 import { AnimatePresence, LayoutGroup, motion, useReducedMotion, type Variants } from "framer-motion";
 import { useEffect, useMemo, useRef, useState } from "react";
-import PortfolioDeepView, { OpenPositions, SEG_COLORS } from "@/components/PortfolioDeepView";
+import PortfolioDeepView, { OpenPositions, SEG_COLORS, useLots } from "@/components/PortfolioDeepView";
+import PortfolioChart from "@/components/PortfolioChart";
+import { useHistory, useLiveQuotes, yahooOf, type PTf } from "@/lib/portfolio-live";
 import PortfolioPerformance, { type RangeTf } from "@/components/PortfolioPerformance";
 import PortfolioFlows from "@/components/PortfolioFlows";
 import ResizableSplit from "@/components/ResizableSplit";
@@ -164,6 +166,9 @@ export default function PortfolioPage() {
   const [view, setView] = useState<View>("overview");
   /** Timeframe shared by the performance chart and the capital-flow bars. */
   const [perfTf, setPerfTf] = useState<RangeTf>("YTD");
+  /** Deep view: chart (+ capital flow) timeframe and the positions-table timeframe */
+  const [chartTf, setChartTf] = useState<PTf>("1Y");
+  const [tableTf, setTableTf] = useState<PTf>("1D");
   /** Second phase of the transition: the card grows a beat after the bottom cards start falling. */
   const [expanded, setExpanded] = useState(false);
   const timers = useRef<number[]>([]);
@@ -193,6 +198,16 @@ export default function PortfolioPage() {
   const isExpanded = showMine && expanded; // card grown + analytics shown
   const parsed = useMemo(() => parsePortfolio(prompt), [prompt]);
   const preset = BUILD_PRESETS.find((b) => b.id === presetId)!;
+
+  /* Live quotes (→ USD) and price history for the deep view */
+  const { lots, save: saveLot } = useLots();
+  const posItems = useMemo(() => parsed.positions.map((p) => ({ ticker: p.asset.ticker, lot: lots[p.asset.ticker] })), [parsed.positions, lots]);
+  const accountCcy = Object.values(lots).find((l) => l.ccy)?.ccy;
+  const { live, fx } = useLiveQuotes(posItems, accountCcy);
+  const symOf = useMemo(() => Object.fromEntries(posItems.map((i) => [i.ticker, live[i.ticker]?.sym ?? yahooOf(i.ticker, i.lot?.sym)])), [posItems, live]);
+  const assets = useMemo(() => parsed.positions.map((p) => p.asset), [parsed.positions]);
+  const chartHist = useHistory(isExpanded ? assets : [], symOf, chartTf);
+  const tableHist = useHistory(isExpanded ? assets : [], symOf, tableTf);
 
   /* Headline money metrics for the model account. */
   const todayPct = parsed.positions.reduce((a, p) => a + (p.weight / 100) * p.asset.chg1d, 0);
@@ -246,6 +261,12 @@ export default function PortfolioPage() {
     setView("overview");
   }
   useEffect(() => { goOverviewRef.current = goOverview; });
+  // Clicking PORTFOLIO in the top bar while already here → back to the portfolio overview.
+  useEffect(() => {
+    const onReset = (e: Event) => { if ((e as CustomEvent<string>).detail === "/portfolio") goOverviewRef.current(); };
+    window.addEventListener("inferno:nav-same", onReset);
+    return () => window.removeEventListener("inferno:nav-same", onReset);
+  }, []);
 
   const applyPrompt = (p: string) => {
     setPrompt(p);
@@ -272,6 +293,7 @@ export default function PortfolioPage() {
     setSaved({ prompt: r.prompt, createdAt: new Date().toISOString() });
     setImporting(false);
     setEditing(false);
+    goDeep(); // straight into the deep view of the imported portfolio
   };
 
   const resetPortfolio = () => {
@@ -459,10 +481,12 @@ export default function PortfolioPage() {
           </div>
         </div>
       )}
-      <motion.div layout="position" className="font-mono text-[10px] tracking-[0.14em] text-zinc-600">
-        [ DASHBOARD / <span className={isDeep ? "" : "text-zinc-300"}>PORTFOLIO</span>
+      <motion.nav layout="position" aria-label="Breadcrumb" className="font-mono text-[10px] tracking-[0.14em] text-zinc-600">
+        [ {isDeep ? (
+          <button type="button" onClick={goOverview} className="tracking-[0.14em] text-zinc-500 underline-offset-2 transition-colors hover:text-white hover:underline">PORTFOLIO</button>
+        ) : <span className="text-zinc-300">PORTFOLIO</span>}
         {isDeep && <> / <span className="text-zinc-300">DEEP VIEW</span></>} ]
-      </motion.div>
+      </motion.nav>
 
       <LayoutGroup>
         {!loaded ? (
@@ -496,9 +520,6 @@ export default function PortfolioPage() {
                   <h1 className="font-mono text-[15px] font-bold tracking-[0.16em] text-zinc-50">
                     [ PORTFOLIO ]{isDeep && <span className="ml-3 align-middle font-mono text-[12px] font-bold tracking-[0.14em] text-red-400">DEEP VIEW</span>}
                   </h1>
-                  <p className="mt-0.5 font-mono text-[11px] text-zinc-500">
-                    {parsed.positions.length} positions · created {new Date(saved!.createdAt).toLocaleDateString("pl-PL")} · <span className="text-zinc-400">{saved!.prompt}</span>
-                  </p>
                 </div>
               </div>
               <div className="flex flex-wrap items-end gap-2">
@@ -547,10 +568,10 @@ export default function PortfolioPage() {
                   minPx={[420, 880]}
                   initial={0.42}
                   height={{ initial: 520, min: 360, max: 1100 }}
-                  left={(h) => <PortfolioPerformance positions={parsed.positions} chartHeight={h ? Math.max(120, h - 178) : 200} tf={perfTf} onTfChange={setPerfTf} />}
+                  left={() => <PortfolioChart positions={parsed.positions} data={chartHist.data} tf={chartTf} onTfChange={setChartTf} />}
                   right={(h) => (
                     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1, transition: { delay: 0.2 } }} className={h ? "h-full overflow-y-auto" : ""}>
-                      <OpenPositions positions={parsed.positions} />
+                      <OpenPositions positions={parsed.positions} lots={lots} saveLot={saveLot} live={live} fx={fx} tf={tableTf} onTfChange={setTableTf} rets={tableHist.rets} />
                     </motion.div>
                   )}
                 />
@@ -564,7 +585,7 @@ export default function PortfolioPage() {
               <div className="flex min-w-0 flex-col gap-2.5">
                 {isExpanded ? (
                   <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1, transition: { delay: 0.2 } }} className="h-full" onClick={(e) => e.stopPropagation()}>
-                    <PortfolioFlows positions={parsed.positions} tf={perfTf} />
+                    <PortfolioFlows positions={parsed.positions} tf={chartTf} rets={chartHist.rets} />
                   </motion.div>
                 ) : (
                   <div className="grid grid-cols-2 gap-2 md:grid-cols-4 xl:grid-cols-2">
@@ -630,7 +651,7 @@ export default function PortfolioPage() {
             <AnimatePresence initial={false}>
               {isExpanded && (
                 <motion.div key="deep" layout="position" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, transition: { duration: 0.15 } }}>
-                  <PortfolioDeepView positions={parsed.positions} flows={<PortfolioFlows positions={parsed.positions} tf={perfTf} />} />
+                  <PortfolioDeepView positions={parsed.positions} flows={<PortfolioFlows positions={parsed.positions} tf={chartTf} rets={chartHist.rets} />} />
                 </motion.div>
               )}
             </AnimatePresence>

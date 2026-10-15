@@ -7,6 +7,7 @@ import ResizableSplit from "@/components/ResizableSplit";
 import { ETFS, fmtAum } from "@/lib/etfs";
 import { QUOTE } from "@/lib/fund-profiles";
 import { drillDown, loadLots, lookThrough, saveLots, sectorExposure, type Lot, type Position } from "@/lib/portfolio";
+import { TABLE_TFS, type Live, type PTf } from "@/lib/portfolio-live";
 
 export const SEG_COLORS = ["#4ade80", "#60a5fa", "#94a3b8", "#f59e0b", "#f472b6", "#22d3ee", "#f87171", "#a3e635"];
 const panel = "rounded-sm border border-white/[0.06] bg-[#030303] p-3";
@@ -53,13 +54,9 @@ function SectorOverlap({ positions, onClose }: { positions: Position[]; onClose?
       </div>
       <div className="flex flex-col gap-3">
         {rows.map((r) => {
-          const contributors = Object.keys(r.by).length;
           return (
             <div key={r.sector} className="grid grid-cols-[minmax(80px,130px)_minmax(0,1fr)_52px] items-center gap-3">
-              <span className="truncate text-[12.5px] text-zinc-300">
-                {r.sector}
-                {contributors > 1 && <span className="ml-1.5 font-mono text-[9px] text-amber-400">×{contributors}</span>}
-              </span>
+              <span className="truncate text-[12.5px] text-zinc-300">{r.sector}</span>
               <div className="flex h-2.5 overflow-hidden rounded-sm bg-white/[0.04]" style={{ width: `${(r.total / max) * 100}%` }}>
                 {Object.entries(r.by).sort((a, b) => b[1] - a[1]).map(([t, v]) => (
                   <div key={t} title={`${t}: ${v.toFixed(1)}%`} style={{ width: `${(v / r.total) * 100}%`, background: colorOf(t) }} className="h-full border-r border-[#0a0a0c] last:border-r-0" />
@@ -76,7 +73,6 @@ function SectorOverlap({ positions, onClose }: { positions: Position[]; onClose?
             <span className="h-2 w-2 rounded-sm" style={{ background: SEG_COLORS[i % SEG_COLORS.length] }} />{p.asset.ticker}
           </span>
         ))}
-        <span className="ml-auto font-mono text-[10px] text-zinc-600"><span className="text-amber-400">×N</span> = sector held by N positions</span>
       </div>
     </div>
   );
@@ -85,13 +81,9 @@ function SectorOverlap({ positions, onClose }: { positions: Position[]; onClose?
 /* ───────────────────── ETFs in the portfolio (+ look-through) ───────────────────── */
 
 const NOTIONAL = 124_580; // same model account as the page header
-const CCY_SIGN: Record<string, string> = { USD: "$", EUR: "€", GBP: "£", PLN: "zł " };
-const money = (v: number, ccy = "USD") => {
-  const n = Math.abs(v).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  const sign = CCY_SIGN[ccy] ?? `${ccy} `;
-  return (v < 0 ? "-" : "") + sign + n;
-};
-const signMoney = (v: number, ccy?: string) => (v > 0 ? "+" : "") + money(v, ccy);
+/** Everything in the portfolio is shown in US dollars. */
+const money = (v: number) => (v < 0 ? "-" : "") + "$" + Math.abs(v).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const signMoney = (v: number) => (v > 0 ? "+" : "") + money(v);
 const tone = (v: number) => (v > 0 ? "text-emerald-400" : v < 0 ? "text-rose-400" : "text-zinc-300");
 const qtyFmt = (q: number) => q.toLocaleString("en-US", { maximumFractionDigits: 4 });
 
@@ -101,7 +93,7 @@ const defaultLot = (p: Position): Lot => ({
   avg: +(p.asset.price / (1 + p.asset.ytd / 100)).toFixed(2),
 });
 
-function useLots() {
+export function useLots() {
   const [lots, setLots] = useState<Record<string, Lot>>({});
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time restore from browser storage
@@ -117,8 +109,8 @@ function useLots() {
   return { lots, save };
 }
 
-/** Inline editor for quantity + average price (XTB-style "open position"). */
-function LotEditor({ lot, custom, onSave }: { lot: Lot; custom: boolean; onSave: (l: Lot | null) => void }) {
+/** Inline editor for quantity + average price (XTB-style "open position"), in the instrument's own currency. */
+function LotEditor({ lot, custom, ccy, onSave }: { lot: Lot; custom: boolean; ccy: string; onSave: (l: Lot | null) => void }) {
   const [qty, setQty] = useState(String(lot.qty));
   const [avg, setAvg] = useState(String(lot.avg));
   const q = Number(qty.replace(",", ".")), a = Number(avg.replace(",", "."));
@@ -126,11 +118,10 @@ function LotEditor({ lot, custom, onSave }: { lot: Lot; custom: boolean; onSave:
   const input = "h-8 w-28 rounded-sm border border-white/[0.08] bg-[#030303] px-2 font-mono text-[12px] text-zinc-100 outline-none focus:border-white/[0.2]";
   return (
     <div className="flex flex-wrap items-end gap-3 px-4 pb-3 pt-3">
-      <label className="flex flex-col gap-1"><span className={label}>QTY</span><input value={qty} onChange={(e) => setQty(e.target.value)} inputMode="decimal" className={input} /></label>
-      <label className="flex flex-col gap-1"><span className={label}>AVG OPEN PRICE $</span><input value={avg} onChange={(e) => setAvg(e.target.value)} inputMode="decimal" className={input} /></label>
-      <button type="button" disabled={!ok} onClick={() => onSave({ qty: q, avg: a, price: lot.price, ccy: lot.price != null ? lot.ccy : undefined })} className="h-8 rounded-sm border border-white/[0.12] px-3 font-mono text-[10.5px] tracking-[0.1em] text-zinc-200 hover:bg-white/[0.06] disabled:opacity-40">[ SAVE ]</button>
+      <label className="flex flex-col gap-1"><span className={label}>SHARES</span><input value={qty} onChange={(e) => setQty(e.target.value)} inputMode="decimal" className={input} /></label>
+      <label className="flex flex-col gap-1"><span className={label}>AVG BUY PRICE · {ccy}</span><input value={avg} onChange={(e) => setAvg(e.target.value)} inputMode="decimal" className={input} /></label>
+      <button type="button" disabled={!ok} onClick={() => onSave({ ...lot, qty: q, avg: a, value: undefined, pl: undefined })} className="h-8 rounded-sm border border-white/[0.12] px-3 font-mono text-[10.5px] tracking-[0.1em] text-zinc-200 hover:bg-white/[0.06] disabled:opacity-40">[ SAVE ]</button>
       {custom && <button type="button" onClick={() => onSave(null)} className="h-8 px-1 font-mono text-[10.5px] tracking-[0.1em] text-zinc-500 hover:text-white">[ RESET ]</button>}
-      <span className="ml-auto self-center font-mono text-[10px] text-zinc-600">{custom ? "YOUR ENTRY" : "DEFAULT · MODEL ACCOUNT, BOUGHT JAN 1"}</span>
     </div>
   );
 }
@@ -149,9 +140,26 @@ function lookRows(p: Position, n: number) {
   return [...m.values()].sort((a, b) => b.inFund - a.inFund).slice(0, n);
 }
 
-export function OpenPositions({ positions, onClose }: { positions: Position[]; onClose?: () => void }) {
+type SortKey = "name" | "qty" | "avg" | "price" | "value" | "pl" | "ret" | "weight";
+type KindFilter = "ALL" | "ETF" | "STOCK" | "UP" | "DOWN";
+
+export function OpenPositions({ positions, lots, saveLot, live, fx, tf, onTfChange, rets, onClose }: {
+  positions: Position[];
+  lots: Record<string, Lot>;
+  saveLot: (ticker: string, lot: Lot | null) => void;
+  live: Record<string, Live>;
+  /** USD per unit of currency */
+  fx: Record<string, number>;
+  tf: PTf;
+  onTfChange: (t: PTf) => void;
+  /** % return per ticker over `tf` (null while loading) */
+  rets: Record<string, number> | null;
+  onClose?: () => void;
+}) {
   const [open, setOpen] = useState<string | null>(null);
-  const { lots, save } = useLots();
+  const [sort, setSort] = useState<{ k: SortKey; dir: 1 | -1 }>({ k: "value", dir: -1 });
+  const [q, setQ] = useState("");
+  const [kind, setKind] = useState<KindFilter>("ALL");
   /** Total look-through weight of every stock across the whole portfolio, % */
   const total = useMemo(() => lookThrough(positions), [positions]);
   /** How many positions hold each stock */
@@ -161,41 +169,76 @@ export function OpenPositions({ positions, onClose }: { positions: Position[]; o
     return n;
   }, [positions]);
 
+  const usdOf = (c?: string) => (c ? fx[c] : 1);
   const base = positions.map((p, i) => {
     const etf = ETFS.find((e) => e.ticker === p.asset.ticker);
     const ter = etf ? QUOTE[p.asset.ticker]?.[1] ?? 0 : 0;
     const custom = !!lots[p.asset.ticker];
     const lot = lots[p.asset.ticker] ?? defaultLot(p);
-    // Broker numbers (imported) win over our own quotes; they're already in the account currency.
-    const price = lot.price ?? p.asset.price;
-    const value = lot.value ?? lot.qty * price;
-    const cost = lot.pl != null ? value - lot.pl : lot.qty * lot.avg;
+    const lv = live[p.asset.ticker];
+    const acct = lot.ccy ?? "USD", acctFx = usdOf(acct);
+    // Instrument currency: from the live quote; without one, an imported price is in an unknown currency.
+    const ccy = lv?.currency ?? (lot.price != null && acct !== "USD" ? "?" : "USD");
+    const insFx = ccy === "?" ? undefined : usdOf(ccy);
+    // Price in USD: live quote → broker value / shares (account ccy → USD) → our own quote.
+    const price = lv && insFx ? lv.price * insFx
+      : lot.value != null && acctFx && lot.qty ? (lot.value * acctFx) / lot.qty
+      : (lot.price ?? p.asset.price) * (insFx ?? 1);
+    const value = lot.qty * price;
+    // Cost in USD: broker figures (value − P&L, account ccy) when imported, else shares × avg price.
+    const cost = lot.pl != null && lot.value != null && acctFx ? (lot.value - lot.pl) * acctFx : lot.qty * lot.avg * (insFx ?? acctFx ?? 1);
     const pl = value - cost;
-    const today = value - value / (1 + p.asset.chg1d / 100);
-    return { p, i, etf, ter, lot, custom, price, cost, value, pl, plPct: cost ? (pl / cost) * 100 : 0, today };
+    const chg = tf === "1D" ? lv?.chg ?? rets?.[p.asset.ticker] ?? p.asset.chg1d : rets?.[p.asset.ticker] ?? null;
+    return { p, i, etf, ter, lot, custom, ccy, price, avgUsd: lot.qty ? cost / lot.qty : 0, cost, value, pl, plPct: cost ? (pl / cost) * 100 : 0, chg };
   });
-  const ccy = base.find((r) => r.lot.ccy)?.lot.ccy ?? "USD";
-  const M = (v: number) => money(v, ccy);
-  const SM = (v: number) => signMoney(v, ccy);
   const sum = (f: (r: (typeof base)[number]) => number) => base.reduce((a, r) => a + f(r), 0);
-  const mv = sum((r) => r.value), invested = sum((r) => r.cost), pl = mv - invested, today = sum((r) => r.today);
-  const rows = base.map((r) => ({ ...r, actualW: mv ? (r.value / mv) * 100 : 0 }));
+  const mv = sum((r) => r.value), invested = sum((r) => r.cost), pl = mv - invested;
+  const today = sum((r) => {
+    const c = live[r.p.asset.ticker]?.chg ?? r.p.asset.chg1d;
+    return r.value - r.value / (1 + c / 100);
+  });
+  const all = base.map((r) => ({ ...r, actualW: mv ? (r.value / mv) * 100 : 0 }));
   const blendedTer = mv ? sum((r) => r.value * r.ter) / mv : 0;
   const yearlyCost = (mv * blendedTer) / 100;
+  const missingFx = [...new Set(base.filter((r) => r.ccy !== "?" && fx[r.ccy] == null).map((r) => r.ccy))];
+
+  const needle = q.trim().toUpperCase();
+  const rows = all
+    .filter((r) => !needle || r.p.asset.ticker.includes(needle) || r.p.asset.name.toUpperCase().includes(needle))
+    .filter((r) => kind === "ALL" || (kind === "ETF" ? r.p.asset.kind === "etf" : kind === "STOCK" ? r.p.asset.kind === "stock" : kind === "UP" ? r.pl >= 0 : r.pl < 0))
+    .sort((a, b) => {
+      const v = (r: (typeof all)[number]): number | string =>
+        sort.k === "name" ? r.p.asset.ticker : sort.k === "qty" ? r.lot.qty : sort.k === "avg" ? r.avgUsd : sort.k === "price" ? r.price
+        : sort.k === "value" ? r.value : sort.k === "pl" ? r.pl : sort.k === "ret" ? r.chg ?? -Infinity : r.actualW;
+      const x = v(a), y = v(b);
+      return (typeof x === "string" ? x.localeCompare(y as string) : x - (y as number)) * sort.dir;
+    });
+  // First click = largest first (A→Z for names), second click flips.
+  const clickSort = (k: SortKey) => setSort((s) => (s.k === k ? { k, dir: s.dir === 1 ? -1 : 1 } : { k, dir: k === "name" ? 1 : -1 }));
 
   const stats: [string, string, string, string?][] = [
-    ["MARKET VALUE", M(mv), "text-zinc-50"],
-    ["INVESTED", M(invested), "text-zinc-200"],
-    ["UNREALIZED P/L", SM(pl), tone(pl), invested ? pct((pl / invested) * 100, 2) : ""],
-    ["TODAY", SM(today), tone(today), mv ? pct((today / (mv - today)) * 100, 2) : ""],
-    ["FEES / YEAR", M(yearlyCost), "text-zinc-200", `TER ${blendedTer.toFixed(3)}%`],
+    ["MARKET VALUE", money(mv), "text-zinc-50"],
+    ["INVESTED", money(invested), "text-zinc-200"],
+    ["UNREALIZED P/L", signMoney(pl), tone(pl), invested ? pct((pl / invested) * 100, 2) : ""],
+    ["TODAY", signMoney(today), tone(today), mv ? pct((today / (mv - today)) * 100, 2) : ""],
+    ["FEES / YEAR", money(yearlyCost), "text-zinc-200", `TER ${blendedTer.toFixed(3)}%`],
   ];
   const cols = "grid grid-cols-[minmax(130px,1.6fr)_repeat(7,minmax(64px,1fr))_16px] items-center gap-3";
+  const H = (k: SortKey, children: React.ReactNode) => {
+    const on = sort.k === k;
+    return (
+      <button key={k} type="button" onClick={() => clickSort(k)} title={on ? (sort.dir === -1 ? "Largest first — click to flip" : "Smallest first — click to flip") : "Sort"}
+        className={`flex items-center gap-1 tracking-[0.12em] transition-colors hover:text-white ${k === "name" ? "justify-start" : "justify-end"} ${on ? "text-zinc-100" : ""}`}>
+        {children}<span className={`text-[8px] ${on ? "text-emerald-400" : "text-zinc-700"}`}>{on ? (sort.dir === -1 ? "▼" : "▲") : "▾"}</span>
+      </button>
+    );
+  };
+  const chip = (on: boolean) => `rounded-sm border px-2 py-[3px] font-mono text-[10px] font-bold tracking-[0.08em] transition-colors ${on ? "border-emerald-400/50 bg-emerald-400/10 text-emerald-300" : "border-white/[0.08] text-zinc-500 hover:border-white/[0.16] hover:text-zinc-200"}`;
 
   return (
-    <div className={`${panel} flex h-full min-w-0 flex-col gap-4`}>
+    <div className={`${panel} flex h-full min-w-0 flex-col gap-3`}>
       <div className="flex items-center justify-between gap-2">
-        <span className={`${label} truncate text-zinc-300`}>[ OPEN POSITIONS · {positions.length} ]</span>
+        <span className={`${label} truncate text-zinc-300`}>[ OPEN POSITIONS ]</span>
         <CloseBtn onClick={onClose} title="Open positions" />
       </div>
 
@@ -209,17 +252,30 @@ export function OpenPositions({ positions, onClose }: { positions: Position[]; o
         ))}
       </div>
 
+      {/* Filters + timeframe */}
+      <div className="flex flex-wrap items-center gap-2">
+        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="SEARCH…" spellCheck={false}
+          className="h-7 w-[140px] rounded-sm border border-white/[0.08] bg-[#0a0a0c] px-2 font-mono text-[11px] text-zinc-100 outline-none placeholder:text-zinc-600 focus:border-white/[0.2]" />
+        {(["ALL", "ETF", "STOCK", "UP", "DOWN"] as KindFilter[]).map((k) => (
+          <button key={k} type="button" onClick={() => setKind(k)} className={chip(kind === k)}>{k === "UP" ? "IN PROFIT" : k === "DOWN" ? "AT LOSS" : k}</button>
+        ))}
+        <span className="ml-auto flex items-center gap-1">
+          <span className="mr-1 font-mono text-[9.5px] tracking-[0.12em] text-zinc-600">CHANGE</span>
+          {TABLE_TFS.map((t) => <button key={t} type="button" onClick={() => onTfChange(t)} className={chip(tf === t)}>{t}</button>)}
+        </span>
+      </div>
+
       <div className="min-w-0 overflow-x-auto">
         <div className="min-w-[860px]">
-          <div className={`${cols} px-4 pb-1.5 font-mono text-[9px] tracking-[0.12em] text-zinc-600`}>
-            <span>INSTRUMENT</span>
-            <span className="text-right">QTY</span>
-            <span className="text-right">AVG PRICE</span>
-            <span className="text-right">PRICE</span>
-            <span className="text-right">VALUE</span>
-            <span className="text-right">P/L</span>
-            <span className="text-right">1D</span>
-            <span className="text-right">WEIGHT</span>
+          <div className={`${cols} px-4 pb-1.5 font-mono text-[9px] text-zinc-600`}>
+            {H("name", "INSTRUMENT")}
+            {H("qty", "SHARES")}
+            {H("avg", "AVG BUY $")}
+            {H("price", "PRICE $")}
+            {H("value", "VALUE $")}
+            {H("pl", "P/L $")}
+            {H("ret", `${tf} %`)}
+            {H("weight", "WEIGHT")}
             <span />
           </div>
 
@@ -243,23 +299,21 @@ export function OpenPositions({ positions, onClose }: { positions: Position[]; o
                         <span className="flex items-center gap-2">
                           <span className="font-mono text-[14px] font-bold text-zinc-50">{p.asset.ticker}</span>
                           <span className="rounded-sm bg-white/[0.06] px-1.5 py-px font-mono text-[9px] font-bold tracking-[0.1em] text-zinc-400">{p.asset.kind === "etf" ? "ETF" : "STOCK"}</span>
+                          {r.ccy !== "USD" && r.ccy !== "?" && <span className="font-mono text-[9px] text-sky-400" title={`Trades in ${r.ccy}, converted to USD at today's rate`}>{r.ccy}→$</span>}
                         </span>
                         <span className="truncate text-[11px] text-zinc-500">{p.asset.name}</span>
                       </span>
                     </span>
                     <span className="text-right font-mono text-[12px] tabular-nums text-zinc-200">{qtyFmt(r.lot.qty)}</span>
-                    <span className="text-right font-mono text-[12px] tabular-nums text-zinc-400">{r.lot.avg.toFixed(2)}</span>
+                    <span className="text-right font-mono text-[12px] tabular-nums text-zinc-400">{r.avgUsd.toFixed(2)}</span>
                     <span className="text-right font-mono text-[12px] tabular-nums text-zinc-100">{r.price.toFixed(2)}</span>
-                    <span className="text-right font-mono text-[12px] tabular-nums text-zinc-100">{M(r.value)}</span>
+                    <span className="text-right font-mono text-[12px] tabular-nums text-zinc-100">{money(r.value)}</span>
                     <span className={`flex flex-col items-end font-mono tabular-nums ${tone(r.pl)}`}>
-                      <span className="text-[12px] font-semibold">{SM(r.pl)}</span>
+                      <span className="text-[12px] font-semibold">{signMoney(r.pl)}</span>
                       <span className="text-[10px]">{pct(r.plPct, 2)}</span>
                     </span>
-                    <span className={`text-right font-mono text-[12px] tabular-nums ${tone(p.asset.chg1d)}`}>{pct(p.asset.chg1d, 2)}</span>
-                    <span className="flex flex-col items-end font-mono tabular-nums">
-                      <span className="text-[12px] font-semibold text-zinc-100">{r.actualW.toFixed(1)}%</span>
-                      <span className="text-[10px] text-zinc-600">TGT {p.weight}%</span>
-                    </span>
+                    <span className={`text-right font-mono text-[12px] tabular-nums ${r.chg == null ? "text-zinc-600" : tone(r.chg)}`}>{r.chg == null ? "…" : pct(r.chg, 2)}</span>
+                    <span className="text-right font-mono text-[12px] font-semibold tabular-nums text-zinc-100">{r.actualW.toFixed(1)}%</span>
                     <motion.span animate={{ rotate: isOpen ? 90 : 0 }} className="text-center font-mono text-[11px] text-zinc-500">▶</motion.span>
                   </button>
 
@@ -272,11 +326,11 @@ export function OpenPositions({ positions, onClose }: { positions: Position[]; o
                         transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
                         className="border-t border-white/[0.06] bg-[#030303]"
                       >
-                        <LotEditor key={`${r.lot.qty}-${r.lot.avg}`} lot={r.lot} custom={r.custom} onSave={(l) => save(p.asset.ticker, l)} />
+                        <LotEditor key={`${r.lot.qty}-${r.lot.avg}`} lot={r.lot} custom={r.custom} ccy={r.ccy === "?" ? "BROKER CCY" : r.ccy} onSave={(l) => saveLot(p.asset.ticker, l)} />
 
                         <div className="grid grid-cols-2 gap-x-6 gap-y-1 border-t border-white/[0.06] px-4 py-3 font-mono text-[11px] sm:grid-cols-4">
                           {([
-                            ["COST BASIS", M(r.cost)],
+                            ["COST BASIS", money(r.cost)],
                             ["YTD", pct(p.asset.ytd)],
                             ["TER", etf ? terFmt(ter) : "—"],
                             ["AUM", etf ? fmtAum(etf.aum) : "—"],
@@ -319,9 +373,11 @@ export function OpenPositions({ positions, onClose }: { positions: Position[]; o
                 </div>
               );
             })}
+            {rows.length === 0 && <p className="m-0 px-4 py-3 font-mono text-[11px] text-zinc-600">No positions match this filter.</p>}
           </div>
         </div>
       </div>
+      {missingFx.length > 0 && <p className="m-0 font-mono text-[10px] text-amber-400">⚠ No live FX rate for {missingFx.join(", ")} — those values are not converted yet.</p>}
     </div>
   );
 }

@@ -2,7 +2,7 @@
 
 import { motion } from "framer-motion";
 import { useMemo } from "react";
-import { perfOf, type RangeTf } from "@/components/PortfolioPerformance";
+import { modelPerf, type PTf } from "@/lib/portfolio-live";
 import { SEG_COLORS } from "@/components/PortfolioDeepView";
 import { sectorExposure, type Position } from "@/lib/portfolio";
 
@@ -20,11 +20,15 @@ const pp = (v: number) => (v >= 0 ? "+" : "−") + Math.abs(v).toFixed(2);
 
 interface Row { key: string; from: number; to: number; delta: number; color?: string }
 
-function Bars({ title, rows }: { title: string; rows: Row[] }) {
+function Bars({ title, info, rows }: { title: string; info: string; rows: Row[] }) {
   const max = Math.max(...rows.map((r) => Math.abs(r.delta)), 0.01);
   return (
-    <div className="flex min-w-0 flex-col gap-2.5 rounded-sm border border-white/[0.06] bg-[#030303]/60 p-3.5">
-      <span className={`${label} text-zinc-300`}>{title}</span>
+    <div className="flex min-w-0 flex-col gap-2.5 rounded-sm border border-white/[0.06] bg-[#030303] p-3">
+      <span className={`${label} group/i relative flex items-center gap-1.5 text-zinc-300`}>
+        {title}
+        <span tabIndex={0} className="cursor-help rounded-full border border-white/[0.15] px-[5px] text-[8.5px] leading-[13px] text-zinc-500 outline-none hover:text-white focus:text-white">?</span>
+        <span className="pointer-events-none absolute left-0 top-5 z-20 hidden w-[300px] rounded-sm border border-white/[0.1] bg-[#0a0a0c] p-2.5 font-sans text-[11.5px] font-normal normal-case leading-snug tracking-normal text-zinc-300 group-focus-within/i:block group-hover/i:block">{info}</span>
+      </span>
       {/* Direction key, aligned with the bar track */}
       <div className="grid grid-cols-[minmax(0,92px)_minmax(0,1fr)_52px] gap-2 font-mono text-[9.5px] font-bold tracking-[0.14em]">
         <span />
@@ -61,9 +65,9 @@ function Bars({ title, rows }: { title: string; rows: Row[] }) {
   );
 }
 
-export default function PortfolioFlows({ positions, tf }: { positions: Position[]; tf: RangeTf }) {
+export default function PortfolioFlows({ positions, tf, rets }: { positions: Position[]; tf: PTf; rets?: Record<string, number> | null }) {
   const { posRows, secRows } = useMemo(() => {
-    const grown = positions.map((p) => p.weight * (1 + perfOf(p.asset).perf[tf] / 100));
+    const grown = positions.map((p) => p.weight * (1 + (rets?.[p.asset.ticker] ?? modelPerf(p.asset, tf)) / 100));
     const total = grown.reduce((a, v) => a + v, 0) || 1;
     const endPositions: Position[] = positions.map((p, i) => ({ asset: p.asset, weight: (grown[i] / total) * 100 }));
 
@@ -78,14 +82,16 @@ export default function PortfolioFlows({ positions, tf }: { positions: Position[
       .sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta))
       .slice(0, 8);
     return { posRows, secRows };
-  }, [positions, tf]);
+  }, [positions, tf, rets]);
 
   return (
     <div className="@container h-full min-w-0">
       {/* side by side once the pane is ≥ 32rem wide (works inside resizable panes, not just by viewport) */}
       <div className="grid h-full min-w-0 grid-cols-1 gap-2.5 @lg:grid-cols-2">
-        <Bars title="CAPITAL FLOW" rows={posRows} />
-        <Bars title="SECTOR SHIFT" rows={secRows} />
+        <Bars title={`CAPITAL FLOW · ${tf}`} rows={posRows}
+          info={`Not real money flows. Only prices: over ${tf} each position grew or shrank by its own return, so its share of the portfolio changed. Green = its weight went up (in percentage points), red = down. Same timeframe as the chart.`} />
+        <Bars title={`SECTOR SHIFT · ${tf}`} rows={secRows}
+          info={`The same weight drift, added up by sector. Sectors come from what each ETF holds inside (look-through) and from the stock's own sector. It shows which sectors grew in your portfolio because of price moves over ${tf}.`} />
       </div>
     </div>
   );
