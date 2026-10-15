@@ -3,11 +3,11 @@
 import Link from "next/link";
 import { AnimatePresence, LayoutGroup, motion, useReducedMotion, type Variants } from "framer-motion";
 import { useEffect, useMemo, useRef, useState } from "react";
-import PortfolioDeepView, { OpenPositions, SEG_COLORS, useLots } from "@/components/PortfolioDeepView";
+import { OpenPositions, SEG_COLORS, SectorOverlap, useLots } from "@/components/PortfolioDeepView";
+import { LookThroughFeed, PnlAttribution, RiskTelemetry, ToolSkeleton, riskStats } from "@/components/PortfolioTelemetry";
 import InfernoChart, { type ChartTf } from "@/components/InfernoChart";
 import CompositionMap from "@/components/deep-view/CompositionMap";
 import ChartsTab from "@/components/deep-view/ChartsTab";
-import EtfNewsPanel from "@/components/EtfNewsPanel";
 import { buildPortfolioFund, type PItem } from "@/lib/portfolio-fund";
 import { useHistory, useLiveQuotes, yahooOf, type PTf } from "@/lib/portfolio-live";
 import PortfolioPerformance, { type RangeTf } from "@/components/PortfolioPerformance";
@@ -171,7 +171,7 @@ export default function PortfolioPage() {
   const [perfTf, setPerfTf] = useState<RangeTf>("YTD");
   /** Deep view: chart (+ capital flow) timeframe and the positions-table timeframe */
   const [chartTf, setChartTf] = useState<ChartTf>("1Y");
-  const [pfTab, setPfTab] = useState<"OV" | "MAP" | "SEAS" | "NEWS">("OV");
+  const [pfTab, setPfTab] = useState<"OV" | "MAP" | "SEAS" | "NEWS" | "AN" | "TOOLS">("OV");
   const [tableTf, setTableTf] = useState<PTf>("1D");
   /** Second phase of the transition: the card grows a beat after the bottom cards start falling. */
   const [expanded, setExpanded] = useState(false);
@@ -215,6 +215,10 @@ export default function PortfolioPage() {
   /* The portfolio as one look-through "fund" for the Composition Map / Charts / News tabs */
   const pItems = useMemo<PItem[]>(() => parsed.positions.map(({ asset: a, weight }) => ({ ticker: a.ticker, name: a.name, weight, kind: a.kind, sector: a.sector, ytd: a.ytd, chg1d: a.chg1d })), [parsed.positions]);
   const pfFund = useMemo(() => buildPortfolioFund(pItems), [pItems]);
+  /* Risk telemetry (1Y path vs SPY) + today's attribution */
+  const riskHist = useHistory(isExpanded ? assets : [], symOf, "1Y");
+  const risk = useMemo(() => riskStats(riskHist.data?.series, Object.fromEntries(parsed.positions.map((p) => [p.asset.ticker, p.weight]))), [riskHist.data, parsed.positions]);
+  const attribRows = useMemo(() => parsed.positions.map((p) => ({ ticker: p.asset.ticker, name: p.asset.name, weight: p.weight, chg: live[p.asset.ticker]?.chg ?? p.asset.chg1d })), [parsed.positions, live]);
   const byWeight = useMemo(() => [...parsed.positions].sort((a, b) => b.weight - a.weight), [parsed.positions]);
   const chartMain = useMemo(() => ({ id: "PF", label: "MY PORTFOLIO", color: "#34d399", basket: parsed.positions.map((p) => ({ sym: symOf[p.asset.ticker] ?? p.asset.ticker, weight: p.weight })) }), [parsed.positions, symOf]);
   const chartPinned = useMemo(() => [
@@ -564,7 +568,7 @@ export default function PortfolioPage() {
                       className="grid grid-cols-2 gap-2 md:grid-cols-4"
                     >
                       {METRICS.map((m) => (
-                        <div key={m.k} className="min-w-[150px] rounded-sm border border-white/[0.06] bg-[#030303]/60 px-3 py-1.5">
+                        <div key={m.k} className="min-w-[150px] rounded-sm border border-white/[0.06] bg-[#030303] px-3 py-1.5">
                           <div className="font-mono text-[9px] font-semibold tracking-[0.14em] text-zinc-500">{m.k}</div>
                           <div className="flex items-baseline gap-1.5">
                             <span className={`font-mono text-[15px] font-semibold tabular-nums ${toneTxt(m.tone)}`}>{m.v}</span>
@@ -572,6 +576,8 @@ export default function PortfolioPage() {
                           </div>
                         </div>
                       ))}
+                      {/* Risk telemetry directly under the balance */}
+                      <div className="col-span-full"><RiskTelemetry stats={risk} model={riskHist.data?.model} /></div>
                     </motion.div>
                     <button type="button" onClick={() => setImporting(true)} className={ghostBtn} title="Adds the positions from a new XTB screenshot to this portfolio">[ + ADD FROM XTB ]</button>
                     <Link href="/portfolio/holdings" className={ghostBtn}>[ HOLDINGS → ]</Link>
@@ -597,7 +603,7 @@ export default function PortfolioPage() {
             {/* Deep view tabs — same as an ETF's deep view */}
             {isExpanded && (
               <nav className="-mt-1 flex flex-wrap gap-x-8 border-b border-white/[0.06]" onClick={(e) => e.stopPropagation()}>
-                {([["OV", "OVERVIEW"], ["MAP", "COMPOSITION MAP"], ["SEAS", "CHARTS"], ["NEWS", "NEWS"]] as const).map(([k, l]) => (
+                {([["OV", "OVERVIEW"], ["MAP", "COMPOSITION MAP"], ["SEAS", "CHARTS"], ["NEWS", "NEWS"], ["AN", "ANALYZE"], ["TOOLS", "TOOLS"]] as const).map(([k, l]) => (
                   <button key={k} type="button" onClick={() => setPfTab(k)}
                     className={`-mb-px whitespace-nowrap border-b-2 pb-2.5 pt-1 font-mono text-[13px] font-semibold uppercase tracking-[0.06em] ${pfTab === k ? "border-green-500 text-white" : "border-transparent text-gray-500 hover:text-gray-300"}`}>
                     [ {l} ]
@@ -607,10 +613,17 @@ export default function PortfolioPage() {
             )}
 
             {isExpanded && pfTab !== "OV" ? (
-              <div onClick={(e) => e.stopPropagation()} className="min-w-0">
-                {pfTab === "MAP" && <CompositionMap fund={pfFund} />}
+              <div onClick={(e) => e.stopPropagation()} className="flex min-w-0 flex-col gap-3">
+                {pfTab === "MAP" && <><SectorOverlap positions={parsed.positions} /><CompositionMap fund={pfFund} /></>}
                 {pfTab === "SEAS" && <ChartsTab fund={pfFund} />}
-                {pfTab === "NEWS" && <EtfNewsPanel ticker="PORTFOLIO" items={pItems} />}
+                {pfTab === "NEWS" && <LookThroughFeed items={pItems} />}
+                {pfTab === "AN" && (
+                  <section className="flex flex-col gap-2 border border-white/[0.05] bg-[#030303] p-3">
+                    <span className="font-mono text-[11px] font-bold tracking-[0.14em] text-zinc-200">[ CAPITAL FLOW &amp; SECTOR SHIFT ENGINE · {chartTf} ]</span>
+                    <PortfolioFlows positions={parsed.positions} tf={chartTf} rets={chartHist.rets} />
+                  </section>
+                )}
+                {pfTab === "TOOLS" && <ToolSkeleton title="PORTFOLIO TOOLS" lines={["REBALANCER · TARGET VS ACTUAL", "WHAT-IF · ADD / TRIM SIMULATOR", "TAX-LOT & FX IMPACT"]} />}
               </div>
             ) : isExpanded ? (
               /* Overview: chart ⇄ positions in resizable panes */
@@ -708,7 +721,7 @@ export default function PortfolioPage() {
             <AnimatePresence initial={false}>
               {isExpanded && pfTab === "OV" && (
                 <motion.div key="deep" layout="position" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, transition: { duration: 0.15 } }}>
-                  <PortfolioDeepView positions={parsed.positions} flows={<PortfolioFlows positions={parsed.positions} tf={chartTf} rets={chartHist.rets} />} />
+                  <PnlAttribution rows={attribRows} />
                 </motion.div>
               )}
             </AnimatePresence>

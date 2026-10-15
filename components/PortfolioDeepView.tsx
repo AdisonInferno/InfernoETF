@@ -39,7 +39,7 @@ function CloseBtn({ onClick, title }: { onClick?: () => void; title: string }) {
 
 /* ───────────────────── Sector overlap breakdown ───────────────────── */
 
-function SectorOverlap({ positions, onClose }: { positions: Position[]; onClose?: () => void }) {
+export function SectorOverlap({ positions, onClose }: { positions: Position[]; onClose?: () => void }) {
   const rows = useMemo(() => sectorExposure(positions).slice(0, 9), [positions]);
   const max = Math.max(...rows.map((r) => r.total), 1);
   const colorOf = (t: string) => SEG_COLORS[positions.findIndex((p) => p.asset.ticker === t) % SEG_COLORS.length];
