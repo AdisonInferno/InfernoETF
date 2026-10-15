@@ -1,13 +1,13 @@
 import type { Metadata } from "next";
-import MacroNexus from "@/components/MacroNexus";
+import EtfTools from "@/components/EtfTools";
 
-export const metadata: Metadata = { title: "ETF Tools · Correlation Network — INFERNO" };
+export const metadata: Metadata = { title: "ETF Tools — INFERNO" };
 
-/** ETF Tools — default view: cross-asset correlation network (Macro Nexus). */
+/** ETF Tools — sector split (master/detail) and the cross-asset correlation network. */
 export default function EtfToolsPage() {
   return (
     <div className="mx-auto flex w-full max-w-[3200px] flex-1 flex-col px-3 py-3">
-      <MacroNexus />
+      <EtfTools />
     </div>
   );
 }
