@@ -194,6 +194,16 @@ function Holdings({ fund, quotes }: { fund: FundData; quotes: Record<string, Quo
 }
 
 /* ── C · holdings news ─────────────────────────────────────── */
+const FILING_RE = /\b(8-K|10-K|10-Q|13F|13D|13G|S-1|S-3|DEF 14A|Form 4|SEC filing|files? with (the )?SEC|filing)\b/i;
+const isFiling = (n: News) => FILING_RE.test(n.headline) || /\bsec\b|edgar/i.test(n.source);
+/** Rule-of-thumb importance 1–3 (heuristic, not AI): hard catalysts = 3, company-specific news = 2, opinion/listicles = 1 */
+function newsWeight(n: News): 1 | 2 | 3 {
+  const h = n.headline;
+  if (/earnings|guidance|revenue|profit|plunge|soar|sinks|surge|acqui|merger|buyout|lawsuit|probe|ban|tariff|sanction|downgrade|upgrade|recall|ceo|layoff|8-K|bankrupt|record/i.test(h)) return 3;
+  if (/\?|vs\.?|should you|is it time|buy now|top \d|best \d|reasons|motley|trefis/i.test(h + " " + n.source)) return 1;
+  return 2;
+}
+const W_CLS = ["", "border-zinc-700 text-zinc-500", "border-amber-500/40 text-amber-300", "border-rose-500/50 bg-rose-500/10 text-rose-300"];
 function HoldingsNews({ tickers }: { tickers: string[] }) {
   const [open, setOpen] = useState(true);
   const [only, setOnly] = useState<string | null>(null);
@@ -227,16 +237,19 @@ function HoldingsNews({ tickers }: { tickers: string[] }) {
           </div>
           <div className="min-h-0 flex-1 overflow-y-auto">
             {list === null && [0, 1, 2, 3].map((i) => <div key={i} className="mx-3 my-1.5 h-8 animate-pulse rounded-sm bg-white/[0.03]" />)}
-            {list?.map((n) => (
-              <a key={n.id} href={n.url} target="_blank" rel="noreferrer" className="flex flex-col gap-0.5 border-b border-white/[0.03] px-3 py-1.5 hover:bg-white/[0.03]">
+            {list?.map((n) => { const w = newsWeight(n); const f = isFiling(n); return (
+              <a key={n.id} href={n.url} target="_blank" rel="noreferrer"
+                className={`flex flex-col gap-0.5 border-b px-3 py-1.5 ${f ? "border-cyan-400/30 bg-cyan-400/[0.07] shadow-[inset_3px_0_0_#22d3ee,0_0_14px_rgba(34,211,238,0.25)] hover:bg-cyan-400/[0.12]" : "border-white/[0.03] hover:bg-white/[0.03]"}`}>
                 <span className="flex items-center gap-2 text-[9.5px] tracking-[0.06em] text-zinc-600">
+                  <span title={`Importance ${w}/3 (heuristic)`} className={`flex-none rounded-sm border px-1 text-[9.5px] font-bold ${W_CLS[w]}`}>{"▮".repeat(w)}{"▯".repeat(3 - w)} {w}</span>
+                  {f && <span className="flex-none rounded-sm bg-cyan-400/20 px-1 text-[9.5px] font-bold text-cyan-300">FILING</span>}
                   <span className="text-zinc-500">{fmt(n.ts)}</span>
                   <span className="truncate">{n.source.toUpperCase()}</span>
                   <span className="ml-auto flex gap-1">{n.tickers.slice(0, 3).map((t) => <span key={t} className="font-bold text-zinc-300">{t}</span>)}</span>
                 </span>
-                <span className="line-clamp-2 font-sans text-[12px] leading-snug text-zinc-200">{n.headline}</span>
+                <span className={`line-clamp-2 font-sans text-[12px] leading-snug ${f ? "text-cyan-100" : "text-zinc-200"}`}>{n.headline}</span>
               </a>
-            ))}
+            ); })}
             {list?.length === 0 && <p className="m-0 px-3 py-3 text-[10.5px] text-zinc-600">No news on these holdings in the last 14 days.</p>}
           </div>
         </>
