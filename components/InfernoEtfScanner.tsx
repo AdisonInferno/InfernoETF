@@ -17,6 +17,8 @@ interface Etf {
   aum: number;
   /** 1-day change, in % */
   change1d: number;
+  /** Pre-computed performance for every scrubber timeframe, in % (the scrubber only switches the key) */
+  perf: Record<TfKey, number>;
   price: number;
   note: string;
 }
@@ -39,6 +41,30 @@ interface Rect {
   h: number;
 }
 
+/* ─────────────────────────── Timeframes ─────────────────────────── */
+
+const TFS = ["1Y", "6M", "3M", "1M", "2W", "1W", "1D"] as const;
+type TfKey = (typeof TFS)[number];
+/** Colour-scale stretch per timeframe (≈ √time): a ±1.5% day is as "loud" as a ±22% year. */
+const TF_SCALE: Record<TfKey, number> = { "1D": 1, "1W": 2.2, "2W": 3.1, "1M": 4.5, "3M": 7.5, "6M": 10.5, "1Y": 15 };
+const VOL_D = { Low: 0.8, Medium: 1.3, High: 2.2 } as const;
+
+/** Deterministic multi-timeframe path anchored on the real 1D and YTD figures (illustrative). */
+function perfFor(ticker: string, chg1d: number, ytd: number, vol: keyof typeof VOL_D, lev = 1): Record<TfKey, number> {
+  let h = 0;
+  for (const ch of ticker + "tf") h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  const n = () => ((h = (h * 1664525 + 1013904223) >>> 0) / 4294967296 - 0.5) * 2; // −1…1
+  const sd = VOL_D[vol] * lev;
+  const w1 = chg1d + n() * sd * 1.6;
+  const w2 = w1 + n() * sd * 1.9;
+  const m1 = w2 + n() * sd * 2.6 + ytd * 0.05;
+  const m3 = ytd * 0.3 + n() * sd * 3.5;
+  const m6 = ytd * 0.62 + n() * sd * 4.5;
+  const y1 = ytd * 1.18 + n() * sd * 5;
+  const r = (v: number) => Math.round(v * 100) / 100;
+  return { "1D": r(chg1d), "1W": r(w1), "2W": r(w2), "1M": r(m1), "3M": r(m3), "6M": r(m6), "1Y": r(y1) };
+}
+
 /* ───────────────────────────── Mock data ───────────────────────────── */
 
 /** Map sectors built from the full ETF database (lib/etfs). Order = default tile order. */
@@ -59,6 +85,7 @@ const KNOWN: Provider[] = ["BlackRock", "Vanguard", "State Street", "Invesco"];
 const toEtf = (e: EtfRow): Etf => ({
   ticker: e.ticker, name: e.name, provider: (KNOWN as string[]).includes(e.issuer) ? (e.issuer as Provider) : "Other",
   aum: e.aum, change1d: e.chg1d, price: QUOTE[e.ticker]?.[0] ?? 0, note: `${e.sector} · ${e.issuer}`,
+  perf: perfFor(e.ticker, e.chg1d, e.ytd, e.volatility, e.leverage === "1x" ? 1 : 2.5),
 });
 const SECTORS: Sector[] = MAP_SECTORS.map(({ title, test }) => ({
   title,
@@ -66,19 +93,22 @@ const SECTORS: Sector[] = MAP_SECTORS.map(({ title, test }) => ({
 })).filter((s) => s.etfs.length);
 const SHORT: Record<string, string> = Object.fromEntries(MAP_SECTORS.map((m) => [m.title, m.short]));
 
-const MACRO: MacroEtf[] = [
+const MACRO: MacroEtf[] = ([
   { ticker: "UUP", name: "Invesco DB US Dollar Index Fund", provider: "Invesco", tag: "US Dollar Index", aum: 1.9, change1d: 0.21, price: 29.4, note: "Dollar bid on relative US growth and policy-rate expectations." },
   { ticker: "GLD", name: "SPDR Gold Shares", provider: "State Street", tag: "Gold", aum: 72, change1d: 0.9, price: 243.7, note: "Gold edges up as real yields ease and central-bank buying persists." },
   { ticker: "SLV", name: "iShares Silver Trust", provider: "BlackRock", tag: "Silver", aum: 13, change1d: 1.74, price: 27.6, note: "Silver outpaces gold on industrial demand and solar-sector orders." },
   { ticker: "SPY", name: "SPDR S&P 500 ETF Trust", provider: "State Street", tag: "S&P 500", aum: 580, change1d: 0.42, price: 584.2, note: "Broad tape firm as megacap earnings revisions lift index EPS estimates." },
-];
+] as Omit<MacroEtf, "perf">[]).map((m) => {
+  const row = ETFS.find((e) => e.ticker === m.ticker);
+  return { ...m, perf: perfFor(m.ticker, m.change1d, row?.ytd ?? 0, row?.volatility ?? "Low") };
+});
 
 const PROVIDERS: Provider[] = ["BlackRock", "Vanguard", "State Street", "Invesco", "Other"];
 
 /* ───────────────────────────── Helpers ─────────────────────────────── */
 
 const SECTOR_GAP = 8; // half-gutter between sector cards
-const HEADER_H = 28; // sector card title bar
+const HEADER_H = 34; // sector card title bar
 const MONO = "font-mono";
 
 const fmtPct = (c: number) =>
@@ -133,14 +163,14 @@ function layoutTreemap<T extends { wt: number }>(
 }
 
 /** Deterministic pseudo-random sparkline seeded by ticker. */
-function sparkline(etf: Etf) {
+function sparkline(etf: Etf, tf: TfKey) {
   let h = 0;
   for (const ch of etf.ticker) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
   const rnd = () => {
     h = (h * 1664525 + 1013904223) >>> 0;
     return h / 4294967296;
   };
-  const up = etf.change1d >= 0;
+  const up = etf.perf[tf] >= 0;
   const n = 32;
   const pts: number[] = [];
   let v = 0;
@@ -183,6 +213,51 @@ const ToggleButton: React.FC<{ active: boolean; onClick: () => void; children: R
 
 /* ───────────────────────────── Component ───────────────────────────── */
 
+/** Timeframe scrubber: click, or press and drag across it — every segment crossed switches the map instantly. */
+function TimeframeScrubber({ value, onChange }: { value: TfKey; onChange: (t: TfKey) => void }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [scrubbing, setScrubbing] = useState(false);
+  const at = (clientX: number) => {
+    const r = ref.current!.getBoundingClientRect();
+    const i = Math.max(0, Math.min(TFS.length - 1, Math.floor(((clientX - r.left) / r.width) * TFS.length)));
+    if (TFS[i] !== value) onChange(TFS[i]);
+  };
+  const idx = TFS.indexOf(value);
+  return (
+    <div className={`${MONO} flex flex-none items-center gap-3 px-1`}>
+      <span className="text-[9.5px] tracking-[0.16em] text-zinc-600">PERF</span>
+      <div
+        ref={ref}
+        role="slider"
+        tabIndex={0}
+        aria-label="Performance timeframe"
+        aria-valuemin={0}
+        aria-valuemax={TFS.length - 1}
+        aria-valuenow={idx}
+        aria-valuetext={value}
+        onPointerDown={(e) => { e.currentTarget.setPointerCapture(e.pointerId); setScrubbing(true); at(e.clientX); }}
+        onPointerMove={(e) => { if (scrubbing) at(e.clientX); }}
+        onPointerUp={() => setScrubbing(false)}
+        onPointerCancel={() => setScrubbing(false)}
+        onKeyDown={(e) => {
+          if (e.key === "ArrowLeft") onChange(TFS[Math.max(0, idx - 1)]);
+          if (e.key === "ArrowRight") onChange(TFS[Math.min(TFS.length - 1, idx + 1)]);
+        }}
+        className={`relative grid flex-1 touch-none select-none grid-cols-7 rounded-sm border border-white/[0.05] bg-[#0a0a0c] outline-none focus-visible:border-white/[0.2] ${scrubbing ? "cursor-grabbing" : "cursor-ew-resize"}`}
+      >
+        {/* playhead */}
+        <span className="pointer-events-none absolute inset-y-0 bg-white/[0.1] transition-[left] duration-75" style={{ left: `${(idx / TFS.length) * 100}%`, width: `${100 / TFS.length}%` }} />
+        {TFS.map((t, i) => (
+          <span key={t} className={`relative flex h-7 items-center justify-center text-[11px] font-bold tracking-[0.12em] ${i ? "border-l border-white/[0.05]" : ""} ${t === value ? "text-white" : "text-zinc-600"}`}>
+            {t}
+          </span>
+        ))}
+      </div>
+      <span className="w-[86px] text-right text-[9.5px] tracking-[0.1em] text-zinc-600">{scrubbing ? "SCRUBBING…" : "DRAG TO SCRUB"}</span>
+    </div>
+  );
+}
+
 export default function InfernoEtfScanner() {
   const router = useRouter();
   const [equalWeight, setEqualWeight] = useState(true);
@@ -194,6 +269,8 @@ export default function InfernoEtfScanner() {
   const mapRef = useRef<HTMLDivElement>(null);
   /** Zoom / compare: empty = whole market. Click = zoom into one sector, right-click = add/remove (compare). */
   const [focus, setFocus] = useState<string[]>([]);
+  /** Scrubber: the ONLY thing it changes — all timeframes are already inside every Etf.perf */
+  const [tf, setTf] = useState<TfKey>("1D");
   const zoom = (t: string) => setFocus((f) => (f.length === 1 && f[0] === t ? [] : [t]));
   const compare = (t: string) => setFocus((f) => (f.includes(t) ? f.filter((x) => x !== t) : [...f, t]));
 
@@ -216,11 +293,11 @@ export default function InfernoEtfScanner() {
 
   const { sectors, count } = useMemo(() => {
     const cmp =
-      sort === "aum" ? (a: Etf, b: Etf) => b.aum - a.aum : (a: Etf, b: Etf) => b.change1d - a.change1d;
+      sort === "aum" ? (a: Etf, b: Etf) => b.aum - a.aum : (a: Etf, b: Etf) => b.perf[tf] - a.perf[tf];
 
     const groups = SECTORS.filter((g) => !focus.length || focus.includes(g.title)).map(({ title, etfs }) => {
       const rows = etfs.filter((e) => !disabled[e.provider]).sort(cmp);
-      const avg = rows.length ? rows.reduce((s, e) => s + e.change1d, 0) / rows.length : 0;
+      const avg = rows.length ? rows.reduce((s, e) => s + e.perf[tf], 0) / rows.length : 0;
       return {
         title,
         rows,
@@ -243,7 +320,7 @@ export default function InfernoEtfScanner() {
     });
 
     return { sectors: laid, count: groups.reduce((n, g) => n + g.rows.length, 0) };
-  }, [sort, disabled, size, weightOf, focus]);
+  }, [sort, disabled, size, weightOf, focus, tf]);
 
   const providerCounts = useMemo(() => {
     const all = SECTORS.flatMap((s) => s.etfs);
@@ -259,8 +336,8 @@ export default function InfernoEtfScanner() {
 
   const vw = typeof window !== "undefined" ? window.innerWidth : 1400;
   const vh = typeof window !== "undefined" ? window.innerHeight : 900;
-  const spark = tip ? sparkline(tip.etf) : null;
-  const tipColor = tip ? trendColor(tip.etf.change1d) : "#34D399";
+  const spark = tip ? sparkline(tip.etf, tf) : null;
+  const tipColor = tip ? trendColor(tip.etf.perf[tf]) : "#34D399";
 
   return (
     <div className="absolute inset-0 grid grid-cols-[260px_minmax(0,1fr)] grid-rows-[minmax(0,1fr)] gap-4 overflow-hidden bg-[#030303] p-4 font-sans text-[#E5E5E5]">
@@ -324,12 +401,12 @@ export default function InfernoEtfScanner() {
         </div>
 
         <div className="flex flex-col gap-2.5">
-          <SectionLabel>COLOR SCALE</SectionLabel>
+          <SectionLabel>COLOR SCALE · {tf}</SectionLabel>
           <div className="h-2 rounded-sm bg-[linear-gradient(90deg,#b91c1c_0_16%,#991b1b_16%_32%,#7f1d1d_32%_44%,#27272a_44%_56%,#064e3b_56%_68%,#065f46_68%_84%,#047857_84%)]" />
           <div className={`${MONO} flex justify-between text-[11px] text-[#71717A]`}>
-            <span>−3%</span>
+            <span>−{(1.5 * TF_SCALE[tf]).toFixed(1).replace(/\.0$/, "")}%</span>
             <span>0%</span>
-            <span>+3%</span>
+            <span>+{(1.5 * TF_SCALE[tf]).toFixed(1).replace(/\.0$/, "")}%</span>
           </div>
         </div>
       </aside>
@@ -357,6 +434,8 @@ export default function InfernoEtfScanner() {
           <span className="ml-auto text-[10px] tracking-[0.08em] text-zinc-600">{focus.length > 1 ? `COMPARE · ${focus.length} SECTORS` : "RIGHT-CLICK = COMPARE"} · {count} ETF</span>
         </nav>
 
+        <TimeframeScrubber value={tf} onChange={setTf} />
+
         {/* Treemap */}
         <div ref={mapRef} className="relative min-h-[420px] flex-auto overflow-hidden bg-[#030303]">
           {sectors.map((s) => (
@@ -368,12 +447,12 @@ export default function InfernoEtfScanner() {
               className={`absolute box-border overflow-hidden rounded-sm border bg-[#0a0a0c] ${focus.includes(s.title) ? "border-red-500/40" : "border-white/[0.06]"}`}
               style={{ left: s.x, top: s.y, width: s.w, height: s.h, zIndex: hoverSector === s.title ? 5 : 1 }}
             >
-              <div className="absolute inset-x-0 top-0 flex h-7 items-center justify-between gap-2 overflow-hidden px-3.5">
+              <div className="absolute inset-x-0 top-0 flex h-[34px] items-center justify-between gap-2 overflow-hidden px-3.5">
                 <button type="button" onClick={() => zoom(s.title)} title="Click: zoom · Right-click: compare"
-                  className="min-w-0 truncate text-left text-[10.5px] font-semibold tracking-[0.12em] text-[#A1A1AA] hover:text-white">
+                  className={`${MONO} min-w-0 truncate text-left text-[13px] font-bold tracking-[0.1em] text-zinc-200 hover:text-white`}>
                   {s.title}{focus.length === 1 && focus[0] === s.title ? "  ← ALL" : ""}
                 </button>
-                <span className={`${MONO} flex-none text-[10px] font-semibold`} style={{ color: trendColor(s.avg) }}>
+                <span className={`${MONO} flex-none text-[12px] font-bold`} style={{ color: trendColor(s.avg) }}>
                   {fmtPct(s.avg)}
                 </span>
               </div>
@@ -386,7 +465,7 @@ export default function InfernoEtfScanner() {
                     key={etf.ticker}
                     {...hoverHandlers(etf)}
                     className="absolute box-border flex cursor-pointer flex-col items-center justify-center gap-0.5 overflow-hidden rounded-[1px] border-b border-r border-[#030303] transition-[filter] duration-150 hover:z-20 hover:brightness-125"
-                    style={{ left: x, top: y, width: w, height: h, background: tileBg(etf.change1d) }}
+                    style={{ left: x, top: y, width: w, height: h, background: tileBg(etf.perf[tf] / TF_SCALE[tf]) }}
                   >
                     <span
                       className={`${MONO} font-bold text-white`}
@@ -399,7 +478,7 @@ export default function InfernoEtfScanner() {
                         className={`${MONO} font-semibold text-white/85`}
                         style={{ fontSize: Math.max(9, Math.min(13, Math.round(m / 6))) }}
                       >
-                        {fmtPct(etf.change1d)}
+                        {fmtPct(etf.perf[tf])}
                       </span>
                     )}
                   </div>
@@ -417,7 +496,7 @@ export default function InfernoEtfScanner() {
         <div className="mt-1 box-border w-full flex-none rounded-sm border border-white/[0.06] bg-[#0a0a0c] p-2">
           <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
             {MACRO.map((m) => {
-              const up = m.change1d >= 0;
+              const up = m.perf[tf] >= 0;
               return (
                 <div
                   key={m.ticker}
@@ -433,7 +512,7 @@ export default function InfernoEtfScanner() {
                       up ? "bg-emerald-500/10 text-[#34D399]" : "bg-rose-500/10 text-[#FB7185]"
                     }`}
                   >
-                    {fmtPct(m.change1d)}
+                    {fmtPct(m.perf[tf])}
                   </span>
                 </div>
               );
@@ -466,13 +545,13 @@ export default function InfernoEtfScanner() {
           <div className={`${MONO} flex items-baseline justify-between`}>
             <span className="text-lg font-semibold text-[#FAFAFA]">${tip.etf.price.toFixed(2)}</span>
             <span className="text-[13px] font-bold" style={{ color: tipColor }}>
-              {fmtPct(tip.etf.change1d)} 1D
+              {fmtPct(tip.etf.perf[tf])} {tf}
             </span>
           </div>
           <div className="flex flex-col gap-1.5 border-t border-white/[0.06] pt-2.5">
             <span className={`${MONO} flex justify-between text-[10px] tracking-[0.1em] text-zinc-500`}>
               <span>[ CATALYST ]</span>
-              <span className={tip.etf.change1d >= 0 ? "text-emerald-400" : "text-rose-400"}>[ 1D: {tip.etf.change1d >= 0 ? "BULLISH" : "BEARISH"} ]</span>
+              <span className={tip.etf.perf[tf] >= 0 ? "text-emerald-400" : "text-rose-400"}>[ {tf}: {tip.etf.perf[tf] >= 0 ? "BULLISH" : "BEARISH"} ]</span>
             </span>
             <span className="text-xs leading-snug text-zinc-300">{tip.etf.note}</span>
             <span className={`${MONO} text-[9.5px] tracking-[0.08em] text-zinc-600`}>SRC: DESK NOTE · ILLUSTRATIVE</span>
