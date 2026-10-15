@@ -5,8 +5,8 @@ export const dynamic = "force-dynamic";
    Daily closes from Yahoo's public chart endpoint (no key). Cached 15 min per symbol+range. */
 const YAHOO = process.env.YAHOO_BASE_URL ?? "https://query1.finance.yahoo.com";
 /** range → bar interval */
-const RANGES: Record<string, string> = { "1d": "5m", "5d": "30m", "1mo": "1d", "3mo": "1d", ytd: "1d", "1y": "1d", "5y": "1wk", max: "1mo" };
-type S = { t: number[]; c: number[] };
+const RANGES: Record<string, string> = { "1d": "5m", "5d": "30m", "1mo": "1d", "3mo": "1d", ytd: "1d", "1y": "1d", "2y": "1d", "5y": "1wk", max: "1mo" };
+type S = { t: number[]; c: number[]; o?: number[]; h?: number[]; l?: number[] };
 const g = globalThis as typeof globalThis & { __infernoPx?: Map<string, { at: number; s: S | null }> };
 const cache = (g.__infernoPx ??= new Map());
 
@@ -22,9 +22,16 @@ async function series(sym: string, range: string): Promise<S | null> {
     if (r.ok) {
       const j = await r.json();
       const res = j?.chart?.result?.[0];
-      const t: number[] = res?.timestamp ?? [], c: (number | null)[] = res?.indicators?.quote?.[0]?.close ?? [];
-      const pts = t.map((ts, i) => [ts, c[i]] as const).filter((p): p is readonly [number, number] => typeof p[1] === "number");
-      if (pts.length > 1) s = { t: pts.map((p) => p[0]), c: pts.map((p) => +p[1].toFixed(4)) };
+      const q = res?.indicators?.quote?.[0] ?? {};
+      const t: number[] = res?.timestamp ?? [], c: (number | null)[] = q.close ?? [];
+      const o: (number | null)[] = q.open ?? [], hi: (number | null)[] = q.high ?? [], lo: (number | null)[] = q.low ?? [];
+      const idx = t.map((_, i) => i).filter((i) => typeof c[i] === "number");
+      if (idx.length > 1) {
+        const r4 = (v: number) => +v.toFixed(4);
+        const ohlc = idx.every((i) => typeof o[i] === "number" && typeof hi[i] === "number" && typeof lo[i] === "number");
+        s = { t: idx.map((i) => t[i]), c: idx.map((i) => r4(c[i]!)) };
+        if (ohlc) { s.o = idx.map((i) => r4(o[i]!)); s.h = idx.map((i) => r4(hi[i]!)); s.l = idx.map((i) => r4(lo[i]!)); }
+      }
     }
   } catch { /* offline / blocked → null */ }
   cache.set(k, { at: Date.now(), s });

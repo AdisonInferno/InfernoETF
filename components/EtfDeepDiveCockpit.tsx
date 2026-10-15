@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useRef, useState } from "react";
-import { ColorType, CrosshairMode, LineSeries, LineStyle, createChart, type IChartApi, type ISeriesApi, type UTCTimestamp } from "lightweight-charts";
+import { useEffect, useMemo, useState } from "react";
+import InfernoChart from "@/components/InfernoChart";
 import type { EtfRow } from "@/lib/etfs";
 import type { FundData } from "@/components/deep-view/types";
 import { QUOTE } from "@/lib/fund-profiles";
@@ -20,33 +20,13 @@ import { QUOTE } from "@/lib/fund-profiles";
    ───────────────────────────────────────────────────────────── */
 
 const MONO = "font-['JetBrains_Mono_Variable','JetBrains_Mono',ui-monospace,monospace]";
-const TF = [
-  ["1D", "1d"], ["1W", "5d"], ["1M", "1mo"], ["YTD", "ytd"], ["1Y", "1y"], ["5Y", "5y"], ["MAX", "max"],
-] as const;
-type Tf = (typeof TF)[number][1];
-const OVERLAYS = ["SPY", "QQQ", "ACWI"] as const;
-const OV_COLOR: Record<string, string> = { SPY: "#a1a1aa", QQQ: "#60a5fa", ACWI: "#c084fc" };
 const FAV_KEY = "inferno.favorites.v1";
 
-type Series = { t: number[]; c: number[] } | null;
 interface Quote { price: number; prevClose: number; chg: number; session: "PRE" | "REG" | "POST" | "CLOSED"; currency: string; exchange: string }
 interface News { id: string; ts: number; headline: string; url: string; source: string; tickers: string[] }
 
 const sgn = (v: number, d = 2) => `${v > 0 ? "+" : v < 0 ? "−" : ""}${Math.abs(v).toFixed(d)}%`;
 const tone = (v: number) => (v > 0 ? "text-emerald-400" : v < 0 ? "text-rose-400" : "text-zinc-400");
-
-/** Deterministic fallback path when live history is unavailable */
-function mockSeries(sym: string, tf: Tf, endTs: number): { t: number[]; c: number[] } {
-  const n = { "1d": 78, "5d": 65, "1mo": 22, ytd: 200, "1y": 252, "5y": 260, max: 240 }[tf];
-  const step = { "1d": 300, "5d": 1800, "1mo": 86400, ytd: 86400, "1y": 86400, "5y": 604800, max: 2629800 }[tf];
-  let h = 0;
-  for (const ch of sym + tf) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
-  const rnd = () => ((h = (h * 1664525 + 1013904223) >>> 0) / 4294967296);
-  let p = 100;
-  const t: number[] = [], c: number[] = [];
-  for (let i = 0; i < n; i++) { t.push(endTs - (n - 1 - i) * step); p *= 1 + (rnd() - 0.48) * 0.02; c.push(p); }
-  return { t, c };
-}
 
 function Widget({ title, right, className = "", children }: { title: string; right?: React.ReactNode; className?: string; children: React.ReactNode }) {
   return (
@@ -57,105 +37,6 @@ function Widget({ title, right, className = "", children }: { title: string; rig
       </header>
       <div className="min-h-0 flex-1">{children}</div>
     </section>
-  );
-}
-
-/* ── A · chart ─────────────────────────────────────────────── */
-function CompareChart({ ticker, tf, overlays }: { ticker: string; tf: Tf; overlays: string[] }) {
-  const boxRef = useRef<HTMLDivElement>(null);
-  const chartRef = useRef<IChartApi | null>(null);
-  const seriesRef = useRef<Map<string, ISeriesApi<"Line">>>(new Map());
-  const syms = useMemo(() => [ticker, ...overlays.filter((o) => o !== ticker)], [ticker, overlays]);
-  const [data, setData] = useState<{ key: string; series: Record<string, Series>; model: boolean } | null>(null);
-  const key = `${syms.join(",")}:${tf}`;
-
-  useEffect(() => {
-    let off = false;
-    fetch(`/api/prices?symbols=${syms.join(",")}&range=${tf}`)
-      .then((r) => r.json())
-      .then((j: { series: Record<string, Series> }) => {
-        if (off) return;
-        const end = Math.floor(Date.now() / 1000);
-        const model = !j.series?.[ticker];
-        const series = Object.fromEntries(syms.map((s) => [s, j.series?.[s] ?? mockSeries(s, tf, end)]));
-        setData({ key, series, model });
-      })
-      .catch(() => {
-        if (off) return;
-        const end = Math.floor(Date.now() / 1000);
-        setData({ key, series: Object.fromEntries(syms.map((s) => [s, mockSeries(s, tf, end)])), model: true });
-      });
-    return () => { off = true; };
-  }, [key, syms, tf, ticker]);
-
-  // chart instance
-  useEffect(() => {
-    const el = boxRef.current;
-    if (!el) return;
-    const chart = createChart(el, {
-      autoSize: true,
-      layout: { background: { type: ColorType.Solid, color: "#0a0a0c" }, textColor: "#71717a", fontFamily: "'JetBrains Mono Variable','JetBrains Mono',monospace", fontSize: 10, attributionLogo: false },
-      grid: { vertLines: { color: "rgba(255,255,255,0.025)" }, horzLines: { color: "rgba(255,255,255,0.035)" } },
-      rightPriceScale: { borderColor: "rgba(255,255,255,0.05)" },
-      timeScale: { borderColor: "rgba(255,255,255,0.05)", timeVisible: true, secondsVisible: false },
-      crosshair: { mode: CrosshairMode.Normal, vertLine: { color: "rgba(255,255,255,0.2)", style: LineStyle.Dashed, labelBackgroundColor: "#27272a" }, horzLine: { color: "rgba(255,255,255,0.2)", style: LineStyle.Dashed, labelBackgroundColor: "#27272a" } },
-      handleScroll: true, handleScale: true,
-      localization: { priceFormatter: (v: number) => `${v >= 0 ? "+" : ""}${v.toFixed(1)}%` },
-    });
-    chartRef.current = chart;
-    // refit when the widget is resized (e.g. [ EXPAND ])
-    const refit = () => requestAnimationFrame(() => chart.timeScale().fitContent());
-    chart.timeScale().subscribeSizeChange(refit);
-    const map = seriesRef.current;
-    return () => { chart.remove(); chartRef.current = null; map.clear(); };
-  }, []);
-
-  // series: % change from the first point, so ETF and overlays share one axis
-  useEffect(() => {
-    const chart = chartRef.current;
-    if (!chart || !data || data.key !== key) return;
-    const map = seriesRef.current;
-    for (const [s, ser] of map) if (!syms.includes(s)) { chart.removeSeries(ser); map.delete(s); }
-    for (const s of syms) {
-      const d = data.series[s];
-      if (!d || d.c.length < 2) continue;
-      let ser = map.get(s);
-      if (!ser) {
-        ser = chart.addSeries(LineSeries, s === ticker
-          ? { color: "#f87171", lineWidth: 2, priceLineVisible: false, lastValueVisible: true, title: s }
-          : { color: OV_COLOR[s] ?? "#a1a1aa", lineWidth: 1, lineStyle: LineStyle.Dashed, priceLineVisible: false, lastValueVisible: true, title: s });
-        map.set(s, ser);
-      }
-      const base = d.c[0];
-      const pts = new Map<number, number>();
-      d.t.forEach((t, i) => pts.set(t, ((d.c[i] - base) / base) * 100)); // de-dup timestamps
-      ser.setData([...pts].sort((a, b) => a[0] - b[0]).map(([t, v]) => ({ time: t as UTCTimestamp, value: v })));
-    }
-    chart.timeScale().fitContent();
-  }, [data, key, syms, ticker]);
-
-  const ret = (s: string) => {
-    const d = data?.series[s];
-    return d && d.c.length > 1 ? ((d.c[d.c.length - 1] - d.c[0]) / d.c[0]) * 100 : null;
-  };
-
-  return (
-    <div className="relative h-full w-full">
-      <div ref={boxRef} className="absolute inset-0" />
-      <div className={`${MONO} pointer-events-none absolute left-2 top-1.5 z-10 flex flex-wrap gap-x-3 text-[10.5px] tabular-nums`}>
-        {syms.map((s) => {
-          const r = ret(s);
-          return (
-            <span key={s} className="flex items-center gap-1.5">
-              <span className="h-0.5 w-3" style={{ background: s === ticker ? "#f87171" : OV_COLOR[s] ?? "#a1a1aa" }} />
-              <span className="text-zinc-300">{s}</span>
-              {r != null && <span className={tone(r)}>{sgn(r)}</span>}
-            </span>
-          );
-        })}
-        {data?.model && <span className="text-amber-400/80">MODEL DATA · LIVE PRICES UNAVAILABLE</span>}
-      </div>
-    </div>
   );
 }
 
@@ -260,8 +141,6 @@ function HoldingsNews({ tickers }: { tickers: string[] }) {
 
 /* ── Cockpit ───────────────────────────────────────────────── */
 export default function EtfDeepDiveCockpit({ etf, fund }: { etf: EtfRow; fund: FundData }) {
-  const [tf, setTf] = useState<Tf>("1y");
-  const [overlays, setOverlays] = useState<string[]>(["SPY"]);
   const [expanded, setExpanded] = useState(false);
   const [fav, setFav] = useState(false);
   const [quotes, setQuotes] = useState<{ key: string; q: Record<string, Quote | null> } | null>(null);
@@ -303,30 +182,16 @@ export default function EtfDeepDiveCockpit({ etf, fund }: { etf: EtfRow; fund: F
   const chg = self?.chg ?? etf.chg1d;
 
   const chartControls = (
-    <div className={`${MONO} flex items-center gap-2`}>
-      <div className="flex rounded-sm border border-white/[0.05] bg-[#030303] p-0.5">
-        {TF.map(([l, v]) => (
-          <button key={v} type="button" onClick={() => setTf(v)} aria-pressed={tf === v}
-            className={`h-6 rounded-sm px-1.5 text-[10px] font-bold transition-all duration-75 ${tf === v ? "bg-white/[0.09] text-white" : "text-zinc-500 hover:text-zinc-100"}`}>{l}</button>
-        ))}
-      </div>
-      <div className="flex items-center gap-1">
-        <span className="text-[9px] tracking-[0.12em] text-zinc-600">VS</span>
-        {OVERLAYS.filter((o) => o !== etf.ticker).map((o) => {
-          const on = overlays.includes(o);
-          return (
-            <button key={o} type="button" onClick={() => setOverlays((l) => (on ? l.filter((x) => x !== o) : [...l, o]))} aria-pressed={on}
-              className={`h-6 rounded-sm border px-1.5 text-[10px] font-bold transition-all duration-75 ${on ? "border-white/[0.2] bg-white/[0.06]" : "border-transparent text-zinc-600 hover:text-zinc-200"}`}
-              style={on ? { color: OV_COLOR[o] } : undefined}>{o}</button>
-          );
-        })}
-      </div>
-      <button type="button" onClick={() => setExpanded((e) => !e)}
-        className="h-6 rounded-sm border border-white/[0.08] px-2 text-[10px] font-bold tracking-[0.1em] text-zinc-400 transition-all duration-75 hover:border-white/[0.2] hover:text-white">
-        [ {expanded ? "COLLAPSE" : "EXPAND"} ]
-      </button>
-    </div>
+    <button type="button" onClick={() => setExpanded((e) => !e)}
+      className={`${MONO} h-6 rounded-sm border border-white/[0.08] px-2 text-[10px] font-bold tracking-[0.1em] text-zinc-400 transition-all duration-75 hover:border-white/[0.2] hover:text-white`}>
+      [ {expanded ? "COLLAPSE" : "EXPAND"} ]
+    </button>
   );
+  const chartPinned = [
+    { id: "SPY", label: "S&P 500", sym: "SPY", color: "#a1a1aa", dashed: true },
+    ...fund.holdings.slice(0, 5).map((h, i) => ({ id: `top:${h.tic}`, label: h.tic, sym: h.tic, color: ["#60a5fa", "#f59e0b", "#f472b6", "#22d3ee", "#a3e635"][i] })),
+  ].filter((l) => l.sym !== etf.ticker);
+  const chartPicker = fund.holdings.map((h) => ({ sym: h.tic, label: h.tic, sub: `${h.w.toFixed(2)}% · ${h.name}` }));
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-2">
@@ -352,7 +217,7 @@ export default function EtfDeepDiveCockpit({ etf, fund }: { etf: EtfRow; fund: F
       <div className="grid min-h-0 flex-1 grid-cols-12 grid-rows-[minmax(0,1fr)_minmax(0,1fr)_72px] gap-2 max-xl:grid-rows-[420px_300px_300px_72px]">
         <Widget title={`${etf.ticker} · PERFORMANCE`} right={chartControls}
           className={expanded ? "fixed inset-3 z-[90] shadow-none" : "col-span-8 row-span-2 max-xl:col-span-12 max-xl:row-span-1"}>
-          <CompareChart ticker={etf.ticker} tf={tf} overlays={overlays} />
+          <div className="h-full p-2"><InfernoChart key={etf.ticker} main={{ id: etf.ticker, label: etf.ticker, sym: etf.ticker, color: "#f87171" }} pinned={chartPinned} picker={chartPicker} /></div>
         </Widget>
         <Widget title="TOP 5 HOLDINGS · LIVE / PRE-MKT" className="col-span-4 max-xl:col-span-12">
           <Holdings fund={fund} quotes={q} />

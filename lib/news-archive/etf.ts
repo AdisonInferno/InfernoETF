@@ -8,6 +8,7 @@
  * Only quality="high" articles are used. */
 
 import { buildFund } from "@/components/deep-view/buildFund";
+import type { FundData } from "@/components/deep-view/types";
 import { queryArchive } from "./store";
 import { parentOf } from "./sectors";
 import type { CleanArticle } from "./quality";
@@ -38,6 +39,11 @@ const strip = (a: CleanArticle) => ({ id: a.id, ts: a.ts, headline: a.headline, 
 export async function etfNews(ticker: string, days = 30, limit = 40): Promise<EtfNews | null> {
   const fund = buildFund(ticker);
   if (!fund) return null;
+  return fundNews(fund, days, limit);
+}
+
+/** Same as etfNews, for any fund-shaped basket (e.g. the user's whole portfolio, look-through). */
+export async function fundNews(fund: FundData, days = 30, limit = 40): Promise<EtfNews> {
 
   const weight: Record<string, number> = {};
   for (const h of fund.holdings) { const t = h.tic === "GOOG" ? "GOOGL" : h.tic; weight[t] = (weight[t] ?? 0) + h.w; }

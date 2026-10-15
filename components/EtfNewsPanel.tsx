@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import type { PItem } from "@/lib/portfolio-fund";
 
 /* News for one ETF from the archive: COMPANY (its holdings) · SECTOR (its industries) · MACRO. */
 
@@ -30,20 +31,24 @@ const TAB_HINT: Record<Kind, string> = {
   macro: "Rates, inflation and broad-market news — affects every ETF.",
 };
 
-export default function EtfNewsPanel({ ticker }: { ticker: string }) {
+export default function EtfNewsPanel({ ticker, items: basket }: { ticker: string; /** whole-portfolio mode: positions instead of one ETF */ items?: PItem[] }) {
   const [days, setDays] = useState(30);
   const [tab, setTab] = useState<Kind>("company");
   const [state, setState] = useState<{ key: string; data: Data | null; error?: string }>({ key: "", data: null });
-  const key = `${ticker}:${days}`;
+  const itemsKey = basket ? JSON.stringify(basket.map((i) => [i.ticker, i.weight])) : "";
+  const key = `${ticker}:${days}:${itemsKey}`;
 
   useEffect(() => {
     let cancelled = false;
-    fetch(`/api/news-archive/etf/${encodeURIComponent(ticker)}?days=${days}`, { cache: "no-store" })
+    (basket
+      ? fetch(`/api/news-archive/portfolio?days=${days}`, { method: "POST", cache: "no-store", headers: { "content-type": "application/json" }, body: JSON.stringify({ items: basket }) })
+      : fetch(`/api/news-archive/etf/${encodeURIComponent(ticker)}?days=${days}`, { cache: "no-store" }))
       .then(async (r) => (r.ok ? r.json() : Promise.reject(new Error((await r.json().catch(() => ({}))).error ?? r.statusText))))
       .then((d: Data) => { if (!cancelled) setState({ key, data: d }); })
       .catch((e: Error) => { if (!cancelled) setState({ key, data: null, error: e.message }); });
     return () => { cancelled = true; };
-  }, [ticker, days, key]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `key` captures ticker, days and items
+  }, [key]);
 
   const loading = state.key !== key;
   const d = loading ? null : state.data;

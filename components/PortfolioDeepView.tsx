@@ -106,7 +106,9 @@ export function useLots() {
       saveLots(next);
       return next;
     });
-  return { lots, save };
+  /** replace every lot (after an import) */
+  const setAll = (next: Record<string, Lot>) => { saveLots(next); setLots(next); };
+  return { lots, save, setAll };
 }
 
 /** Inline editor for quantity + average price (XTB-style "open position"), in the instrument's own currency. */
@@ -269,13 +271,13 @@ export function OpenPositions({ positions, lots, saveLot, live, fx, tf, onTfChan
         <div className="min-w-[860px]">
           <div className={`${cols} px-4 pb-1.5 font-mono text-[9px] text-zinc-600`}>
             {H("name", "INSTRUMENT")}
-            {H("qty", "SHARES")}
-            {H("avg", "AVG BUY $")}
-            {H("price", "PRICE $")}
             {H("value", "VALUE $")}
             {H("pl", "P/L $")}
             {H("ret", `${tf} %`)}
             {H("weight", "WEIGHT")}
+            {H("qty", "SHARES")}
+            {H("price", "PRICE NOW $")}
+            {H("avg", "AVG BUY $")}
             <span />
           </div>
 
@@ -304,16 +306,16 @@ export function OpenPositions({ positions, lots, saveLot, live, fx, tf, onTfChan
                         <span className="truncate text-[11px] text-zinc-500">{p.asset.name}</span>
                       </span>
                     </span>
-                    <span className="text-right font-mono text-[12px] tabular-nums text-zinc-200">{qtyFmt(r.lot.qty)}</span>
-                    <span className="text-right font-mono text-[12px] tabular-nums text-zinc-400">{r.avgUsd.toFixed(2)}</span>
-                    <span className="text-right font-mono text-[12px] tabular-nums text-zinc-100">{r.price.toFixed(2)}</span>
-                    <span className="text-right font-mono text-[12px] tabular-nums text-zinc-100">{money(r.value)}</span>
+                    <span className="text-right font-mono text-[12.5px] font-semibold tabular-nums text-zinc-50">{money(r.value)}</span>
                     <span className={`flex flex-col items-end font-mono tabular-nums ${tone(r.pl)}`}>
                       <span className="text-[12px] font-semibold">{signMoney(r.pl)}</span>
                       <span className="text-[10px]">{pct(r.plPct, 2)}</span>
                     </span>
                     <span className={`text-right font-mono text-[12px] tabular-nums ${r.chg == null ? "text-zinc-600" : tone(r.chg)}`}>{r.chg == null ? "…" : pct(r.chg, 2)}</span>
                     <span className="text-right font-mono text-[12px] font-semibold tabular-nums text-zinc-100">{r.actualW.toFixed(1)}%</span>
+                    <span className="text-right font-mono text-[12px] tabular-nums text-zinc-400">{qtyFmt(r.lot.qty)}</span>
+                    <span className="text-right font-mono text-[12px] tabular-nums text-zinc-300">{r.price.toFixed(2)}</span>
+                    <span className="text-right font-mono text-[12px] tabular-nums text-zinc-500">{r.avgUsd.toFixed(2)}</span>
                     <motion.span animate={{ rotate: isOpen ? 90 : 0 }} className="text-center font-mono text-[11px] text-zinc-500">▶</motion.span>
                   </button>
 

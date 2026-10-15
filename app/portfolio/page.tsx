@@ -4,7 +4,11 @@ import Link from "next/link";
 import { AnimatePresence, LayoutGroup, motion, useReducedMotion, type Variants } from "framer-motion";
 import { useEffect, useMemo, useRef, useState } from "react";
 import PortfolioDeepView, { OpenPositions, SEG_COLORS, useLots } from "@/components/PortfolioDeepView";
-import PortfolioChart from "@/components/PortfolioChart";
+import InfernoChart, { type ChartTf } from "@/components/InfernoChart";
+import CompositionMap from "@/components/deep-view/CompositionMap";
+import ChartsTab from "@/components/deep-view/ChartsTab";
+import EtfNewsPanel from "@/components/EtfNewsPanel";
+import { buildPortfolioFund, type PItem } from "@/lib/portfolio-fund";
 import { useHistory, useLiveQuotes, yahooOf, type PTf } from "@/lib/portfolio-live";
 import PortfolioPerformance, { type RangeTf } from "@/components/PortfolioPerformance";
 import PortfolioFlows from "@/components/PortfolioFlows";
@@ -17,7 +21,6 @@ import {
   loadPortfolio,
   parsePortfolio,
   saveCustomAssets,
-  saveLots,
   savePortfolio,
   scenarioLoss,
   type Position,
@@ -167,7 +170,8 @@ export default function PortfolioPage() {
   /** Timeframe shared by the performance chart and the capital-flow bars. */
   const [perfTf, setPerfTf] = useState<RangeTf>("YTD");
   /** Deep view: chart (+ capital flow) timeframe and the positions-table timeframe */
-  const [chartTf, setChartTf] = useState<PTf>("1Y");
+  const [chartTf, setChartTf] = useState<ChartTf>("1Y");
+  const [pfTab, setPfTab] = useState<"OV" | "MAP" | "SEAS" | "NEWS">("OV");
   const [tableTf, setTableTf] = useState<PTf>("1D");
   /** Second phase of the transition: the card grows a beat after the bottom cards start falling. */
   const [expanded, setExpanded] = useState(false);
@@ -200,7 +204,7 @@ export default function PortfolioPage() {
   const preset = BUILD_PRESETS.find((b) => b.id === presetId)!;
 
   /* Live quotes (→ USD) and price history for the deep view */
-  const { lots, save: saveLot } = useLots();
+  const { lots, save: saveLot, setAll: setAllLots } = useLots();
   const posItems = useMemo(() => parsed.positions.map((p) => ({ ticker: p.asset.ticker, lot: lots[p.asset.ticker] })), [parsed.positions, lots]);
   const accountCcy = Object.values(lots).find((l) => l.ccy)?.ccy;
   const { live, fx } = useLiveQuotes(posItems, accountCcy);
@@ -208,6 +212,16 @@ export default function PortfolioPage() {
   const assets = useMemo(() => parsed.positions.map((p) => p.asset), [parsed.positions]);
   const chartHist = useHistory(isExpanded ? assets : [], symOf, chartTf);
   const tableHist = useHistory(isExpanded ? assets : [], symOf, tableTf);
+  /* The portfolio as one look-through "fund" for the Composition Map / Charts / News tabs */
+  const pItems = useMemo<PItem[]>(() => parsed.positions.map(({ asset: a, weight }) => ({ ticker: a.ticker, name: a.name, weight, kind: a.kind, sector: a.sector, ytd: a.ytd, chg1d: a.chg1d })), [parsed.positions]);
+  const pfFund = useMemo(() => buildPortfolioFund(pItems), [pItems]);
+  const byWeight = useMemo(() => [...parsed.positions].sort((a, b) => b.weight - a.weight), [parsed.positions]);
+  const chartMain = useMemo(() => ({ id: "PF", label: "MY PORTFOLIO", color: "#34d399", basket: parsed.positions.map((p) => ({ sym: symOf[p.asset.ticker] ?? p.asset.ticker, weight: p.weight })) }), [parsed.positions, symOf]);
+  const chartPinned = useMemo(() => [
+    { id: "SPY", label: "S&P 500", sym: "SPY", color: "#a1a1aa", dashed: true },
+    ...byWeight.slice(0, 5).map((p, i) => ({ id: `top:${p.asset.ticker}`, label: p.asset.ticker, sym: symOf[p.asset.ticker] ?? p.asset.ticker, color: ["#60a5fa", "#f59e0b", "#f472b6", "#22d3ee", "#a3e635"][i] })),
+  ], [byWeight, symOf]);
+  const chartPicker = useMemo(() => byWeight.map((p) => ({ sym: symOf[p.asset.ticker] ?? p.asset.ticker, label: p.asset.ticker, sub: `${p.weight}% · ${p.asset.name}` })), [byWeight, symOf]);
 
   /* Headline money metrics for the model account. */
   const todayPct = parsed.positions.reduce((a, p) => a + (p.weight / 100) * p.asset.chg1d, 0);
@@ -287,13 +301,31 @@ export default function PortfolioPage() {
   /** XTB screenshot → positions, lots (qty / avg price / broker P&L) and any instruments outside our database. */
   const importXtb = (r: ImportResult) => {
     saveCustomAssets(r.customs);
-    saveLots(r.lots);
-    savePortfolio(r.prompt);
-    setPrompt(r.prompt);
-    setSaved({ prompt: r.prompt, createdAt: new Date().toISOString() });
+    let prompt = r.prompt, nextLots = r.lots;
+    if (saved) {
+      // A portfolio already exists → ADD the imported positions (same ticker = replaced by the new screenshot),
+      // then re-weight everything by market value.
+      const old = parsePortfolio(saved.prompt).positions.filter((p) => !(p.asset.ticker in r.lots));
+      const newVals = Object.entries(r.lots).map(([t, l]) => [t, l.value ?? l.qty * (l.price ?? l.avg)] as const);
+      const newTotal = newVals.reduce((a, [, v]) => a + v, 0);
+      const known = old.filter((p) => lots[p.asset.ticker]?.value != null);
+      const perPct = known.length
+        ? known.reduce((a, p) => a + lots[p.asset.ticker].value!, 0) / known.reduce((a, p) => a + p.weight, 0)
+        : newTotal / 100; // no values for the old positions → assume the old portfolio was as large as the import
+      const vals: (readonly [string, number])[] = [...old.map((p) => [p.asset.ticker, lots[p.asset.ticker]?.value ?? p.weight * perPct] as const), ...newVals];
+      const total = vals.reduce((a, [, v]) => a + v, 0) || 1;
+      const w = vals.map(([, v]) => +((v / total) * 100).toFixed(2));
+      w[w.length - 1] = +(100 - w.slice(0, -1).reduce((a, x) => a + x, 0)).toFixed(2);
+      prompt = `${vals.map(([t]) => t).join(" ")} ${w.join("/")}`;
+      nextLots = { ...lots, ...r.lots };
+    }
+    setAllLots(nextLots);
+    savePortfolio(prompt);
+    setPrompt(prompt);
+    setSaved({ prompt, createdAt: saved?.createdAt ?? new Date().toISOString() });
     setImporting(false);
     setEditing(false);
-    goDeep(); // straight into the deep view of the imported portfolio
+    goDeep(); // straight into the deep view of the portfolio
   };
 
   const resetPortfolio = () => {
@@ -541,12 +573,12 @@ export default function PortfolioPage() {
                         </div>
                       ))}
                     </motion.div>
-                    <button type="button" onClick={() => setImporting(true)} className={ghostBtn}>[ IMPORT XTB ]</button>
+                    <button type="button" onClick={() => setImporting(true)} className={ghostBtn} title="Adds the positions from a new XTB screenshot to this portfolio">[ + ADD FROM XTB ]</button>
                     <Link href="/portfolio/holdings" className={ghostBtn}>[ HOLDINGS → ]</Link>
                   </>
                 ) : (
                   <>
-                    <button type="button" onClick={() => setImporting(true)} className={ghostBtn}>[ IMPORT XTB ]</button>
+                    <button type="button" onClick={() => setImporting(true)} className={ghostBtn} title="Adds the positions from a new XTB screenshot to this portfolio">[ + ADD FROM XTB ]</button>
                     <button type="button" onClick={() => setEditing(true)} className={ghostBtn}>[ EDIT ]</button>
                     <button type="button" onClick={goDeep} className="rounded-sm bg-red-500 px-3 py-1.5 font-mono text-[11px] font-bold tracking-[0.08em] text-white transition-colors hover:bg-red-400">
                       [ DEEP VIEW → ]
@@ -556,19 +588,44 @@ export default function PortfolioPage() {
               </div>
             </motion.div>
 
-            <motion.div layout="position">
-              <AllocationBar positions={parsed.positions} />
-            </motion.div>
+            {!isDeep && (
+              <motion.div layout="position">
+                <AllocationBar positions={parsed.positions} />
+              </motion.div>
+            )}
 
-            {/* Deep view: chart ⇄ flows in resizable panes (gutter + corner grips, Windows-snap style) */}
-            {isExpanded ? (
+            {/* Deep view tabs — same as an ETF's deep view */}
+            {isExpanded && (
+              <nav className="-mt-1 flex flex-wrap gap-x-8 border-b border-white/[0.06]" onClick={(e) => e.stopPropagation()}>
+                {([["OV", "OVERVIEW"], ["MAP", "COMPOSITION MAP"], ["SEAS", "CHARTS"], ["NEWS", "NEWS"]] as const).map(([k, l]) => (
+                  <button key={k} type="button" onClick={() => setPfTab(k)}
+                    className={`-mb-px whitespace-nowrap border-b-2 pb-2.5 pt-1 font-mono text-[13px] font-semibold uppercase tracking-[0.06em] ${pfTab === k ? "border-green-500 text-white" : "border-transparent text-gray-500 hover:text-gray-300"}`}>
+                    [ {l} ]
+                  </button>
+                ))}
+              </nav>
+            )}
+
+            {isExpanded && pfTab !== "OV" ? (
+              <div onClick={(e) => e.stopPropagation()} className="min-w-0">
+                {pfTab === "MAP" && <CompositionMap fund={pfFund} />}
+                {pfTab === "SEAS" && <ChartsTab fund={pfFund} />}
+                {pfTab === "NEWS" && <EtfNewsPanel ticker="PORTFOLIO" items={pItems} />}
+              </div>
+            ) : isExpanded ? (
+              /* Overview: chart ⇄ positions in resizable panes */
               <motion.div layout="position" onClick={(e) => e.stopPropagation()}>
                 <ResizableSplit
                   storageKey="inferno.portfolio.deep.top.v2"
                   minPx={[420, 880]}
                   initial={0.42}
                   height={{ initial: 520, min: 360, max: 1100 }}
-                  left={() => <PortfolioChart positions={parsed.positions} data={chartHist.data} tf={chartTf} onTfChange={setChartTf} />}
+                  left={() => (
+                    <div className="flex h-full min-h-[420px] flex-col gap-2 rounded-sm border border-white/[0.06] bg-[#030303] p-3">
+                      <span className="font-mono text-[10px] font-semibold tracking-[0.14em] text-zinc-300">PERFORMANCE</span>
+                      <InfernoChart main={chartMain} pinned={chartPinned} picker={chartPicker} tf={chartTf} onTfChange={setChartTf} />
+                    </div>
+                  )}
                   right={(h) => (
                     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1, transition: { delay: 0.2 } }} className={h ? "h-full overflow-y-auto" : ""}>
                       <OpenPositions positions={parsed.positions} lots={lots} saveLot={saveLot} live={live} fx={fx} tf={tableTf} onTfChange={setTableTf} rets={tableHist.rets} />
@@ -649,7 +706,7 @@ export default function PortfolioPage() {
             )}
 
             <AnimatePresence initial={false}>
-              {isExpanded && (
+              {isExpanded && pfTab === "OV" && (
                 <motion.div key="deep" layout="position" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, transition: { duration: 0.15 } }}>
                   <PortfolioDeepView positions={parsed.positions} flows={<PortfolioFlows positions={parsed.positions} tf={chartTf} rets={chartHist.rets} />} />
                 </motion.div>
