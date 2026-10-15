@@ -332,8 +332,11 @@ export default function PortfolioPage() {
     goDeep(); // straight into the deep view of the portfolio
   };
 
+  const [confirmDel, setConfirmDel] = useState(false);
   const resetPortfolio = () => {
     clearPortfolio();
+    setAllLots({});
+    setConfirmDel(false);
     setSaved(null);
     setEditing(false);
     setView("overview");
@@ -580,11 +583,27 @@ export default function PortfolioPage() {
                       <div className="col-span-full"><RiskTelemetry stats={risk} model={riskHist.data?.model} /></div>
                     </motion.div>
                     <button type="button" onClick={() => setImporting(true)} className={ghostBtn} title="Adds the positions from a new XTB screenshot to this portfolio">[ + ADD FROM XTB ]</button>
+                    {confirmDel ? (
+                      <span className="flex items-center gap-1">
+                        <button type="button" onClick={resetPortfolio} className="rounded-sm border border-rose-500/60 bg-rose-500/15 px-3 py-1.5 font-mono text-[11px] font-bold tracking-[0.08em] text-rose-300 hover:bg-rose-500/25">[ YES, DELETE ALL ]</button>
+                        <button type="button" onClick={() => setConfirmDel(false)} className={ghostBtn}>[ CANCEL ]</button>
+                      </span>
+                    ) : (
+                      <button type="button" onClick={() => setConfirmDel(true)} title="Delete the whole portfolio and start again" className="rounded-sm border border-rose-500/25 px-3 py-1.5 font-mono text-[11px] font-bold tracking-[0.08em] text-rose-400/80 transition-colors hover:bg-rose-500/10 hover:text-rose-300">[ DELETE PORTFOLIO ]</button>
+                    )}
                     <Link href="/portfolio/holdings" className={ghostBtn}>[ HOLDINGS → ]</Link>
                   </>
                 ) : (
                   <>
                     <button type="button" onClick={() => setImporting(true)} className={ghostBtn} title="Adds the positions from a new XTB screenshot to this portfolio">[ + ADD FROM XTB ]</button>
+                    {confirmDel ? (
+                      <span className="flex items-center gap-1">
+                        <button type="button" onClick={resetPortfolio} className="rounded-sm border border-rose-500/60 bg-rose-500/15 px-3 py-1.5 font-mono text-[11px] font-bold tracking-[0.08em] text-rose-300 hover:bg-rose-500/25">[ YES, DELETE ALL ]</button>
+                        <button type="button" onClick={() => setConfirmDel(false)} className={ghostBtn}>[ CANCEL ]</button>
+                      </span>
+                    ) : (
+                      <button type="button" onClick={() => setConfirmDel(true)} title="Delete the whole portfolio and start again" className="rounded-sm border border-rose-500/25 px-3 py-1.5 font-mono text-[11px] font-bold tracking-[0.08em] text-rose-400/80 transition-colors hover:bg-rose-500/10 hover:text-rose-300">[ DELETE PORTFOLIO ]</button>
+                    )}
                     <button type="button" onClick={() => setEditing(true)} className={ghostBtn}>[ EDIT ]</button>
                     <button type="button" onClick={goDeep} className="rounded-sm bg-red-500 px-3 py-1.5 font-mono text-[11px] font-bold tracking-[0.08em] text-white transition-colors hover:bg-red-400">
                       [ DEEP VIEW → ]

@@ -249,8 +249,14 @@ export function savePortfolio(prompt: string) {
   }
 }
 
+/** Removes the portfolio AND everything imported with it (lots / broker prices, custom instruments). */
 export function clearPortfolio() {
-  try { window.localStorage.removeItem(STORAGE_KEY); } catch { /* ignore */ }
+  try {
+    window.localStorage.removeItem(STORAGE_KEY);
+    window.localStorage.removeItem(LOTS_KEY);
+    window.localStorage.removeItem(CUSTOM_KEY);
+  } catch { /* ignore */ }
+  customCache = null;
 }
 
 /* ── Deep View analytics (illustrative placeholders) ── */
