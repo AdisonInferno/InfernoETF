@@ -98,8 +98,8 @@ export async function POST(req: Request) {
   const data = Buffer.from(await file.arrayBuffer()).toString("base64");
   const ai = new GoogleGenAI({ apiKey });
 
-  let quota = 0, maxRetry = 0, last = "";
-  for (const model of FALLBACKS) {
+  let quota = 0, maxRetry = 0, busy = 0, last = "";
+  for (const model of FALLBACKS) for (let attempt = 0; attempt < 2; attempt++) {
     try {
       const res = await ai.models.generateContent({
         model,
@@ -111,10 +111,19 @@ export async function POST(req: Request) {
     } catch (err) {
       const e = errInfo(err);
       last = e.msg;
-      if (e.code === 429) { quota++; maxRetry = Math.max(maxRetry, e.retry); continue; } // daily limit of this model → next one
-      if (e.code === 404 || e.code === 400 && /model/i.test(e.msg)) continue; // model not available for this key
+      if (e.code === 429) { quota++; maxRetry = Math.max(maxRetry, e.retry); break; } // daily limit of this model → next one
+      if (e.code === 404 || e.code === 400 && /model/i.test(e.msg)) break; // model not available for this key
+      // overloaded / temporary server error → wait a moment, retry once, then try the next model
+      if (e.code === 503 || e.code === 500 || e.code === 504 || /UNAVAILABLE|overloaded|high demand/i.test(e.msg)) {
+        busy++;
+        if (attempt === 0) await new Promise((r) => setTimeout(r, 2500));
+        continue;
+      }
       return Response.json({ error: `Błąd modelu (${model}): ${e.msg.slice(0, 300)}` }, { status: 502 });
     }
+  }
+  if (busy && !quota) {
+    return Response.json({ error: "Serwery Gemini są teraz przeciążone (próbowałem kilku modeli). To chwilowe — spróbuj ponownie za 1–2 minuty." }, { status: 503 });
   }
   if (quota) {
     const h = maxRetry ? Math.ceil(maxRetry / 3600) : null;
