@@ -10,7 +10,6 @@ import CompositionMap from "@/components/deep-view/CompositionMap";
 import ChartsTab from "@/components/deep-view/ChartsTab";
 import { buildPortfolioFund, type PItem } from "@/lib/portfolio-fund";
 import { useHistory, useLiveQuotes, yahooOf, type PTf } from "@/lib/portfolio-live";
-import PortfolioPerformance, { type RangeTf } from "@/components/PortfolioPerformance";
 import PortfolioFlows from "@/components/PortfolioFlows";
 import ResizableSplit from "@/components/ResizableSplit";
 import XtbImport, { type ImportResult } from "@/components/XtbImport";
@@ -167,8 +166,6 @@ export default function PortfolioPage() {
   const [editing, setEditing] = useState(false);
   const [importing, setImporting] = useState(false);
   const [view, setView] = useState<View>("overview");
-  /** Timeframe shared by the performance chart and the capital-flow bars. */
-  const [perfTf, setPerfTf] = useState<RangeTf>("YTD");
   /** Deep view: chart (+ capital flow) timeframe and the positions-table timeframe */
   const [chartTf, setChartTf] = useState<ChartTf>("1Y");
   const [pfTab, setPfTab] = useState<"OV" | "MAP" | "SEAS" | "NEWS" | "AN" | "TOOLS">("OV");
@@ -369,7 +366,7 @@ export default function PortfolioPage() {
       </div>
 
       {/* Preset picker */}
-      <div className="grid grid-cols-2 gap-2 xl:grid-cols-4">
+      <div className="grid grid-cols-2 gap-2">
         {BUILD_PRESETS.map((b) => {
           const on = b.id === presetId;
           const hot = b.id === "max";
@@ -528,6 +525,8 @@ export default function PortfolioPage() {
       </motion.nav>
 
       <LayoutGroup>
+        {/* Dashboard: portfolio 3/4 · builder + whales (insight) 1/4. Deep view: full width. */}
+        <div className={isDeep || !showMine ? "flex flex-col gap-3" : "grid grid-cols-1 items-start gap-3 xl:grid-cols-[minmax(0,3fr)_minmax(0,1fr)]"}>
         {!loaded ? (
           <section className={`${card} h-[300px] animate-pulse`} />
         ) : showMine ? (
@@ -669,7 +668,9 @@ export default function PortfolioPage() {
             /* Chart (left) · metrics + positions (right) — side by side on wide screens */
             <motion.div layout="position" className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1.45fr)_minmax(0,1fr)]">
               <div onClick={(e) => e.stopPropagation()} className="min-w-0">
-                <PortfolioPerformance positions={parsed.positions} chartHeight={isExpanded ? 200 : 128} tf={perfTf} onTfChange={setPerfTf} />
+                <div className="flex h-[390px] flex-col rounded-sm border border-white/[0.06] bg-[#030303] p-3">
+                  <InfernoChart main={chartMain} pinned={chartPinned} picker={chartPicker} tf={chartTf} onTfChange={setChartTf} />
+                </div>
               </div>
               <div className="flex min-w-0 flex-col gap-2.5">
                 {isExpanded ? (
@@ -818,7 +819,7 @@ export default function PortfolioPage() {
         )}
 
         {/* ── Bottom cards: tumble off-screen in deep view, spring back on return ── */}
-        <div className={`relative grid grid-cols-1 gap-3 lg:grid-cols-2 ${isDeep ? "" : "flex-1"}`}>
+        <div className={`relative grid grid-cols-1 gap-3 ${showMine ? "" : "lg:grid-cols-2"} ${isDeep ? "" : "flex-1"}`}>
           <AnimatePresence mode="popLayout" initial={false}>
             {!isDeep &&
               bottomCards.map((content, i) => (
@@ -837,6 +838,7 @@ export default function PortfolioPage() {
                 </motion.section>
               ))}
           </AnimatePresence>
+        </div>
         </div>
       </LayoutGroup>
     </div>

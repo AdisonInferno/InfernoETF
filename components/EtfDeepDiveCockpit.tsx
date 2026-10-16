@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import InfernoChart from "@/components/InfernoChart";
+import { toggleFavorite, useWatchlist } from "@/lib/watchlist";
 import type { EtfRow } from "@/lib/etfs";
 import type { FundData } from "@/components/deep-view/types";
 import { QUOTE } from "@/lib/fund-profiles";
@@ -20,7 +21,6 @@ import { QUOTE } from "@/lib/fund-profiles";
    ───────────────────────────────────────────────────────────── */
 
 const MONO = "font-['JetBrains_Mono_Variable','JetBrains_Mono',ui-monospace,monospace]";
-const FAV_KEY = "inferno.favorites.v1";
 
 interface Quote { price: number; prevClose: number; chg: number; session: "PRE" | "REG" | "POST" | "CLOSED"; currency: string; exchange: string }
 interface News { id: string; ts: number; headline: string; url: string; source: string; tickers: string[] }
@@ -142,25 +142,13 @@ function HoldingsNews({ tickers }: { tickers: string[] }) {
 /* ── Cockpit ───────────────────────────────────────────────── */
 export default function EtfDeepDiveCockpit({ etf, fund }: { etf: EtfRow; fund: FundData }) {
   const [expanded, setExpanded] = useState(false);
-  const [fav, setFav] = useState(false);
+  const watch = useWatchlist();
+  const fav = watch.favorites.includes(etf.ticker);
   const [quotes, setQuotes] = useState<{ key: string; q: Record<string, Quote | null> } | null>(null);
   const holdings = useMemo(() => fund.holdings.slice(0, 5).map((h) => h.tic), [fund]);
   const qKey = [etf.ticker, ...holdings].join(",");
 
-  useEffect(() => {
-    try {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- read per-browser favourites after mount
-      setFav((JSON.parse(window.localStorage.getItem(FAV_KEY) ?? "[]") as string[]).includes(etf.ticker));
-    } catch { /* ignore */ }
-  }, [etf.ticker]);
-  const toggleFav = () => {
-    try {
-      const cur = JSON.parse(window.localStorage.getItem(FAV_KEY) ?? "[]") as string[];
-      const next = cur.includes(etf.ticker) ? cur.filter((t) => t !== etf.ticker) : [etf.ticker, ...cur];
-      window.localStorage.setItem(FAV_KEY, JSON.stringify(next));
-      setFav(next.includes(etf.ticker));
-    } catch { setFav((f) => !f); }
-  };
+  const toggleFav = () => toggleFavorite(etf.ticker);
 
   useEffect(() => {
     let off = false;

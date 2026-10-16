@@ -244,6 +244,7 @@ export function loadPortfolio(): SavedPortfolio | null {
 export function savePortfolio(prompt: string) {
   try {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify({ prompt, createdAt: new Date().toISOString() }));
+    window.dispatchEvent(new Event("inferno:watchlist")); // keep the watchlist's PORTFOLIO list in sync
   } catch {
     /* storage unavailable — portfolio lives only for this visit */
   }
@@ -255,6 +256,7 @@ export function clearPortfolio() {
     window.localStorage.removeItem(STORAGE_KEY);
     window.localStorage.removeItem(LOTS_KEY);
     window.localStorage.removeItem(CUSTOM_KEY);
+    window.dispatchEvent(new Event("inferno:watchlist"));
   } catch { /* ignore */ }
   customCache = null;
 }

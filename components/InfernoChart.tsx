@@ -82,41 +82,49 @@ function basketSeries(parts: { s: Raw; w: number }[]): Raw | null {
   return { t: grid, c: grid.map((t) => 100 * ok.reduce((a, p) => a + (p.w / W) * (at(p.s, t) / at(p.s, grid[0])), 0)) };
 }
 
-/** Vertical timeframe rail. `pos` = fractional thumb position (follows the chart's visible window). */
+/** Horizontal timeframe rail (under the chart, bottom-left). `pos` = fractional thumb position (follows the chart's visible window). */
 export function TfRail({ value, pos, onChange }: { value: ChartTf; pos?: number; onChange: (t: ChartTf) => void }) {
   const ref = useRef<HTMLDivElement>(null);
   const idx = CHART_TFS.indexOf(value);
   const p = Math.min(CHART_TFS.length - 1, Math.max(0, pos ?? idx));
-  const pick = (y: number) => {
+  const pick = (x: number) => {
     const r = ref.current?.getBoundingClientRect();
     if (!r) return;
-    onChange(CHART_TFS[Math.round(Math.min(1, Math.max(0, (y - r.top) / r.height)) * (CHART_TFS.length - 1))]);
+    onChange(CHART_TFS[Math.round(Math.min(1, Math.max(0, (x - r.left) / r.width)) * (CHART_TFS.length - 1))]);
   };
-  const pctTop = (i: number) => `${(i / (CHART_TFS.length - 1)) * 100}%`;
+  const pctLeft = (i: number) => `${(i / (CHART_TFS.length - 1)) * 100}%`;
   return (
-    <div role="slider" tabIndex={0} aria-label="Timeframe" aria-orientation="vertical" aria-valuemin={0} aria-valuemax={CHART_TFS.length - 1} aria-valuenow={idx} aria-valuetext={value}
+    <div role="slider" tabIndex={0} aria-label="Timeframe" aria-orientation="horizontal" aria-valuemin={0} aria-valuemax={CHART_TFS.length - 1} aria-valuenow={idx} aria-valuetext={value}
       onKeyDown={(e) => {
-        if (e.key === "ArrowDown" || e.key === "ArrowRight") { e.preventDefault(); onChange(CHART_TFS[Math.min(CHART_TFS.length - 1, idx + 1)]); }
-        if (e.key === "ArrowUp" || e.key === "ArrowLeft") { e.preventDefault(); onChange(CHART_TFS[Math.max(0, idx - 1)]); }
+        if (e.key === "ArrowRight" || e.key === "ArrowDown") { e.preventDefault(); onChange(CHART_TFS[Math.min(CHART_TFS.length - 1, idx + 1)]); }
+        if (e.key === "ArrowLeft" || e.key === "ArrowUp") { e.preventDefault(); onChange(CHART_TFS[Math.max(0, idx - 1)]); }
       }}
-      onPointerDown={(e) => { e.currentTarget.setPointerCapture(e.pointerId); pick(e.clientY); }}
-      onPointerMove={(e) => { if (e.currentTarget.hasPointerCapture(e.pointerId)) pick(e.clientY); }}
-      className="relative flex w-[50px] flex-none cursor-ns-resize touch-none select-none py-2 outline-none focus-visible:ring-1 focus-visible:ring-white/20">
-      <div ref={ref} className="relative w-full flex-1">
-        <span className="absolute bottom-0 left-[9px] top-0 w-px bg-white/[0.12]" />
-        <span className="absolute left-[9px] top-0 w-px bg-emerald-400/70" style={{ height: pctTop(p) }} />
+      onPointerDown={(e) => { e.currentTarget.setPointerCapture(e.pointerId); pick(e.clientX); }}
+      onPointerMove={(e) => { if (e.currentTarget.hasPointerCapture(e.pointerId)) pick(e.clientX); }}
+      className="relative flex h-[34px] w-[340px] max-w-full flex-none cursor-ew-resize touch-none select-none px-3 outline-none focus-visible:ring-1 focus-visible:ring-white/20">
+      <div ref={ref} className="relative h-full flex-1">
+        <span className="absolute left-0 right-0 top-[8px] h-px bg-white/[0.12]" />
+        <span className="absolute left-0 top-[8px] h-px bg-emerald-400/70" style={{ width: pctLeft(p) }} />
         {CHART_TFS.map((t, i) => (
-          <span key={t} className="absolute left-0 flex -translate-y-1/2 items-center gap-2" style={{ top: pctTop(i) }}>
-            <span className={`h-[7px] w-[19px] flex-none rounded-[1px] border ${i === idx ? "border-emerald-400/60" : "border-white/[0.18]"} bg-[#030303]`} />
-            <span className={`${MONO} text-[10.5px] font-bold tracking-[0.06em] ${i === idx ? "text-white" : "text-zinc-500"}`}>{t}</span>
+          <span key={t} className="absolute top-0 flex -translate-x-1/2 flex-col items-center gap-[5px]" style={{ left: pctLeft(i) }}>
+            <span className={`h-[17px] w-[7px] flex-none rounded-[1px] border ${i === idx ? "border-emerald-400/60" : "border-white/[0.18]"} bg-[#030303]`} />
+            <span className={`${MONO} -mt-[2px] text-[10px] font-bold leading-none tracking-[0.04em] ${i === idx ? "text-white" : "text-zinc-500"}`}>{t}</span>
           </span>
         ))}
         {/* thumb — moves continuously with the visible window */}
-        <span className="pointer-events-none absolute left-0 h-[9px] w-[19px] -translate-y-1/2 rounded-[1px] border border-emerald-300 bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,0.6)] transition-[top] duration-100" style={{ top: pctTop(p) }} />
+        <span className="pointer-events-none absolute top-0 h-[17px] w-[9px] -translate-x-1/2 rounded-[1px] border border-emerald-300 bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,0.6)] transition-[left] duration-100" style={{ left: pctLeft(p) }} />
       </div>
     </div>
   );
 }
+
+/** "#60a5fa" → "rgba(96,165,250,a)" — comparison lines are drawn muted so the main line dominates */
+const mute = (hex: string, a: number) => {
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex);
+  if (!m) return hex;
+  const n = parseInt(m[1], 16);
+  return `rgba(${n >> 16},${(n >> 8) & 255},${n & 255},${a})`;
+};
 
 export default function InfernoChart({ main, pinned = [], picker = [], tf: tfProp, onTfChange, initialTf = "1Y", className = "" }: {
   main: MainDef;
@@ -214,7 +222,7 @@ export default function InfernoChart({ main, pinned = [], picker = [], tf: tfPro
     if (!ms) {
       ms = kind === "BARS"
         ? chart.addSeries(BarSeries, { upColor: "#34d399", downColor: "#f87171", thinBars: false, priceLineVisible: false, lastValueVisible: true, title: main.label })
-        : chart.addSeries(LineSeries, { color: main.color, lineWidth: 2, priceLineVisible: false, lastValueVisible: true, title: main.label });
+        : chart.addSeries(LineSeries, { color: main.color, lineWidth: 3, priceLineVisible: false, lastValueVisible: true, title: main.label });
       map.set(mainKey, ms);
     }
     const r = mainRaw;
@@ -236,7 +244,7 @@ export default function InfernoChart({ main, pinned = [], picker = [], tf: tfPro
       want.add(k);
       let ls = map.get(k);
       if (!ls) {
-        ls = chart.addSeries(LineSeries, { color: l.color, lineWidth: 1, lineStyle: l.dashed ? LineStyle.Dashed : LineStyle.Solid, priceLineVisible: false, lastValueVisible: false, title: "" });
+        ls = chart.addSeries(LineSeries, { color: mute(l.color, l.dashed ? 0.55 : 0.45), lineWidth: 1, lineStyle: l.dashed ? LineStyle.Dashed : LineStyle.Solid, priceLineVisible: false, lastValueVisible: false, title: "" });
         map.set(k, ls);
       }
       ls.setData(dedupe(s.t, (i) => s.c[i]).map(([t, value]) => ({ time: t as UTCTimestamp, value })));
@@ -340,12 +348,12 @@ export default function InfernoChart({ main, pinned = [], picker = [], tf: tfPro
         </div>
       )}
 
-      <div className="flex min-h-[240px] flex-1 gap-2">
+      <div className="relative min-h-[240px] min-w-0 flex-1">
+        <div ref={box} className="absolute inset-0" />
+        {!ready && <div className="absolute inset-0 animate-pulse bg-white/[0.02]" />}
+      </div>
+      <div className="flex flex-none items-center">
         <TfRail value={tf} pos={pos} onChange={pick} />
-        <div className="relative min-w-0 flex-1">
-          <div ref={box} className="absolute inset-0" />
-          {!ready && <div className="absolute inset-0 animate-pulse bg-white/[0.02]" />}
-        </div>
       </div>
     </div>
   );

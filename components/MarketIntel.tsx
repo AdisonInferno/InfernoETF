@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import EventCalendar from "@/components/EventCalendar";
 import AwaitedEvents from "@/components/AwaitedEvents";
+import { LookThroughFeed } from "@/components/PortfolioTelemetry";
+import { useMyPortfolio } from "@/lib/my-portfolio";
 import NewsCharts, { proxiesFor } from "@/components/NewsCharts";
 
 /** [ CHART ▾ ] toggle used on every news card */
@@ -297,6 +299,10 @@ export default function MarketIntel() {
   const [openMacro, setOpenMacro] = useState<string | null>(null);
   const [region, setRegion] = useState<Region>("us");
   const [sector, setSector] = useState<SectorId>("tech");
+  /** third switch option: news for what YOU hold (look-through of the saved portfolio) */
+  const [mine, setMine] = useState(false);
+  const myPos = useMyPortfolio();
+  const myItems = useMemo(() => myPos.map(({ asset: a, weight }) => ({ ticker: a.ticker, name: a.name, weight, kind: a.kind, sector: a.sector, ytd: a.ytd, chg1d: a.chg1d })), [myPos]);
   const key = `${region}:${sector}`;
   const [state, setState] = useState<{ key: string; data: Data | null; error?: string }>({ key: "", data: null });
 
@@ -361,23 +367,34 @@ export default function MarketIntel() {
 
       {/* Sector switch */}
       <div className="flex items-center gap-3 border-y border-white/[0.06] py-2.5">
-        <span className={label}>SECTOR</span>
-        <div className="flex rounded-sm border border-white/[0.06] bg-[#0a0a0c] p-0.5" role="tablist" aria-label="Sector">
+        <div className="flex rounded-sm border border-white/[0.06] bg-[#0a0a0c] p-0.5" role="tablist" aria-label="News focus">
           {SECTORS.map(([id, l]) => (
-            <button key={id} type="button" role="tab" aria-selected={sector === id} onClick={() => setSector(id)}
-              className={`h-8 rounded-sm px-4 text-[11px] font-bold tracking-[0.16em] ${sector === id ? "bg-white/[0.08] text-white" : "text-zinc-500 hover:text-zinc-200"}`}>
+            <button key={id} type="button" role="tab" aria-selected={!mine && sector === id} onClick={() => { setSector(id); setMine(false); }}
+              className={`h-8 rounded-sm px-4 text-[11px] font-bold tracking-[0.16em] ${!mine && sector === id ? "bg-white/[0.08] text-white" : "text-zinc-500 hover:text-zinc-200"}`}>
               {l}
             </button>
           ))}
+          <button type="button" role="tab" aria-selected={mine} onClick={() => setMine(true)}
+            className={`h-8 rounded-sm px-4 text-[11px] font-bold tracking-[0.16em] ${mine ? "bg-emerald-500/[0.12] text-emerald-300" : "text-zinc-500 hover:text-zinc-200"}`}>
+            PORTFOLIO
+          </button>
         </div>
         <span className="ml-auto hidden text-[10px] tracking-[0.08em] text-zinc-600 md:inline">Commodities shown: this sector + market-wide · Macro: all sectors</span>
       </div>
 
       {/* Three pillars */}
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
+        {mine ? (
+          <div className="min-w-0 xl:col-span-2">
+            {myItems.length ? <LookThroughFeed items={myItems} /> : (
+              <p className={`${card} m-0 p-4 text-[11.5px] text-zinc-500`}>No portfolio yet — build or import one on the <Link href="/portfolio" className="text-zinc-200 underline">PORTFOLIO</Link> page.</p>
+            )}
+          </div>
+        ) : (<>
         <FilingsPanel key={`f-${key}`} filings={filings} error={loading ? undefined : d?.filings.error} loading={loading} picks={d?.picks?.filers ?? []} />
 
         <CommoditiesPanel key={`c-${key}`} items={d?.commodities.items ?? []} loading={loading} ready={!!d} picks={d?.picks?.commodities ?? []} />
+        </>)}
 
         <div className="flex min-w-0 flex-col gap-4">
         <section className={`${card} flex min-w-0 flex-col gap-3 p-4`}>
