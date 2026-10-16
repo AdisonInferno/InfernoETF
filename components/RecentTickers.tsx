@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { ETFS, fmtPct } from "@/lib/etfs";
-import { QUOTE } from "@/lib/fund-profiles";
+import { useLiveEtfs } from "@/lib/market-snapshot";
 
 /* Terminal history bar — the last 5 ETFs opened in Deep View (/etf/[ticker]), newest first.
    Stored per browser; until the user has history it shows a starter set. */
@@ -12,10 +12,10 @@ import { QUOTE } from "@/lib/fund-profiles";
 const KEY = "inferno.recent.v1";
 const STARTER = ["QQQ", "SMH", "ITA", "TLT", "XLE"];
 const MAX = 5;
-const BY = new Map(ETFS.map((e) => [e.ticker, e]));
+const KNOWN = new Set(ETFS.map((e) => e.ticker));
 
 function read(): string[] {
-  try { return (JSON.parse(window.localStorage.getItem(KEY) ?? "[]") as string[]).filter((t) => BY.has(t)); } catch { return []; }
+  try { return (JSON.parse(window.localStorage.getItem(KEY) ?? "[]") as string[]).filter((t) => KNOWN.has(t)); } catch { return []; }
 }
 
 export default function RecentTickers() {
@@ -28,7 +28,7 @@ export default function RecentTickers() {
     let cur = read();
     if (m) {
       const t = decodeURIComponent(m[1]).toUpperCase();
-      if (BY.has(t)) {
+      if (KNOWN.has(t)) {
         cur = [t, ...cur.filter((x) => x !== t)].slice(0, MAX);
         try { window.localStorage.setItem(KEY, JSON.stringify(cur)); } catch { /* ignore */ }
       }
@@ -38,11 +38,13 @@ export default function RecentTickers() {
     setList(next);
   }, [path]);
 
+  const { etfs, price } = useLiveEtfs();
+  const BY = new Map(etfs.map((e) => [e.ticker, e]));
   return (
     <nav aria-label="Recently viewed" className="grid w-full grid-cols-5 gap-2 font-mono">
         {list.map((t) => {
           const e = BY.get(t)!;
-          const px = QUOTE[t]?.[0];
+          const px = price[t];
           const active = path?.toUpperCase() === `/ETF/${t}`;
           return (
             <Link key={t} href={`/etf/${t}`}

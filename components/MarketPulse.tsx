@@ -112,8 +112,8 @@ function NewsRow({ n, onInsight }: { n: News; onInsight: (id: string, i: Insight
   );
 }
 
-export default function MarketPulse({ rows }: { rows: EtfRow[] }) {
-  const active = [...ETFS].map((e) => ({ e, v: estDollarVolM(e) })).sort((a, b) => b.v - a.v).slice(0, 5);
+export default function MarketPulse({ rows, all = ETFS }: { rows: EtfRow[]; /** every ETF (with live numbers) for MOST ACTIVE */ all?: EtfRow[] }) {
+  const active = [...all].map((e) => ({ e, v: estDollarVolM(e) })).sort((a, b) => b.v - a.v).slice(0, 5);
   const maxV = active[0]?.v ?? 1;
   const byMove = [...rows].sort((a, b) => b.chg1d - a.chg1d);
   const up = byMove.slice(0, 3).filter((e) => e.chg1d > 0);

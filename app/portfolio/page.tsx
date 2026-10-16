@@ -9,6 +9,7 @@ import InfernoChart, { type ChartTf } from "@/components/InfernoChart";
 import CompositionMap from "@/components/deep-view/CompositionMap";
 import ChartsTab from "@/components/deep-view/ChartsTab";
 import { buildPortfolioFund, type PItem } from "@/lib/portfolio-fund";
+import { useSnapshot } from "@/lib/market-snapshot";
 import { useHistory, useLiveQuotes, yahooOf, type PTf } from "@/lib/portfolio-live";
 import PortfolioFlows from "@/components/PortfolioFlows";
 import ResizableSplit from "@/components/ResizableSplit";
@@ -206,18 +207,24 @@ export default function PortfolioPage() {
   const accountCcy = Object.values(lots).find((l) => l.ccy)?.ccy;
   const { live, fx } = useLiveQuotes(posItems, accountCcy);
   const symOf = useMemo(() => Object.fromEntries(posItems.map((i) => [i.ticker, live[i.ticker]?.sym ?? yahooOf(i.ticker, i.lot?.sym)])), [posItems, live]);
-  const assets = useMemo(() => parsed.positions.map((p) => p.asset), [parsed.positions]);
+  /* Today's real 1D / YTD (Yahoo) on every position — the database values are only a fallback */
+  const snap = useSnapshot(useMemo(() => Object.values(symOf), [symOf]));
+  const livePos = useMemo(() => parsed.positions.map((p) => {
+    const s = snap[(symOf[p.asset.ticker] ?? p.asset.ticker).toUpperCase()];
+    return s ? { ...p, asset: { ...p.asset, chg1d: s.chg1d, ytd: s.ytd ?? p.asset.ytd, price: s.currency === "USD" ? s.price : p.asset.price } } : p;
+  }), [parsed.positions, snap, symOf]);
+  const assets = useMemo(() => livePos.map((p) => p.asset), [livePos]);
   const chartHist = useHistory(isExpanded ? assets : [], symOf, chartTf);
   const tableHist = useHistory(isExpanded ? assets : [], symOf, tableTf);
   /* The portfolio as one look-through "fund" for the Composition Map / Charts / News tabs */
-  const pItems = useMemo<PItem[]>(() => parsed.positions.map(({ asset: a, weight }) => ({ ticker: a.ticker, name: a.name, weight, kind: a.kind, sector: a.sector, ytd: a.ytd, chg1d: a.chg1d })), [parsed.positions]);
+  const pItems = useMemo<PItem[]>(() => livePos.map(({ asset: a, weight }) => ({ ticker: a.ticker, name: a.name, weight, kind: a.kind, sector: a.sector, ytd: a.ytd, chg1d: a.chg1d })), [livePos]);
   const pfFund = useMemo(() => buildPortfolioFund(pItems), [pItems]);
   /* Risk telemetry (1Y path vs SPY) + today's attribution */
   const riskHist = useHistory(isExpanded ? assets : [], symOf, "1Y");
-  const risk = useMemo(() => riskStats(riskHist.data?.series, Object.fromEntries(parsed.positions.map((p) => [p.asset.ticker, p.weight]))), [riskHist.data, parsed.positions]);
-  const attribRows = useMemo(() => parsed.positions.map((p) => ({ ticker: p.asset.ticker, name: p.asset.name, weight: p.weight, chg: live[p.asset.ticker]?.chg ?? p.asset.chg1d })), [parsed.positions, live]);
-  const byWeight = useMemo(() => [...parsed.positions].sort((a, b) => b.weight - a.weight), [parsed.positions]);
-  const chartMain = useMemo(() => ({ id: "PF", label: "MY PORTFOLIO", color: "#34d399", basket: parsed.positions.map((p) => ({ sym: symOf[p.asset.ticker] ?? p.asset.ticker, weight: p.weight })) }), [parsed.positions, symOf]);
+  const risk = useMemo(() => riskStats(riskHist.data?.series, Object.fromEntries(livePos.map((p) => [p.asset.ticker, p.weight]))), [riskHist.data, livePos]);
+  const attribRows = useMemo(() => livePos.map((p) => ({ ticker: p.asset.ticker, name: p.asset.name, weight: p.weight, chg: live[p.asset.ticker]?.chg ?? p.asset.chg1d })), [livePos, live]);
+  const byWeight = useMemo(() => [...livePos].sort((a, b) => b.weight - a.weight), [livePos]);
+  const chartMain = useMemo(() => ({ id: "PF", label: "MY PORTFOLIO", color: "#34d399", basket: livePos.map((p) => ({ sym: symOf[p.asset.ticker] ?? p.asset.ticker, weight: p.weight })) }), [livePos, symOf]);
   const chartPinned = useMemo(() => [
     { id: "SPY", label: "S&P 500", sym: "SPY", color: "#a1a1aa", dashed: true },
     ...byWeight.slice(0, 5).map((p, i) => ({ id: `top:${p.asset.ticker}`, label: p.asset.ticker, sym: symOf[p.asset.ticker] ?? p.asset.ticker, color: ["#60a5fa", "#f59e0b", "#f472b6", "#22d3ee", "#a3e635"][i] })),
@@ -225,9 +232,9 @@ export default function PortfolioPage() {
   const chartPicker = useMemo(() => byWeight.map((p) => ({ sym: symOf[p.asset.ticker] ?? p.asset.ticker, label: p.asset.ticker, sub: `${p.weight}% · ${p.asset.name}` })), [byWeight, symOf]);
 
   /* Headline money metrics for the model account. */
-  const todayPct = parsed.positions.reduce((a, p) => a + (p.weight / 100) * p.asset.chg1d, 0);
-  const ytdPct = parsed.positions.reduce((a, p) => a + (p.weight / 100) * p.asset.ytd, 0);
-  const allTimePct = parsed.positions.reduce((a, p) => a + (p.weight / 100) * allTimeOf(p.asset.ytd), 0);
+  const todayPct = livePos.reduce((a, p) => a + (p.weight / 100) * p.asset.chg1d, 0);
+  const ytdPct = livePos.reduce((a, p) => a + (p.weight / 100) * p.asset.ytd, 0);
+  const allTimePct = livePos.reduce((a, p) => a + (p.weight / 100) * allTimeOf(p.asset.ytd), 0);
   const todayUsd = (MODEL_BALANCE * todayPct) / 100;
 
   const METRICS = [
@@ -366,7 +373,7 @@ export default function PortfolioPage() {
       </div>
 
       {/* Preset picker */}
-      <div className="grid grid-cols-2 gap-2">
+      <div className="grid grid-cols-2 gap-2 xl:grid-cols-4">
         {BUILD_PRESETS.map((b) => {
           const on = b.id === presetId;
           const hot = b.id === "max";
@@ -526,7 +533,8 @@ export default function PortfolioPage() {
 
       <LayoutGroup>
         {/* Dashboard: portfolio 3/4 · builder + whales (insight) 1/4. Deep view: full width. */}
-        <div className={isDeep || !showMine ? "flex flex-col gap-3" : "grid grid-cols-1 items-start gap-3 xl:grid-cols-[minmax(0,3fr)_minmax(0,1fr)]"}>
+        {/* Dashboard: portfolio on top (~3/4 of the screen), builder + whales side by side below */}
+        <div className="flex flex-col gap-3">
         {!loaded ? (
           <section className={`${card} h-[300px] animate-pulse`} />
         ) : showMine ? (
@@ -536,7 +544,7 @@ export default function PortfolioPage() {
             transition={{ layout: reduceMotion ? { duration: 0 } : LAYOUT_SPRING }}
             onClick={onCardClick}
             title={isDeep ? undefined : "Click for the full portfolio deep view"}
-            className={`${card} flex flex-none flex-col gap-3 p-3 ${isExpanded ? "min-h-[calc(100dvh-230px)]" : isDeep ? "" : "cursor-pointer transition-colors hover:border-white/[0.09]"}`}
+            className={`${card} flex flex-none flex-col gap-3 p-3 ${isExpanded ? "min-h-[calc(100dvh-230px)]" : isDeep ? "" : "min-h-[calc(75dvh-60px)] cursor-pointer transition-colors hover:border-white/[0.09]"}`}
           >
             <motion.div layout="position" className="flex flex-wrap items-end justify-between gap-4">
               <div className="flex flex-col gap-3">
@@ -614,7 +622,7 @@ export default function PortfolioPage() {
 
             {!isDeep && (
               <motion.div layout="position">
-                <AllocationBar positions={parsed.positions} />
+                <AllocationBar positions={livePos} />
               </motion.div>
             )}
 
@@ -632,13 +640,13 @@ export default function PortfolioPage() {
 
             {isExpanded && pfTab !== "OV" ? (
               <div onClick={(e) => e.stopPropagation()} className="flex min-w-0 flex-col gap-3">
-                {pfTab === "MAP" && <><SectorOverlap positions={parsed.positions} /><CompositionMap fund={pfFund} /></>}
+                {pfTab === "MAP" && <><SectorOverlap positions={livePos} /><CompositionMap fund={pfFund} /></>}
                 {pfTab === "SEAS" && <ChartsTab fund={pfFund} />}
                 {pfTab === "NEWS" && <LookThroughFeed items={pItems} />}
                 {pfTab === "AN" && (
                   <section className="flex flex-col gap-2 border border-white/[0.05] bg-[#030303] p-3">
                     <span className="font-mono text-[11px] font-bold tracking-[0.14em] text-zinc-200">[ CAPITAL FLOW &amp; SECTOR SHIFT ENGINE · {chartTf} ]</span>
-                    <PortfolioFlows positions={parsed.positions} tf={chartTf} rets={chartHist.rets} />
+                    <PortfolioFlows positions={livePos} tf={chartTf} rets={chartHist.rets} />
                   </section>
                 )}
                 {pfTab === "TOOLS" && <ToolSkeleton title="PORTFOLIO TOOLS" lines={["REBALANCER · TARGET VS ACTUAL", "WHAT-IF · ADD / TRIM SIMULATOR", "TAX-LOT & FX IMPACT"]} />}
@@ -659,7 +667,7 @@ export default function PortfolioPage() {
                   )}
                   right={(h) => (
                     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1, transition: { delay: 0.2 } }} className={h ? "h-full overflow-y-auto" : ""}>
-                      <OpenPositions positions={parsed.positions} lots={lots} saveLot={saveLot} live={live} fx={fx} tf={tableTf} onTfChange={setTableTf} rets={tableHist.rets} />
+                      <OpenPositions positions={livePos} lots={lots} saveLot={saveLot} live={live} fx={fx} tf={tableTf} onTfChange={setTableTf} rets={tableHist.rets} />
                     </motion.div>
                   )}
                 />
@@ -668,14 +676,14 @@ export default function PortfolioPage() {
             /* Chart (left) · metrics + positions (right) — side by side on wide screens */
             <motion.div layout="position" className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1.45fr)_minmax(0,1fr)]">
               <div onClick={(e) => e.stopPropagation()} className="min-w-0">
-                <div className="flex h-[390px] flex-col rounded-sm border border-white/[0.06] bg-[#030303] p-3">
+                <div className="flex h-[max(400px,calc(75dvh-260px))] flex-col rounded-sm border border-white/[0.06] bg-[#030303] p-3">
                   <InfernoChart main={chartMain} pinned={chartPinned} picker={chartPicker} tf={chartTf} onTfChange={setChartTf} />
                 </div>
               </div>
               <div className="flex min-w-0 flex-col gap-2.5">
                 {isExpanded ? (
                   <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1, transition: { delay: 0.2 } }} className="h-full" onClick={(e) => e.stopPropagation()}>
-                    <PortfolioFlows positions={parsed.positions} tf={chartTf} rets={chartHist.rets} />
+                    <PortfolioFlows positions={livePos} tf={chartTf} rets={chartHist.rets} />
                   </motion.div>
                 ) : (
                   <div className="grid grid-cols-2 gap-2 md:grid-cols-4 xl:grid-cols-2">
@@ -699,9 +707,9 @@ export default function PortfolioPage() {
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1, transition: { delay: 0.15 } }}
                       exit={{ opacity: 0, transition: { duration: 0.15 } }}
-                      className="flex min-h-0 flex-col gap-1.5 xl:max-h-[176px] xl:overflow-y-auto xl:pr-1"
+                      className="flex min-h-0 flex-col gap-1.5 xl:max-h-[max(176px,calc(75dvh-440px))] xl:overflow-y-auto xl:pr-1"
                     >
-                  {parsed.positions.map((p, i) => {
+                  {livePos.map((p, i) => {
                     const color = SEG_COLORS[i % SEG_COLORS.length];
                     const isEtf = p.asset.kind === "etf";
                     const body = (
@@ -781,16 +789,16 @@ export default function PortfolioPage() {
             <div className="flex flex-col gap-3">
               <div className="flex items-center gap-3">
                 <div className="flex h-[3px] flex-1 gap-[2px] overflow-hidden rounded-none bg-white/[0.04]">
-                  {parsed.positions.map((p, i) => (
+                  {livePos.map((p, i) => (
                     <div key={p.asset.ticker} className="h-full transition-[width] duration-300" style={{ width: `${(p.weight / Math.max(100, parsed.total)) * 100}%`, background: SEG_COLORS[i % SEG_COLORS.length] }} />
                   ))}
                 </div>
                 <span className={`flex-none font-mono text-[10px] font-bold tracking-[0.1em] ${parsed.valid ? "text-emerald-400" : "text-amber-400"}`}>
-                  ■ {parsed.valid ? "100% VALIDATED" : parsed.positions.length ? `${parsed.total.toFixed(0)}% · CHECK INPUT` : "WAITING FOR INPUT"}
+                  ■ {parsed.valid ? "100% VALIDATED" : livePos.length ? `${parsed.total.toFixed(0)}% · CHECK INPUT` : "WAITING FOR INPUT"}
                 </span>
               </div>
               <div className="flex flex-wrap gap-2">
-                {parsed.positions.map((p, i) => (
+                {livePos.map((p, i) => (
                   <span key={p.asset.ticker} className="flex items-center gap-1.5 rounded border border-white/[0.06] bg-[#030303] px-2 py-1 font-mono text-[10.5px] text-zinc-500">
                     <span style={{ color: SEG_COLORS[i % SEG_COLORS.length] }}>■</span>[
                     <span className="font-bold text-zinc-100">{p.asset.ticker}</span>:
@@ -819,7 +827,7 @@ export default function PortfolioPage() {
         )}
 
         {/* ── Bottom cards: tumble off-screen in deep view, spring back on return ── */}
-        <div className={`relative grid grid-cols-1 gap-3 ${showMine ? "" : "lg:grid-cols-2"} ${isDeep ? "" : "flex-1"}`}>
+        <div className={`relative grid grid-cols-1 gap-3 lg:grid-cols-2 ${isDeep ? "" : "flex-1"}`}>
           <AnimatePresence mode="popLayout" initial={false}>
             {!isDeep &&
               bottomCards.map((content, i) => (

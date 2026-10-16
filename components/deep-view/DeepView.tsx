@@ -8,6 +8,7 @@ import Overview from "./Overview";
 import CompositionMap from "./CompositionMap";
 import ChartsTab from "./ChartsTab";
 import EtfNewsPanel from "@/components/EtfNewsPanel";
+import { useSnapshot } from "@/lib/market-snapshot";
 
 const TABS: [SubTab, string][] = [
   ["OV", "OVERVIEW"], ["MAP", "COMPOSITION MAP"], ["SEAS", "CHARTS"], ["NEWS", "NEWS"],
@@ -24,7 +25,10 @@ export default function DeepView({ fund, onBack, onSelectAlt }: Props) {
   const [tab, setTab] = useState<SubTab>("OV");
   const back = onBack ?? (() => (window.history.length > 1 ? router.back() : router.push("/scanner")));
   const selectAlt = onSelectAlt ?? ((tic: string) => router.push(`/etf/${tic}`));
-  const up = fund.dayPct >= 0;
+  // today's real price / move (Yahoo); database values only as fallback
+  const live = useSnapshot([fund.tic])[fund.tic];
+  const price = live?.price ?? fund.price, dayPct = live?.chg1d ?? fund.dayPct;
+  const up = dayPct >= 0;
 
   return (
     <div key={fund.tic} className="animate-inf-take flex min-h-full min-w-0 flex-col bg-[#030303] font-display text-[#e6e6e6]">
@@ -40,8 +44,8 @@ export default function DeepView({ fund, onBack, onSelectAlt }: Props) {
           <span className="text-[56px] font-bold leading-[0.82] tracking-[0.01em] text-white">{fund.tic}</span>
           <span className="pb-0.5 text-xl font-medium tracking-[0.02em] text-neutral-400">{fund.name}</span>
           <div className="ml-auto flex items-baseline gap-3 font-mono tabular-nums">
-            <span className="text-[30px] font-semibold text-neutral-100">{usd(fund.price)}</span>
-            <span className={`text-[13px] font-bold ${up ? "text-emerald-400" : "text-red-500"}`}>{sg(fund.dayPct)}</span>
+            <span className="text-[30px] font-semibold text-neutral-100">{usd(price)}</span>
+            <span className={`text-[13px] font-bold ${up ? "text-emerald-400" : "text-red-500"}`}>{sg(dayPct)}</span>
           </div>
         </div>
 

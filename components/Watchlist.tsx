@@ -9,6 +9,7 @@ import { useEffect, useMemo, useState } from "react";
 import { ETFS } from "@/lib/etfs";
 import { QUOTE } from "@/lib/fund-profiles";
 import { getAsset } from "@/lib/portfolio";
+import { useSnapshot } from "@/lib/market-snapshot";
 import { addFavorite, addToGroup, createGroup, deleteGroup, removeFavorite, removeFromGroup, renameGroup, toggleFavorite, useWatchlist } from "@/lib/watchlist";
 
 const MONO = "font-mono";
@@ -40,6 +41,7 @@ export default function Watchlist() {
   const group = w.groups.find((g) => g.id === cur);
   const weightOf = Object.fromEntries(w.portfolio.map((p) => [p.ticker, p.weight]));
 
+  const snapAll = useSnapshot(tickers);
   /* live quotes */
   const key = tickers.join(",");
   const [quotes, setQuotes] = useState<Record<string, Q | null>>({});
@@ -131,7 +133,9 @@ export default function Watchlist() {
             </thead>
             <tbody>
               {tickers.map((t) => {
-                const i = info(t), q = quotes[t];
+                const i0 = info(t), sn = snapAll[t];
+                const i = sn?.ytd != null ? { ...i0, ytd: sn.ytd } : i0;
+                const q = quotes[t];
                 const chg = q?.chg ?? i.chg, price = q?.price ?? i.price;
                 const fav = w.favorites.includes(t);
                 return (

@@ -7,6 +7,7 @@ import { QUOTE } from "@/lib/fund-profiles";
 import { buildFund } from "@/components/deep-view/buildFund";
 import EtfDeepDiveCockpit from "@/components/EtfDeepDiveCockpit";
 import { useMyPortfolio } from "@/lib/my-portfolio";
+import { useLiveEtfs } from "@/lib/market-snapshot";
 import MarketPulse from "@/components/MarketPulse";
 import RecentTickers from "@/components/RecentTickers";
 
@@ -184,6 +185,9 @@ export default function EtfTableScanner() {
     if (query) router.replace("/scanner");
   };
 
+  /* Today's real 1D / YTD from Yahoo over the static database */
+  const { etfs: LIVE_ETFS } = useLiveEtfs();
+
   /* My portfolio as its own tab: ETFs from the database + single stocks as extra rows */
   const mine = useMyPortfolio();
   const mineW = useMemo<Record<string, number>>(() => Object.fromEntries(mine.map((p) => [p.asset.ticker, p.weight])), [mine]);
@@ -196,7 +200,7 @@ export default function EtfTableScanner() {
   // Filters + search, before the category tab is applied (tab counts come from this).
   const base = useMemo(() => {
     const s = query.toLowerCase();
-    return [...ETFS, ...stockRows].filter(
+    return [...LIVE_ETFS, ...stockRows].filter(
       (e) =>
         (!s || e.ticker.toLowerCase().includes(s) || e.name.toLowerCase().includes(s)) &&
         GROUPS.every((g) => {
@@ -204,7 +208,7 @@ export default function EtfTableScanner() {
           return !sel?.length || sel.some((o) => g.test(e, o));
         })
     );
-  }, [filters, query, stockRows]);
+  }, [filters, query, stockRows, LIVE_ETFS]);
 
   const inTab = (e: EtfRow, t: TabId) =>
     t === "portfolio" ? e.ticker in mineW
@@ -416,7 +420,7 @@ export default function EtfTableScanner() {
       {/* ── Market pulse (price view): most active · movers · news ── */}
       {mode === "price" && (
         <div className="row-span-2 row-start-1 flex min-h-0 flex-col max-lg:row-auto max-lg:max-h-[640px] lg:col-start-3">
-          <MarketPulse rows={rows} />
+          <MarketPulse rows={rows} all={LIVE_ETFS} />
         </div>
       )}
 

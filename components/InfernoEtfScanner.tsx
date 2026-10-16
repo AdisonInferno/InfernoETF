@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { ETFS, type EtfRow } from "@/lib/etfs";
 import { QUOTE } from "@/lib/fund-profiles";
 import { useMyPortfolio } from "@/lib/my-portfolio";
+import { useSnapshot } from "@/lib/market-snapshot";
 
 /* ─────────────────────────────── Types ─────────────────────────────── */
 
@@ -323,7 +324,18 @@ export default function InfernoEtfScanner() {
       }),
     };
   }, [mine]);
-  const groupsSrc = useMemo(() => (universe === "ETF" ? (mineSector ? [mineSector, ...SECTORS] : SECTORS) : COUNTRY_SECTORS), [universe, mineSector]);
+  /* Today's real moves (Yahoo): 1D change + price replace the static database values on every tile */
+  const snap = useSnapshot(useMemo(() => [...new Set([...SECTORS.flatMap((g) => g.etfs.map((e) => e.ticker)), ...MACRO.map((m) => m.ticker), ...(mineSector?.etfs.map((e) => e.ticker) ?? [])])], [mineSector]));
+  const liveEtf = useCallback(<T extends Etf>(e: T): T => {
+    const s = snap[e.ticker];
+    return s ? { ...e, change1d: s.chg1d, price: s.price, perf: { ...e.perf, "1D": s.chg1d } } : e;
+  }, [snap]);
+  const macro = useMemo(() => MACRO.map(liveEtf), [liveEtf]);
+  const groupsSrc = useMemo(() => {
+    if (universe !== "ETF") return COUNTRY_SECTORS;
+    const g = mineSector ? [mineSector, ...SECTORS] : SECTORS;
+    return g.map((x) => ({ ...x, etfs: x.etfs.map(liveEtf) }));
+  }, [universe, mineSector, liveEtf]);
   const shortOf = universe === "ETF" ? SHORT : COUNTRY_SHORT;
   const pickUniverse = (u: "ETF" | "COUNTRIES") => { setUniverse(u); setFocus([]); setTip(null); };
   const zoom = (t: string) => setFocus((f) => (f.length === 1 && f[0] === t ? [] : [t]));
@@ -560,7 +572,7 @@ export default function InfernoEtfScanner() {
         {/* Macro baseline */}
         <div className="mt-1 box-border w-full flex-none rounded-sm border border-white/[0.06] bg-[#0a0a0c] p-2">
           <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
-            {MACRO.map((m) => {
+            {macro.map((m) => {
               const up = m.perf[tf] >= 0;
               return (
                 <div
