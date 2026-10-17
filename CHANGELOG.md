@@ -4,8 +4,9 @@ _Generowany automatycznie z historii git. Zmiany oddalone o mniej niż godzinę 
 
 ## sobota, 17 października 2026
 
-### Sesja #15 · 14:50–15:36 · 10 zmian · AdisonInferno
+### Sesja #15 · 14:50–15:42 · 11 zmian · AdisonInferno
 
+- `15:42` Dziennik zmian
 - `15:36` Dziennik zmian
 - `15:32` Dziennik zmian
 - `15:32` Right-click any ticker anywhere: DEEP DIVE / ADD TO FAVORITES; composition map timeframe drives the table return column, brighter chart axes; flip-able sorting (scanner table + market map); market map: blue timeframe rail + colour scale under the map; ★ PORTFOLIO badge on market-moving news
