@@ -14,24 +14,6 @@ const NAV = [
   { href: "/etf-tools", label: "ETF TOOLS" },
 ];
 
-/* Swap for your own logo: put logo.svg in /public and use <img src="/logo.svg" />. */
-function LogoMark() {
-  return (
-    <svg width="30" height="30" viewBox="0 0 32 32" aria-hidden="true" className="flex-none">
-      <defs>
-        <linearGradient id="inferno-flame" x1="0" y1="1" x2="0" y2="0">
-          <stop offset="0" stopColor="#b91c1c" />
-          <stop offset="1" stopColor="#ef4444" />
-        </linearGradient>
-      </defs>
-      <path
-        fill="url(#inferno-flame)"
-        d="M16 2c1.2 4.2-1 6.6-3 8.8-2.1 2.3-4.6 4.6-4.6 8.9C8.4 25.4 12 30 16.6 30c5 0 8.4-3.9 8.4-9.1 0-3.9-2-6.6-3.7-8.4.2 2.2-.5 4.2-2.2 5.1.5-4.6-.9-9.8-3.1-15.6Z"
-      />
-      <path fill="#0a0a0c" d="M15.6 18.5c-2 1.7-3 3.4-3 5.3 0 2.2 1.6 3.9 3.8 3.9s3.8-1.7 3.8-4c0-1.5-.7-2.7-1.6-3.6-.1 1.2-.7 2-1.6 2.3.4-1.3.1-2.6-1.4-3.9Z" />
-    </svg>
-  );
-}
 
 function SearchBox() {
   const router = useRouter();
@@ -133,8 +115,7 @@ export default function SiteHeader() {
       {/* Row 1: logo · search · actions */}
       <div className="grid h-[68px] grid-cols-[1fr_minmax(0,620px)_1fr] items-center gap-6 px-3">
         <Link href="/scanner" className="flex items-center gap-3 justify-self-start">
-          <LogoMark />
-          <span className="text-[17px] font-bold tracking-[0.28em] text-white">INFERNO</span>
+          <span className="text-[17px] font-bold tracking-[0.28em] text-white">OASIS</span>
         </Link>
 
         <SearchBox />

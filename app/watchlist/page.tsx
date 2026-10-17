@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Watchlist from "@/components/Watchlist";
 
-export const metadata: Metadata = { title: "Watchlist — INFERNO" };
+export const metadata: Metadata = { title: "Watchlist — OASIS" };
 
 export default function WatchlistPage() {
   return (

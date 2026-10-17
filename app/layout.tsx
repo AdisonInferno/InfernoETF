@@ -11,7 +11,7 @@ import SiteHeader from "@/components/SiteHeader";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "INFERNO ETF",
+  title: "OASIS",
   description: "ETF scanner, portfolio and AI assistant",
 };
 

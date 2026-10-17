@@ -67,7 +67,7 @@ function Overview({ d, held, sym }: { d: StockData; held: { etf: string; name: s
   return (
     <div className="flex flex-col gap-4 px-5 pb-12 pt-5">
       <section className={`${CARD} flex h-[520px] flex-col p-3`}>
-        <InfernoChart key={d.ticker}
+        <InfernoChart key={d.ticker} groupLabel="PEERS"
           main={{ id: d.ticker, label: d.ticker, sym, color: "#f87171" }}
           pinned={[{ id: "SPY", label: "S&P 500", sym: "SPY", color: "#a1a1aa", dashed: true },
             ...peers.map((p, i) => ({ id: `peer:${p}`, label: p, sym: p, color: ["#60a5fa", "#f59e0b", "#f472b6", "#22d3ee"][i] }))]}

@@ -6,7 +6,7 @@ type Params = { params: Promise<{ ticker: string }>; searchParams?: Promise<{ y?
 
 export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const { ticker } = await params;
-  return { title: `${ticker.toUpperCase()} · Stock Deep Dive | INFERNO` };
+  return { title: `${ticker.toUpperCase()} · Stock Deep Dive | OASIS` };
 }
 
 /** Stock Deep Dive — overview, financials (SEC), charts, news, ETF exposure. Data loads client-side from /api/stock. */

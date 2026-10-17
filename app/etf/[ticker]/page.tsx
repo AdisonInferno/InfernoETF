@@ -13,7 +13,7 @@ export function generateStaticParams() {
 export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const { ticker } = await params;
   const fund = buildFund(ticker);
-  return { title: fund ? `${fund.tic} · ${fund.name} | INFERNO ETF` : "ETF not found | INFERNO ETF" };
+  return { title: fund ? `${fund.tic} · ${fund.name} | OASIS` : "ETF not found | OASIS" };
 }
 
 export default async function EtfDeepViewPage({ params }: Params) {

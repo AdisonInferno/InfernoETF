@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import EtfTools from "@/components/EtfTools";
 
-export const metadata: Metadata = { title: "ETF Tools — INFERNO" };
+export const metadata: Metadata = { title: "ETF Tools — OASIS" };
 
 /** ETF Tools — sector split (master/detail) and the cross-asset correlation network. */
 export default function EtfToolsPage() {

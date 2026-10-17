@@ -82,38 +82,33 @@ function basketSeries(parts: { s: Raw; w: number }[]): Raw | null {
   return { t: grid, c: grid.map((t) => 100 * ok.reduce((a, p) => a + (p.w / W) * (at(p.s, t) / at(p.s, grid[0])), 0)) };
 }
 
-/** Horizontal timeframe rail (under the chart, bottom-left). `pos` = fractional thumb position (follows the chart's visible window). */
+/** Timeframe rail (under the chart, bottom-left): a wide rounded rectangle split into cells; the light-blue glowing
+ *  block slides along it — snapped on a pick, fractional while you scroll/zoom (`pos`). */
 export function TfRail({ value, pos, onChange }: { value: ChartTf; pos?: number; onChange: (t: ChartTf) => void }) {
   const ref = useRef<HTMLDivElement>(null);
+  const n = CHART_TFS.length;
   const idx = CHART_TFS.indexOf(value);
-  const p = Math.min(CHART_TFS.length - 1, Math.max(0, pos ?? idx));
+  const p = Math.min(n - 1, Math.max(0, pos ?? idx));
   const pick = (x: number) => {
     const r = ref.current?.getBoundingClientRect();
     if (!r) return;
-    onChange(CHART_TFS[Math.round(Math.min(1, Math.max(0, (x - r.left) / r.width)) * (CHART_TFS.length - 1))]);
+    onChange(CHART_TFS[Math.min(n - 1, Math.max(0, Math.floor(((x - r.left) / r.width) * n)))]);
   };
-  const pctLeft = (i: number) => `${(i / (CHART_TFS.length - 1)) * 100}%`;
   return (
-    <div role="slider" tabIndex={0} aria-label="Timeframe" aria-orientation="horizontal" aria-valuemin={0} aria-valuemax={CHART_TFS.length - 1} aria-valuenow={idx} aria-valuetext={value}
+    <div ref={ref} role="slider" tabIndex={0} aria-label="Timeframe" aria-orientation="horizontal" aria-valuemin={0} aria-valuemax={n - 1} aria-valuenow={idx} aria-valuetext={value}
       onKeyDown={(e) => {
-        if (e.key === "ArrowRight" || e.key === "ArrowDown") { e.preventDefault(); onChange(CHART_TFS[Math.min(CHART_TFS.length - 1, idx + 1)]); }
+        if (e.key === "ArrowRight" || e.key === "ArrowDown") { e.preventDefault(); onChange(CHART_TFS[Math.min(n - 1, idx + 1)]); }
         if (e.key === "ArrowLeft" || e.key === "ArrowUp") { e.preventDefault(); onChange(CHART_TFS[Math.max(0, idx - 1)]); }
       }}
       onPointerDown={(e) => { e.currentTarget.setPointerCapture(e.pointerId); pick(e.clientX); }}
       onPointerMove={(e) => { if (e.currentTarget.hasPointerCapture(e.pointerId)) pick(e.clientX); }}
-      className="relative flex h-[34px] w-[340px] max-w-full flex-none cursor-ew-resize touch-none select-none px-3 outline-none focus-visible:ring-1 focus-visible:ring-white/20">
-      <div ref={ref} className="relative h-full flex-1">
-        <span className="absolute left-0 right-0 top-[8px] h-px bg-white/[0.12]" />
-        <span className="absolute left-0 top-[8px] h-px bg-emerald-400/70" style={{ width: pctLeft(p) }} />
-        {CHART_TFS.map((t, i) => (
-          <span key={t} className="absolute top-0 flex -translate-x-1/2 flex-col items-center gap-[5px]" style={{ left: pctLeft(i) }}>
-            <span className={`h-[17px] w-[7px] flex-none rounded-[1px] border ${i === idx ? "border-emerald-400/60" : "border-white/[0.18]"} bg-[#030303]`} />
-            <span className={`${MONO} -mt-[2px] text-[10px] font-bold leading-none tracking-[0.04em] ${i === idx ? "text-white" : "text-zinc-500"}`}>{t}</span>
-          </span>
-        ))}
-        {/* thumb — moves continuously with the visible window */}
-        <span className="pointer-events-none absolute top-0 h-[17px] w-[9px] -translate-x-1/2 rounded-[1px] border border-emerald-300 bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,0.6)] transition-[left] duration-100" style={{ left: pctLeft(p) }} />
-      </div>
+      className="relative flex h-[30px] w-[360px] max-w-full flex-none cursor-ew-resize touch-none select-none overflow-hidden rounded-[5px] border border-sky-400/25 bg-[#060a0e] outline-none focus-visible:ring-1 focus-visible:ring-sky-300/40">
+      {/* sliding block */}
+      <span className="pointer-events-none absolute inset-y-[2px] rounded-[4px] border border-sky-300/80 bg-sky-400/20 shadow-[0_0_14px_rgba(56,189,248,0.55),inset_0_0_8px_rgba(56,189,248,0.25)] transition-[left] duration-150 ease-out"
+        style={{ left: `calc(${(p / n) * 100}% + 2px)`, width: `calc(${100 / n}% - 4px)` }} />
+      {CHART_TFS.map((t, i) => (
+        <span key={t} className={`relative z-[1] flex flex-1 items-center justify-center ${i ? "border-l border-sky-400/10" : ""} ${MONO} text-[10.5px] font-bold tracking-[0.06em] ${i === idx ? "text-sky-100" : "text-zinc-500"}`}>{t}</span>
+      ))}
     </div>
   );
 }
@@ -126,7 +121,9 @@ const mute = (hex: string, a: number) => {
   return `rgba(${n >> 16},${(n >> 8) & 255},${n & 255},${a})`;
 };
 
-export default function InfernoChart({ main, pinned = [], picker = [], tf: tfProp, onTfChange, initialTf = "1Y", className = "" }: {
+export default function InfernoChart({ main, pinned: pinnedAll = [], picker = [], tf: tfProp, onTfChange, initialTf = "1Y", className = "", groupLabel = "TOP 5 HOLDINGS" }: {
+  /** label of the button that reveals the grouped comparisons (ids "top:…" / "peer:…") */
+  groupLabel?: string;
   main: MainDef;
   /** always-listed comparisons (S&P 500, top-5 holdings): click greys them out */
   pinned?: LineDef[];
@@ -149,6 +146,11 @@ export default function InfernoChart({ main, pinned = [], picker = [], tf: tfPro
   const [hoverT, setHoverT] = useState<number | null>(null);
 
   const range = rangeOf(tf);
+  /* Only the main line + S&P 500 at first; the grouped comparisons (top-5 holdings / peers) appear on demand */
+  const [showGroup, setShowGroup] = useState(false);
+  const isGroup = (id: string) => id.startsWith("top:") || id.startsWith("peer:");
+  const hasGroup = pinnedAll.some((l) => isGroup(l.id));
+  const pinned = useMemo(() => (showGroup ? pinnedAll : pinnedAll.filter((l) => !isGroup(l.id))), [pinnedAll, showGroup]);
   const lines = useMemo(() => [...pinned, ...extras.filter((e) => !pinned.some((p) => p.sym === e.sym))], [pinned, extras]);
   const syms = useMemo(() => [...new Set([...(main.sym ? [main.sym] : []), ...(main.basket ?? []).map((b) => b.sym), ...lines.map((l) => l.sym)])].sort(), [main, lines]);
   const key = `${range}|${syms.join(",")}`;
@@ -193,7 +195,8 @@ export default function InfernoChart({ main, pinned = [], picker = [], tf: tfPro
       autoSize: true,
       layout: { background: { type: ColorType.Solid, color: "#030303" }, textColor: "#71717a", fontFamily: "'JetBrains Mono Variable','JetBrains Mono',monospace", fontSize: 10, attributionLogo: false },
       grid: { vertLines: { color: "rgba(255,255,255,0.025)" }, horzLines: { color: "rgba(255,255,255,0.035)" } },
-      rightPriceScale: { borderColor: "rgba(255,255,255,0.05)", mode: PriceScaleMode.Percentage },
+      // tight vertical fit: autoscale to the visible window of the visible lines, small margins
+      rightPriceScale: { borderColor: "rgba(255,255,255,0.05)", mode: PriceScaleMode.Percentage, autoScale: true, scaleMargins: { top: 0.06, bottom: 0.06 } },
       timeScale: { borderColor: "rgba(255,255,255,0.05)", timeVisible: true, secondsVisible: false, fixLeftEdge: true, fixRightEdge: true, rightOffset: 0 },
       crosshair: { mode: CrosshairMode.Normal, vertLine: { color: "rgba(255,255,255,0.2)", style: LineStyle.Dashed, labelBackgroundColor: "#27272a" }, horzLine: { color: "rgba(255,255,255,0.2)", style: LineStyle.Dashed, labelBackgroundColor: "#27272a" } },
     });
@@ -311,7 +314,14 @@ export default function InfernoChart({ main, pinned = [], picker = [], tf: tfPro
       {/* legend + controls */}
       <div className={`${MONO} flex flex-wrap items-center gap-x-1 gap-y-1 text-[10.5px] tabular-nums`}>
         {chip(main.id, main.label, main.color, false, pctOver(mainRaw), false)}
-        {pinned.map((l) => chip(l.id, l.label, l.color, l.dashed, pctOver(ready?.raw[l.sym]), false))}
+        {pinned.filter((l) => !isGroup(l.id)).map((l) => chip(l.id, l.label, l.color, l.dashed, pctOver(ready?.raw[l.sym]), false))}
+        {hasGroup && (
+          <button type="button" onClick={() => setShowGroup((v) => !v)} aria-pressed={showGroup}
+            className={`mx-1 h-5 rounded-sm border px-2 text-[9.5px] font-bold tracking-[0.08em] transition-colors ${showGroup ? "border-sky-400/50 bg-sky-400/10 text-sky-200" : "border-white/[0.12] text-zinc-400 hover:border-white/[0.3] hover:text-white"}`}>
+            {showGroup ? `HIDE ${groupLabel}` : `SHOW ${groupLabel}`}
+          </button>
+        )}
+        {pinned.filter((l) => isGroup(l.id)).map((l) => chip(l.id, l.label, l.color, l.dashed, pctOver(ready?.raw[l.sym]), false))}
         {extras.map((l) => chip(l.id, l.label, l.color, false, pctOver(ready?.raw[l.sym]), true))}
         <button type="button" onClick={() => setPickOpen((o) => !o)} aria-expanded={pickOpen} title="Add a comparison"
           className={`ml-0.5 flex h-5 w-5 items-center justify-center rounded-sm border text-[13px] leading-none transition-colors ${pickOpen ? "border-emerald-400/50 text-emerald-300" : "border-white/[0.12] text-zinc-400 hover:border-white/[0.3] hover:text-white"}`}>+</button>
@@ -348,7 +358,7 @@ export default function InfernoChart({ main, pinned = [], picker = [], tf: tfPro
         </div>
       )}
 
-      <div className="relative min-h-[240px] min-w-0 flex-1">
+      <div className="relative min-h-[300px] min-w-0 flex-1">
         <div ref={box} className="absolute inset-0" />
         {!ready && <div className="absolute inset-0 animate-pulse bg-white/[0.02]" />}
       </div>
