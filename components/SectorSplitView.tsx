@@ -179,7 +179,7 @@ export default function SectorSplitView() {
   return (
     <div className={`${MONO} flex min-h-0 flex-1 flex-col gap-3 bg-[var(--oasis-bg)]`}>
       {/* sector / sub-sector selectors */}
-      <div className={`flex flex-wrap items-center gap-1.5 border ${B} bg-[var(--oasis-panel)] px-3 py-2`}>
+      <div className={`oasis-glass flex flex-wrap items-center gap-1.5 border ${B} bg-[var(--oasis-panel)] px-3 py-2`}>
         <span className="mr-1 text-[9.5px] font-semibold tracking-[0.14em] text-zinc-600">SECTOR</span>
         {cats.map((c) => <button key={c.id} type="button" onClick={() => pickCat(c.id)} className={chip(cat === c.id)}>{c.label}</button>)}
         <span className={`mx-2 h-5 w-px bg-white/[0.08]`} />
@@ -189,7 +189,7 @@ export default function SectorSplitView() {
 
       <div className="grid min-h-0 flex-1 grid-cols-2 gap-3 max-lg:grid-cols-1">
         {/* ── MASTER ── */}
-        <section className={`flex min-h-0 flex-col border ${B} bg-[var(--oasis-panel)]`}>
+        <section className={`oasis-glass flex min-h-0 flex-col overflow-hidden border ${B} bg-[var(--oasis-panel)]`}>
           <header className={`flex items-center justify-between border-b ${B} px-3 py-2`}>
             <span className="text-[11px] font-bold tracking-[0.14em] text-zinc-200">[ {sub?.label ?? "—"} ]</span>
             <span className="text-[9.5px] tracking-[0.12em] text-zinc-600">{rows.length} ETF · CLICK A ROW</span>
@@ -227,14 +227,14 @@ export default function SectorSplitView() {
         </section>
 
         {/* ── DETAIL ── */}
-        <section className={`flex min-h-[520px] flex-col border ${B} bg-[var(--oasis-panel)]`}>
+        <section className={`oasis-glass flex min-h-[520px] flex-col overflow-hidden border ${B} bg-[var(--oasis-panel)]`}>
           {act ? (
             <>
               <header className={`flex flex-wrap items-center gap-x-4 gap-y-1.5 border-b ${B} px-3 py-2.5`}>
                 <span className="text-[20px] font-bold leading-none text-zinc-50">{act.ticker}</span>
                 <span className="text-[16px] font-semibold tabular-nums text-zinc-100">{price != null ? `$${price.toFixed(2)}` : "—"}</span>
                 {live && <span className={`text-[12px] font-bold tabular-nums ${tone(live.chg)}`}>{sgn(live.chg)}</span>}
-                <span className={`border ${B} bg-[var(--oasis-bg)] px-2 py-0.5 text-[10px] font-bold tracking-[0.1em] text-zinc-400`}>[ BENCHMARK: {bench.label} ]</span>
+                <span className={`rounded-xs border ${B} bg-[var(--oasis-bg)] px-2 py-0.5 text-[10px] font-bold tracking-[0.1em] text-zinc-400`}>[ BENCHMARK: {bench.label} ]</span>
                 <span className="ml-auto flex items-center gap-1">
                   {h?.model && <span className="mr-1 bg-amber-400/10 px-1.5 py-px text-[9.5px] font-bold tracking-[0.1em] text-amber-300">MODEL DATA</span>}
                   {WINDOWS.map(([l, v]) => (
