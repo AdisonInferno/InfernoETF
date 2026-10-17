@@ -4,8 +4,10 @@ _Generowany automatycznie z historii git. Zmiany oddalone o mniej niż godzinę 
 
 ## sobota, 17 października 2026
 
-### Sesja #14 · 14:50–16:20 · 25 zmian · AdisonInferno
+### Sesja #14 · 14:50–16:33 · 27 zmian · AdisonInferno
 
+- `16:33` Scanner news: daily/weekly/monthly tiles, ranked by impact with 1-3 impact bars
+- `16:20` Dziennik zmian
 - `16:20` Background colour picker, softer glow, white counts
 - `16:11` Dziennik zmian
 - `16:10` Dziennik zmian
