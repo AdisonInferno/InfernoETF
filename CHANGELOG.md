@@ -4,8 +4,10 @@ _Generowany automatycznie z historii git. Zmiany oddalone o mniej niż godzinę 
 
 ## sobota, 17 października 2026
 
-### Sesja #14 · 14:50–15:09 · 2 zmian · AdisonInferno
+### Sesja #14 · 14:50–15:16 · 4 zmian · AdisonInferno
 
+- `15:16` Stock financials: Ctrl+drag Quant Ruler (Δ value / Δ % between quarters), earnings brief as terminal note in the right panel, range selector bottom-left
+- `15:09` Dziennik zmian
 - `15:09` Charts: tight vertical autoscale, only main + S&P 500 by default with SHOW TOP 5 HOLDINGS / PEERS button, segmented light-blue timeframe rail with glowing sliding block; brand renamed to OASIS
 - `14:50` Dziennik zmian
 
