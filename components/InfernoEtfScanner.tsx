@@ -395,7 +395,7 @@ export default function InfernoEtfScanner() {
   }, []);
 
   const hoverHandlers = (etf: Etf) => ({
-    onClick: () => { if (universe === "ETF" && ETFS.some((e) => e.ticker === etf.ticker)) router.push(`/etf/${etf.ticker}`); },
+    onClick: () => { if (universe !== "ETF") return; router.push(ETFS.some((e) => e.ticker === etf.ticker) ? `/etf/${etf.ticker}` : `/stock/${etf.ticker}`); },
     onMouseEnter: (e: React.MouseEvent) => setTip({ etf, x: e.clientX, y: e.clientY }),
     onMouseMove: (e: React.MouseEvent) => setTip({ etf, x: e.clientX, y: e.clientY }),
     onMouseLeave: () => setTip(null),

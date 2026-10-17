@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useMemo, useRef, useState } from "react";
 import type { CSSProperties } from "react";
 import type { FundData } from "./types";
@@ -117,7 +118,7 @@ function TopHoldings({ fund }: { fund: FundData }) {
           {rows.map((h, i) => (
             <div key={h.tic} title={h.name} className="grid h-5 flex-none grid-cols-[20px_52px_minmax(0,1fr)_48px] items-center gap-2.5 hover:bg-[#0b0b0b]">
               <span className="text-[9.5px] text-gray-600">{String(i + 1).padStart(2, "0")}</span>
-              <span className="text-[11px] font-bold text-neutral-200">{h.tic}</span>
+              <Link href={`/stock/${h.tic}`} className="text-[11px] font-bold text-neutral-200 hover:text-emerald-300">{h.tic}</Link>
               <div className="h-[3px] bg-gray-900"><div className="h-full bg-neutral-300 opacity-75" style={{ width: ((h.w / maxW) * 100).toFixed(1) + "%" }} /></div>
               <span className="text-right text-[10.5px] text-neutral-300">{h.w.toFixed(2)}</span>
             </div>

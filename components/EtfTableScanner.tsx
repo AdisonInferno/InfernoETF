@@ -236,7 +236,8 @@ export default function EtfTableScanner() {
   const fund = useMemo(() => (selected ? buildFund(selected.ticker) : null), [selected]);
   const pick = (t: string) => { setSel(t); if (hidden === "chart") setHidden("none"); };
   // Clicking a fund opens the CHARTS view (chart + note + top holdings, list on the right); Deep View is one click further.
-  const openRow = (t: string) => { setSel(t); setHidden("none"); setMode("charts"); };
+  // single stocks (portfolio tab) open the stock deep dive; ETFs open the CHARTS cockpit
+  const openRow = (t: string) => { if (stockSet.has(t)) { router.push(`/stock/${t}`); return; } setSel(t); setHidden("none"); setMode("charts"); };
 
 
   /* Column rhythm: every data column has the same gap G before it; FUND → SECTOR gets 1.3 × G. */

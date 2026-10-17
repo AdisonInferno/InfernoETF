@@ -141,7 +141,7 @@ export default function Watchlist() {
                 return (
                   <tr key={t} className={`border-b ${B} hover:bg-white/[0.03]`}>
                     <td className="py-2 pl-3"><button type="button" onClick={() => toggleFavorite(t)} title={fav ? "Remove from favorites" : "Add to favorites"} className={fav ? "text-amber-300" : "text-zinc-700 hover:text-amber-300"}>{fav ? "★" : "☆"}</button></td>
-                    <td className="py-2 font-bold text-zinc-50">{i.etf ? <Link href={`/etf/${t}`} className="hover:text-emerald-300">{t}</Link> : t}</td>
+                    <td className="py-2 font-bold text-zinc-50"><Link href={i.etf ? `/etf/${t}` : `/stock/${t}`} className="hover:text-emerald-300">{t}</Link></td>
                     <td className="max-w-[320px] truncate py-2 font-sans text-zinc-400">{i.name}</td>
                     <td className="py-2 text-[10px] tracking-[0.1em] text-zinc-500">{i.kind}{i.sector ? ` · ${i.sector}` : ""}</td>
                     <td className="py-2 text-right text-zinc-100">{price != null ? `${q && q.currency !== "USD" ? q.currency + " " : "$"}${price.toFixed(2)}` : "—"}</td>

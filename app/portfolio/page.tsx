@@ -729,14 +729,12 @@ export default function PortfolioPage() {
                         <span className="hidden w-[80px] text-right font-mono text-[13px] text-zinc-200 md:block xl:hidden 2xl:block">${p.asset.price.toFixed(2)}</span>
                         <span className={`w-[70px] flex-none rounded-sm px-1.5 py-0.5 text-center font-mono text-[11.5px] font-bold ${p.asset.chg1d >= 0 ? "bg-emerald-500/10 text-emerald-400" : "bg-rose-500/10 text-rose-400"}`}>{fmtP(p.asset.chg1d)}</span>
                         <span className={`hidden w-[78px] flex-none rounded-sm px-1.5 py-0.5 text-center font-mono text-[11.5px] font-bold sm:block ${p.asset.ytd >= 0 ? "bg-emerald-500/10 text-emerald-400" : "bg-rose-500/10 text-rose-400"}`}>{fmtP(p.asset.ytd)}</span>
-                        <span className={`w-[22px] flex-none text-right font-mono text-[13px] ${isEtf ? "text-zinc-500 group-hover:text-white" : "text-zinc-800"}`} title={isEtf ? "ETF deep view" : "Single stock"}>{isEtf ? "→" : "·"}</span>
+                        <span className={`w-[22px] flex-none text-right font-mono text-[13px] text-zinc-500 group-hover:text-white`} title={isEtf ? "ETF deep view" : "Stock deep dive"}>→</span>
                       </>
                     );
                     const cls = "group flex items-center gap-3.5 rounded-sm border border-white/[0.06] bg-[#030303] px-3.5 py-1.5 transition-colors";
-                    return isEtf ? (
-                      <Link key={p.asset.ticker} href={`/etf/${p.asset.ticker}`} className={`${cls} hover:border-white/[0.12] hover:bg-white/[0.03]`}>{body}</Link>
-                    ) : (
-                      <div key={p.asset.ticker} className={cls}>{body}</div>
+                    return (
+                      <Link key={p.asset.ticker} href={isEtf ? `/etf/${p.asset.ticker}` : `/stock/${p.asset.ticker}${symOf[p.asset.ticker] && symOf[p.asset.ticker] !== p.asset.ticker ? `?y=${symOf[p.asset.ticker]}` : ""}`} className={`${cls} hover:border-white/[0.12] hover:bg-white/[0.03]`}>{body}</Link>
                     );
                   })}
                     </motion.div>

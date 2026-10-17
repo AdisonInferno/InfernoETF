@@ -55,7 +55,7 @@ function Holdings({ fund, quotes }: { fund: FundData; quotes: Record<string, Quo
         const contrib = q ? (h.w * q.chg) / 100 : null;
         return (
           <div key={h.tic} className={`${cols} border-b border-white/[0.03] px-3 py-[7px]`} title={h.name}>
-            <span className="font-bold text-zinc-100">{h.tic}</span>
+            <Link href={`/stock/${h.tic}`} className="font-bold text-zinc-100 hover:text-emerald-300">{h.tic}</Link>
             <span className="text-right text-zinc-300">{h.w.toFixed(2)}%</span>
             <span className="flex items-center justify-end gap-1.5 text-zinc-200">
               {q && q.session !== "REG" && <span className={`rounded-sm px-1 text-[8.5px] font-bold ${q.session === "PRE" ? "bg-sky-400/15 text-sky-300" : q.session === "POST" ? "bg-violet-400/15 text-violet-300" : "bg-white/[0.06] text-zinc-500"}`}>{q.session}</span>}

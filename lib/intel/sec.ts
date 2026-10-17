@@ -47,7 +47,7 @@ export const sec = async (url: string) => {
   return res.json();
 };
 
-function cikMap() {
+export function cikMap() {
   box.cik ??= sec(`${process.env.SEC_FILES_BASE_URL ?? "https://www.sec.gov"}/files/company_tickers.json`)
     .then((j: Record<string, { cik_str: number; ticker: string; title: string }>) =>
       Object.fromEntries(Object.values(j).map((r) => [r.ticker.toUpperCase().replace("-", "."), { cik: r.cik_str, title: r.title }]))

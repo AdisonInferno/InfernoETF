@@ -351,7 +351,7 @@ export function OpenPositions({ positions, lots, saveLot, live, fx, tf, onTfChan
                           const k = lr.ticker, n = holders[k] ?? 1;
                           return (
                             <div key={lr.ticker} className="grid grid-cols-[60px_minmax(0,1fr)_64px_84px_92px] items-center gap-3 px-4 py-1.5">
-                              <span className="truncate font-mono text-[12px] font-bold text-zinc-200">{lr.ticker}</span>
+                              <Link href={`/stock/${lr.ticker}`} className="truncate font-mono text-[12px] font-bold text-zinc-200 hover:text-emerald-300">{lr.ticker}</Link>
                               <span className="truncate text-[12px] text-zinc-500">{lr.name}</span>
                               <span className="text-right font-mono text-[12px] text-zinc-400">{lr.inFund.toFixed(2)}%</span>
                               <span className="text-right font-mono text-[12px] text-zinc-200">{lr.inPortfolio.toFixed(2)}%</span>
@@ -363,6 +363,11 @@ export function OpenPositions({ positions, lots, saveLot, live, fx, tf, onTfChan
                           );
                         })}
                         <div className="flex items-center justify-end gap-3 px-4 pb-3 pt-2">
+                          {!etf && (
+                            <Link href={`/stock/${p.asset.ticker}`} className="whitespace-nowrap font-mono text-[10.5px] tracking-[0.1em] text-zinc-400 hover:text-white">
+                              [ {p.asset.ticker} STOCK DEEP DIVE → ]
+                            </Link>
+                          )}
                           {etf && (
                             <Link href={`/etf/${p.asset.ticker}`} className="whitespace-nowrap font-mono text-[10.5px] tracking-[0.1em] text-zinc-400 hover:text-white">
                               [ {p.asset.ticker} DEEP VIEW → ]
