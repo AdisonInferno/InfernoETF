@@ -95,11 +95,13 @@ function SearchBox() {
   );
 }
 
-function IconButton({ label, children }: { label: string; children: React.ReactNode }) {
+function IconButton({ label, children, onClick }: { label: string; children: React.ReactNode; onClick?: () => void }) {
   return (
     <button
       type="button"
       aria-label={label}
+      title={label}
+      onClick={onClick}
       className="flex h-9 w-9 items-center justify-center rounded-sm border border-white/[0.06] bg-white/[0.03] transition-colors hover:bg-white/[0.08]"
     >
       {children}
@@ -121,7 +123,7 @@ export default function SiteHeader() {
         <SearchBox />
 
         <div className="flex items-center gap-2 justify-self-end">
-          <IconButton label="Settings">
+          <IconButton label="Settings · accent colour" onClick={() => window.dispatchEvent(new Event("oasis:accent-toggle"))}>
             <svg width="15" height="15" viewBox="0 0 24 24" fill="#e4e4e7">
               <path d="M19.4 13a7.5 7.5 0 0 0 0-2l2.1-1.6-2-3.5-2.5 1a7.6 7.6 0 0 0-1.7-1L15 3.3h-4l-.4 2.6a7.6 7.6 0 0 0-1.7 1l-2.5-1-2 3.5L6.6 11a7.5 7.5 0 0 0 0 2l-2.1 1.6 2 3.5 2.5-1a7.6 7.6 0 0 0 1.7 1l.4 2.6h4l.4-2.6a7.6 7.6 0 0 0 1.7-1l2.5 1 2-3.5L19.4 13ZM13 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7Z" transform="translate(-1 0)" />
             </svg>

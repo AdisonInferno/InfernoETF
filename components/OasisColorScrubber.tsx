@@ -37,6 +37,13 @@ export default function OasisColorScrubber() {
     } catch { /* ignore */ }
   }, []);
 
+  // the ⚙ button in the header opens / closes the panel too
+  useEffect(() => {
+    const t = () => setOpen((o) => !o);
+    window.addEventListener("oasis:accent-toggle", t);
+    return () => window.removeEventListener("oasis:accent-toggle", t);
+  }, []);
+
   const set = (v: string) => {
     apply(v);
     setHex(v);
