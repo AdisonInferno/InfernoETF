@@ -110,8 +110,11 @@ function ChartTip({ active, label, payload, etfTic }: { active?: boolean; label?
 /* ── State ─────────────────────────────────────────────────── */
 
 /** All Composition-Map state: plotted lines, filters, sorting, alerts. Shared by the table and chart panels. */
-export function useHoldingsExplorer(fund: FundData) {
+export function useHoldingsExplorer(fund: FundData, ret?: { label: string; of: (tic: string) => number }) {
   const { all, points, etfR } = useMemo(() => buildModel(fund), [fund]);
+  /* Table return column follows the map's timeframe when one is given (the 1Y chart keeps the 1Y paths). */
+  const allT = useMemo(() => (ret ? all.map((r) => ({ ...r, r1y: +ret.of(r.tic).toFixed(2) })) : all), [all, ret]);
+  const retLabel = ret ? `${ret.label} RETURN` : "1Y RETURN";
 
   // Plotted tickers → colour. Default: two largest holdings.
   const [plotted, setPlotted] = useState<Map<string, string>>(() => new Map(all.slice(0, 2).map((h, i) => [h.tic, PALETTE[i]])));
@@ -154,10 +157,10 @@ export function useHoldingsExplorer(fund: FundData) {
   const subs = useMemo(() => Array.from(new Set(all.map((x) => x.sub))), [all]);
   const rows = useMemo(() => {
     const qq = q.trim().toLowerCase();
-    return all
+    return allT
       .filter((x) => (filter === "ALL" || x.sub === filter) && (!qq || x.tic.toLowerCase().includes(qq) || x.name.toLowerCase().includes(qq)))
       .sort((a, b) => { const va = a[sortKey], vb = b[sortKey]; return (typeof va === "string" ? va.localeCompare(vb as string) : (va as number) - (vb as number)) * dir; });
-  }, [all, q, filter, sortKey, dir]);
+  }, [allT, q, filter, sortKey, dir]);
   const maxW = all[0]?.w ?? 1;
   const sortBy = (k: SortKey) => {
     if (k === sortKey) setDir((d) => (d === 1 ? -1 : 1));
@@ -176,7 +179,7 @@ export function useHoldingsExplorer(fund: FundData) {
   const dim = (k: string) => hover !== null && hover !== k;
 
   return {
-    fund, all, points, etfR, rows, subs, maxW, shown, plotted, hover, setHover, limitHit, toggle, clearAll, dim,
+    fund, all, points, etfR, rows, retLabel, subs, maxW, shown, plotted, hover, setHover, limitHit, toggle, clearAll, dim,
     q, setQ, filter, setFilter, sortKey, dir, sortBy, exportCsv,
     alert: { level, levelText, top5, chips, ls },
   };
@@ -225,7 +228,7 @@ export function ExplorerTable({ x }: { x: Explorer }) {
             <span className="text-center" title="Plot on chart">◫</span>
             {HEAD.map(([l, k, al]) => (
               <button key={k} type="button" onClick={() => x.sortBy(k)} className={`whitespace-nowrap hover:text-white ${al === "right" ? "text-right" : "text-left"} ${x.sortKey === k ? "text-emerald-400" : ""}`}>
-                {l}{x.sortKey === k ? (x.dir > 0 ? " ▲" : " ▼") : ""}
+                {k === "r1y" ? x.retLabel : l}{x.sortKey === k ? (x.dir > 0 ? " ▲" : " ▼") : ""}
               </button>
             ))}
           </div>
@@ -297,7 +300,7 @@ export function ExplorerChart({ x }: { x: Explorer }) {
               ticks={[5, 18, 31, 44].map((i) => points[i].t as string)}
               tickLine={false}
               axisLine={false}
-              tick={{ fill: "#52525b", fontSize: 9.5, fontFamily: "var(--font-mono)", letterSpacing: "0.08em" }}
+              tick={{ fill: "#a1a1aa", fontSize: 10, fontFamily: "var(--font-mono)", letterSpacing: "0.08em" }}
               tickFormatter={(v: string) => v.slice(0, 3) + " '" + v.slice(-2)}
               dy={6}
             />
@@ -306,7 +309,7 @@ export function ExplorerChart({ x }: { x: Explorer }) {
               width={52}
               tickLine={false}
               axisLine={false}
-              tick={{ fill: "#52525b", fontSize: 9.5, fontFamily: "var(--font-mono)" }}
+              tick={{ fill: "#a1a1aa", fontSize: 10, fontFamily: "var(--font-mono)" }}
               tickFormatter={(v: number) => (v > 0 ? "+" : "") + v.toFixed(0) + "%"}
             />
             <ReferenceLine y={0} stroke="rgba(255,255,255,0.14)" strokeDasharray="3 4" />

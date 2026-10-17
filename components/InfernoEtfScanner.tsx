@@ -6,6 +6,7 @@ import { ETFS, type EtfRow } from "@/lib/etfs";
 import { QUOTE } from "@/lib/fund-profiles";
 import { useMyPortfolio } from "@/lib/my-portfolio";
 import { useSnapshot } from "@/lib/market-snapshot";
+import { SegRail } from "@/components/InfernoChart";
 
 /* ─────────────────────────────── Types ─────────────────────────────── */
 
@@ -248,55 +249,14 @@ const ToggleButton: React.FC<{ active: boolean; onClick: () => void; children: R
 
 /* ───────────────────────────── Component ───────────────────────────── */
 
-/** Timeframe scrubber: click, or press and drag across it — every segment crossed switches the map instantly. */
-function TimeframeScrubber({ value, onChange }: { value: TfKey; onChange: (t: TfKey) => void }) {
-  const ref = useRef<HTMLDivElement>(null);
-  const [scrubbing, setScrubbing] = useState(false);
-  const at = (clientX: number) => {
-    const r = ref.current!.getBoundingClientRect();
-    const i = Math.max(0, Math.min(TFS.length - 1, Math.floor(((clientX - r.left) / r.width) * TFS.length)));
-    if (TFS[i] !== value) onChange(TFS[i]);
-  };
-  const idx = TFS.indexOf(value);
-  return (
-    <div className={`${MONO} flex flex-none items-center gap-3 px-1`}>
-      <span className="text-[9.5px] tracking-[0.16em] text-zinc-600">PERF</span>
-      <div
-        ref={ref}
-        role="slider"
-        tabIndex={0}
-        aria-label="Performance timeframe"
-        aria-valuemin={0}
-        aria-valuemax={TFS.length - 1}
-        aria-valuenow={idx}
-        aria-valuetext={value}
-        onPointerDown={(e) => { e.currentTarget.setPointerCapture(e.pointerId); setScrubbing(true); at(e.clientX); }}
-        onPointerMove={(e) => { if (scrubbing) at(e.clientX); }}
-        onPointerUp={() => setScrubbing(false)}
-        onPointerCancel={() => setScrubbing(false)}
-        onKeyDown={(e) => {
-          if (e.key === "ArrowLeft") onChange(TFS[Math.max(0, idx - 1)]);
-          if (e.key === "ArrowRight") onChange(TFS[Math.min(TFS.length - 1, idx + 1)]);
-        }}
-        className={`relative grid flex-1 touch-none select-none grid-cols-7 rounded-sm border border-white/[0.05] bg-[#0a0a0c] outline-none focus-visible:border-white/[0.2] ${scrubbing ? "cursor-grabbing" : "cursor-ew-resize"}`}
-      >
-        {/* playhead */}
-        <span className="pointer-events-none absolute inset-y-0 bg-white/[0.1] transition-[left] duration-75" style={{ left: `${(idx / TFS.length) * 100}%`, width: `${100 / TFS.length}%` }} />
-        {TFS.map((t, i) => (
-          <span key={t} className={`relative flex h-7 items-center justify-center text-[11px] font-bold tracking-[0.12em] ${i ? "border-l border-white/[0.05]" : ""} ${t === value ? "text-white" : "text-zinc-600"}`}>
-            {t}
-          </span>
-        ))}
-      </div>
-      <span className="w-[86px] text-right text-[9.5px] tracking-[0.1em] text-zinc-600">{scrubbing ? "SCRUBBING…" : "DRAG TO SCRUB"}</span>
-    </div>
-  );
-}
 
 export default function InfernoEtfScanner() {
   const router = useRouter();
   const [equalWeight, setEqualWeight] = useState(true);
   const [sort, setSort] = useState<SortKey>("aum");
+  /** -1 = largest first (↓), 1 = smallest first (↑); clicking the active sort again flips it */
+  const [dir, setDir] = useState<1 | -1>(-1);
+  const pickSort = (k: SortKey) => { if (k === sort) setDir((d) => (d === -1 ? 1 : -1)); else { setSort(k); setDir(-1); } };
   const [disabled, setDisabled] = useState<Partial<Record<Provider, boolean>>>({});
   const [hoverSector, setHoverSector] = useState<string | null>(null);
   const [tip, setTip] = useState<{ etf: Etf; x: number; y: number } | null>(null);
@@ -360,7 +320,7 @@ export default function InfernoEtfScanner() {
 
   const { sectors, count } = useMemo(() => {
     const cmp =
-      sort === "aum" ? (a: Etf, b: Etf) => b.aum - a.aum : (a: Etf, b: Etf) => b.perf[tf] - a.perf[tf];
+      sort === "aum" ? (a: Etf, b: Etf) => (b.aum - a.aum) * -dir : (a: Etf, b: Etf) => (b.perf[tf] - a.perf[tf]) * -dir;
 
     const groups = groupsSrc.filter((g) => !focus.length || focus.includes(g.title)).map(({ title, etfs }) => {
       const rows = etfs.filter((e) => universe !== "ETF" || title === "MY PORTFOLIO" || !disabled[e.provider]).sort(cmp);
@@ -374,7 +334,7 @@ export default function InfernoEtfScanner() {
       };
     }).filter((g) => g.rows.length);
 
-    groups.sort(sort === "aum" ? (p, q) => q.aum - p.aum : (p, q) => q.avg - p.avg);
+    groups.sort(sort === "aum" ? (p, q) => (q.aum - p.aum) * -dir : (p, q) => (q.avg - p.avg) * -dir);
 
     const laid = layoutTreemap(groups, { x: 0, y: 0, w: size.w, h: size.h }).map(({ item, x, y, w, h }) => {
       const cardW = w - SECTOR_GAP * 2;
@@ -387,7 +347,7 @@ export default function InfernoEtfScanner() {
     });
 
     return { sectors: laid, count: groups.reduce((n, g) => n + g.rows.length, 0) };
-  }, [sort, disabled, size, weightOf, focus, tf, groupsSrc, universe]);
+  }, [sort, dir, disabled, size, weightOf, focus, tf, groupsSrc, universe]);
 
   const providerCounts = useMemo(() => {
     const all = SECTORS.flatMap((s) => s.etfs);
@@ -437,11 +397,11 @@ export default function InfernoEtfScanner() {
         <div className="flex flex-col gap-2.5">
           <SectionLabel>SORTING</SectionLabel>
           <div className="flex gap-1.5">
-            <ToggleButton active={sort === "aum"} onClick={() => setSort("aum")}>
-              AUM ↓
+            <ToggleButton active={sort === "aum"} onClick={() => pickSort("aum")}>
+              AUM {sort === "aum" && dir === 1 ? "↑" : "↓"}
             </ToggleButton>
-            <ToggleButton active={sort === "chg"} onClick={() => setSort("chg")}>
-              % CHG ↓
+            <ToggleButton active={sort === "chg"} onClick={() => pickSort("chg")}>
+              % CHG {sort === "chg" && dir === 1 ? "↑" : "↓"}
             </ToggleButton>
           </div>
         </div>
@@ -477,15 +437,6 @@ export default function InfernoEtfScanner() {
         </div>
         )}
 
-        <div className="flex flex-col gap-2.5">
-          <SectionLabel>COLOR SCALE · {tf}</SectionLabel>
-          <div className="h-2 rounded-sm bg-[linear-gradient(90deg,#b91c1c_0_16%,#991b1b_16%_32%,#7f1d1d_32%_44%,#27272a_44%_56%,#064e3b_56%_68%,#065f46_68%_84%,#047857_84%)]" />
-          <div className={`${MONO} flex justify-between text-[11px] text-[#71717A]`}>
-            <span>−{(1.5 * TF_SCALE[tf]).toFixed(1).replace(/\.0$/, "")}%</span>
-            <span>0%</span>
-            <span>+{(1.5 * TF_SCALE[tf]).toFixed(1).replace(/\.0$/, "")}%</span>
-          </div>
-        </div>
       </aside>
 
       {/* ── Main ── */}
@@ -510,8 +461,6 @@ export default function InfernoEtfScanner() {
           })}
           <span className="ml-auto text-[10px] tracking-[0.08em] text-zinc-600">{focus.length > 1 ? `COMPARE · ${focus.length} ${universe === "ETF" ? "SECTORS" : "COUNTRIES"}` : "RIGHT-CLICK = COMPARE"} · {count} {universe === "ETF" ? "ETF" : "INDICES · ILLUSTRATIVE"}</span>
         </nav>
-
-        <TimeframeScrubber value={tf} onChange={setTf} />
 
         {/* Treemap */}
         <div ref={mapRef} className="relative min-h-[420px] flex-auto overflow-hidden bg-[#030303]">
@@ -567,6 +516,17 @@ export default function InfernoEtfScanner() {
           {sectors.length === 0 && (
             <div className="p-12 text-center text-[13px] text-[#71717A]">No funds match the selected providers.</div>
           )}
+        </div>
+
+        {/* Timeframe rail (same as the charts) · colour scale — under the map, above the macro baseline */}
+        <div className="flex flex-none flex-wrap items-center gap-x-6 gap-y-2 px-1">
+          <SegRail items={TFS} value={tf} onChange={setTf} width={420} />
+          <div className="flex min-w-[260px] flex-1 items-center gap-3">
+            <SectionLabel>COLOR SCALE</SectionLabel>
+            <span className={`${MONO} text-[11px] text-[#71717A]`}>−{(1.5 * TF_SCALE[tf]).toFixed(1).replace(/\.0$/, "")}%</span>
+            <div className="h-2 flex-1 rounded-sm bg-[linear-gradient(90deg,#b91c1c_0_16%,#991b1b_16%_32%,#7f1d1d_32%_44%,#27272a_44%_56%,#064e3b_56%_68%,#065f46_68%_84%,#047857_84%)]" />
+            <span className={`${MONO} text-[11px] text-[#71717A]`}>+{(1.5 * TF_SCALE[tf]).toFixed(1).replace(/\.0$/, "")}%</span>
+          </div>
         </div>
 
         {/* Macro baseline */}

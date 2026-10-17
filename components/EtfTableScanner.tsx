@@ -160,6 +160,8 @@ export default function EtfTableScanner() {
   const [filters, setFilters] = useState<Filters>({});
   const [open, setOpen] = useState<Partial<Record<GroupId, boolean>>>({});
   const [sort, setSort] = useState<SortKey>("default");
+  /** 1 = as defined (largest first ↓), -1 = flipped (smallest / biggest drop first ↑) */
+  const [sortDir, setSortDir] = useState<1 | -1>(1);
   const [mode, setMode] = useState<Mode>("price");
   const [hidden, setHidden] = useState<Hidden>("none");
   const [sel, setSel] = useState<string | null>(null);
@@ -181,7 +183,7 @@ export default function EtfTableScanner() {
 
   const clearAll = () => {
     setFilters({});
-    setSort("default");
+    setSort("default"); setSortDir(1);
     if (query) router.replace("/scanner");
   };
 
@@ -228,8 +230,8 @@ export default function EtfTableScanner() {
       chg1d: (a, b) => b.chg1d - a.chg1d,
       wk: (a, b) => wk(b) - wk(a),
     };
-    return [...list].sort(by[sort]);
-  }, [base, tab, sort, activeSub, mineW, stockSet]);
+    return [...list].sort((a, b) => by[sort](a, b) * sortDir);
+  }, [base, tab, sort, sortDir, activeSub, mineW, stockSet]);
 
   // Charts view: the clicked ETF (falls back to the first row when filters drop it)
   const selected = rows.find((e) => e.ticker === sel) ?? rows[0] ?? null;
@@ -248,11 +250,12 @@ export default function EtfTableScanner() {
     <th className={`${th} ${gap} text-right`}>
       <button
         type="button"
-        onClick={() => setSort((s) => (s === key ? "default" : key))}
+        onClick={() => { if (sort === key) setSortDir((d) => (d === 1 ? -1 : 1)); else { setSort(key); setSortDir(1); } }}
+        title="Click again to flip the order"
         className={`tracking-[0.14em] transition-colors hover:text-white ${sort === key ? "text-white" : ""}`}
       >
         {label}
-        {sort === key ? " ↓" : ""}
+        {sort === key ? (sortDir === 1 ? " ↓" : " ↑") : ""}
       </button>
     </th>
   );
@@ -395,7 +398,7 @@ export default function EtfTableScanner() {
               <button
                 key={p.label}
                 type="button"
-                onClick={() => { setTab(p.tab); setFilters(p.filters); setSort(p.sort); if (query) router.replace("/scanner"); }}
+                onClick={() => { setTab(p.tab); setFilters(p.filters); setSort(p.sort); setSortDir(1); if (query) router.replace("/scanner"); }}
                 className="flex items-center gap-3 rounded-sm bg-white/[0.035] px-3.5 py-2.5 text-left text-[12px] font-semibold text-zinc-300 transition-colors hover:bg-white/[0.07] hover:text-white"
               >
                 [ {p.label.toUpperCase()} ]
@@ -448,7 +451,7 @@ export default function EtfTableScanner() {
           {mine.length > 0 && (
             <button
               type="button"
-              onClick={() => { setTab("portfolio"); setSort("default"); }}
+              onClick={() => { setTab("portfolio"); setSort("default"); setSortDir(1); }}
               title="Positions from your portfolio"
               className={`flex flex-none items-center gap-2 rounded-none px-3.5 py-1.5 font-mono text-[11.5px] font-bold tracking-[0.06em] transition-colors ${
                 tab === "portfolio" ? "bg-emerald-400/[0.12] text-emerald-300 shadow-[inset_0_0_0_1px_rgba(52,211,153,0.4)]" : "bg-emerald-400/[0.04] text-emerald-400/80 hover:bg-emerald-400/[0.1] hover:text-emerald-300"
@@ -465,7 +468,7 @@ export default function EtfTableScanner() {
               <button
                 key={c.id}
                 type="button"
-                onClick={() => { setTab(c.id); setSort("default"); }}
+                onClick={() => { setTab(c.id); setSort("default"); setSortDir(1); }}
                 className={`flex flex-none items-center gap-2 rounded-none px-3.5 py-1.5 font-mono text-[11.5px] font-bold tracking-[0.06em] transition-colors ${
                   active ? "bg-red-500/[0.12] text-red-400 shadow-[inset_0_0_0_1px_rgba(239,68,68,0.35)]" : "bg-white/[0.04] text-zinc-400 hover:bg-white/[0.08] hover:text-zinc-200"
                 }`}

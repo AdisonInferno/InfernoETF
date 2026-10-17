@@ -8,6 +8,7 @@ import "@fontsource/chakra-petch/500.css";
 import "@fontsource/chakra-petch/600.css";
 import "@fontsource/chakra-petch/700.css";
 import SiteHeader from "@/components/SiteHeader";
+import TickerContextMenu from "@/components/TickerContextMenu";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -26,6 +27,7 @@ export default function RootLayout({
       <body className="flex h-dvh flex-col overflow-hidden bg-[#030303] font-sans text-white antialiased">
         <SiteHeader />
         <main className="relative flex min-h-0 w-full flex-1 flex-col overflow-y-auto">{children}</main>
+        <TickerContextMenu />
       </body>
     </html>
   );

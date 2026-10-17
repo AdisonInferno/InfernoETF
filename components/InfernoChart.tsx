@@ -82,35 +82,39 @@ function basketSeries(parts: { s: Raw; w: number }[]): Raw | null {
   return { t: grid, c: grid.map((t) => 100 * ok.reduce((a, p) => a + (p.w / W) * (at(p.s, t) / at(p.s, grid[0])), 0)) };
 }
 
-/** Timeframe rail (under the chart, bottom-left): a wide rounded rectangle split into cells; the light-blue glowing
- *  block slides along it — snapped on a pick, fractional while you scroll/zoom (`pos`). */
-export function TfRail({ value, pos, onChange }: { value: ChartTf; pos?: number; onChange: (t: ChartTf) => void }) {
+/** Segmented light-blue rail: a wide rounded rectangle split into cells; the glowing block slides along it —
+ *  snapped on a pick, fractional while a chart scrolls/zooms (`pos`). Used by every chart and the market map. */
+export function SegRail<T extends string>({ items, value, pos, onChange, width = 360 }: { items: readonly T[]; value: T; pos?: number; onChange: (t: T) => void; width?: number }) {
   const ref = useRef<HTMLDivElement>(null);
-  const n = CHART_TFS.length;
-  const idx = CHART_TFS.indexOf(value);
+  const n = items.length;
+  const idx = items.indexOf(value);
   const p = Math.min(n - 1, Math.max(0, pos ?? idx));
   const pick = (x: number) => {
     const r = ref.current?.getBoundingClientRect();
     if (!r) return;
-    onChange(CHART_TFS[Math.min(n - 1, Math.max(0, Math.floor(((x - r.left) / r.width) * n)))]);
+    onChange(items[Math.min(n - 1, Math.max(0, Math.floor(((x - r.left) / r.width) * n)))]);
   };
   return (
     <div ref={ref} role="slider" tabIndex={0} aria-label="Timeframe" aria-orientation="horizontal" aria-valuemin={0} aria-valuemax={n - 1} aria-valuenow={idx} aria-valuetext={value}
       onKeyDown={(e) => {
-        if (e.key === "ArrowRight" || e.key === "ArrowDown") { e.preventDefault(); onChange(CHART_TFS[Math.min(n - 1, idx + 1)]); }
-        if (e.key === "ArrowLeft" || e.key === "ArrowUp") { e.preventDefault(); onChange(CHART_TFS[Math.max(0, idx - 1)]); }
+        if (e.key === "ArrowRight" || e.key === "ArrowDown") { e.preventDefault(); onChange(items[Math.min(n - 1, idx + 1)]); }
+        if (e.key === "ArrowLeft" || e.key === "ArrowUp") { e.preventDefault(); onChange(items[Math.max(0, idx - 1)]); }
       }}
       onPointerDown={(e) => { e.currentTarget.setPointerCapture(e.pointerId); pick(e.clientX); }}
       onPointerMove={(e) => { if (e.currentTarget.hasPointerCapture(e.pointerId)) pick(e.clientX); }}
-      className="relative flex h-[30px] w-[360px] max-w-full flex-none cursor-ew-resize touch-none select-none overflow-hidden rounded-[5px] border border-sky-400/25 bg-[#060a0e] outline-none focus-visible:ring-1 focus-visible:ring-sky-300/40">
-      {/* sliding block */}
+      style={{ width }}
+      className="relative flex h-[30px] max-w-full flex-none cursor-ew-resize touch-none select-none overflow-hidden rounded-[5px] border border-sky-400/25 bg-[#060a0e] outline-none focus-visible:ring-1 focus-visible:ring-sky-300/40">
       <span className="pointer-events-none absolute inset-y-[2px] rounded-[4px] border border-sky-300/80 bg-sky-400/20 shadow-[0_0_14px_rgba(56,189,248,0.55),inset_0_0_8px_rgba(56,189,248,0.25)] transition-[left] duration-150 ease-out"
         style={{ left: `calc(${(p / n) * 100}% + 2px)`, width: `calc(${100 / n}% - 4px)` }} />
-      {CHART_TFS.map((t, i) => (
+      {items.map((t, i) => (
         <span key={t} className={`relative z-[1] flex flex-1 items-center justify-center ${i ? "border-l border-sky-400/10" : ""} ${MONO} text-[10.5px] font-bold tracking-[0.06em] ${i === idx ? "text-sky-100" : "text-zinc-500"}`}>{t}</span>
       ))}
     </div>
   );
+}
+
+export function TfRail({ value, pos, onChange }: { value: ChartTf; pos?: number; onChange: (t: ChartTf) => void }) {
+  return <SegRail items={CHART_TFS} value={value} pos={pos} onChange={onChange} />;
 }
 
 /** "#60a5fa" → "rgba(96,165,250,a)" — comparison lines are drawn muted so the main line dominates */

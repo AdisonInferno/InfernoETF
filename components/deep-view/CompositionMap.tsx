@@ -166,10 +166,15 @@ function Panel({ title, meta, tools, expanded, onToggle, weight, axis = "y", chi
 /* ── Workspace ─────────────────────────────────────────────── */
 
 export default function CompositionMap({ fund }: { fund: FundData }) {
-  const x = useHoldingsExplorer(fund);
+  const [tf, setTf] = useState<MapTf>("1D");
+  // the map's timeframe also drives the table's return column (same numbers as the tiles)
+  const ret = useMemo(() => {
+    const [sc, bias] = SCALE[tf];
+    return { label: tf, of: (tic: string) => (hash01(tic + tf) * 2 - 1) * sc * 0.8 + bias * 0.5 };
+  }, [tf]);
+  const x = useHoldingsExplorer(fund, ret);
   const [open, setOpen] = useState<Record<PanelId, boolean>>({ map: true, table: true, chart: true });
   const flip = (id: PanelId) => setOpen((o) => ({ ...o, [id]: !o[id] }));
-  const [tf, setTf] = useState<MapTf>("1D");
   const nMap = fund.holdings.filter((h) => h.w > 0).length;
 
   return (

@@ -1,7 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useMyPortfolio } from "@/lib/my-portfolio";
+import { lookThrough } from "@/lib/portfolio";
 import { ETFS, fmtPct, type EtfRow } from "@/lib/etfs";
 
 /* ─────────────────────────────────────────────────────────────
@@ -52,7 +54,7 @@ const Pct = ({ v }: { v: number }) => (
   <span className={`w-[70px] text-right font-bold ${v >= 0 ? "text-emerald-400" : "text-rose-400"}`}>{v > 0 ? "▲" : v < 0 ? "▼" : "■"} {fmtPct(v)}</span>
 );
 
-function NewsRow({ n, onInsight }: { n: News; onInsight: (id: string, i: Insight) => void }) {
+function NewsRow({ n, onInsight, mine }: { n: News; onInsight: (id: string, i: Insight) => void; /** look-through weight of each ticker in MY portfolio */ mine: Record<string, number> }) {
   /** Popover anchor (viewport coords) — fixed so the scrolling rail can't clip it */
   const [hover, setHover] = useState<{ x: number; y: number } | null>(null);
   const [state, setState] = useState<{ loading: boolean; error?: string }>({ loading: false });
@@ -70,6 +72,7 @@ function NewsRow({ n, onInsight }: { n: News; onInsight: (id: string, i: Insight
 
   const dirOf = (t: string): Dir => n.insight?.impacts.find((x) => x.ticker === t)?.direction ?? toneDir(n.tone);
   const tickers = n.tickers.length ? n.tickers : n.insight?.impacts.map((x) => x.ticker) ?? [];
+  const inPf = tickers.filter((t) => (mine[t] ?? 0) > 0);
 
   return (
     <div className="relative" onMouseEnter={load} onMouseLeave={() => setHover(null)} onFocus={load} onBlur={() => setHover(null)}>
@@ -77,6 +80,9 @@ function NewsRow({ n, onInsight }: { n: News; onInsight: (id: string, i: Insight
         <span className="flex items-center gap-2 font-mono text-[10.5px] tracking-[0.06em]">
           <span className="text-zinc-400">{ago(n.ts)}</span>
           <span className="truncate text-zinc-600">{n.source.toUpperCase()}</span>
+          {inPf.length > 0 && (
+            <span className="flex-none rounded-sm bg-sky-400/15 px-1.5 py-px text-[9.5px] font-bold tracking-[0.08em] text-sky-300" title={`In your portfolio: ${inPf.map((t) => `${t} ${mine[t].toFixed(1)}%`).join(", ")}`}>★ PORTFOLIO</span>
+          )}
           <span className="ml-auto flex flex-none gap-1">
             {tickers.slice(0, 3).map((t) => (
               <span key={t} className={`rounded-sm px-1.5 py-px text-[11.5px] font-bold ${DIR_CLS[dirOf(t)]}`}>{t}</span>
@@ -120,6 +126,9 @@ export default function MarketPulse({ rows, all = ETFS }: { rows: EtfRow[]; /** 
   const down = byMove.slice(-3).reverse().filter((e) => e.chg1d < 0);
 
   const [news, setNews] = useState<News[] | null>(null);
+  /* my portfolio, look-through (ETFs opened up) → which news touch what I own */
+  const myPos = useMyPortfolio();
+  const mineW = useMemo(() => lookThrough(myPos), [myPos]);
   useEffect(() => {
     let off = false;
     fetch("/api/pulse/news?limit=12")
@@ -173,7 +182,7 @@ export default function MarketPulse({ rows, all = ETFS }: { rows: EtfRow[]; /** 
         <H t="MARKET-MOVING NEWS" sub="LIVE" />
         <div className="flex flex-col">
           {news === null && Array.from({ length: 5 }, (_, i) => <div key={i} className="mx-3 my-1.5 h-9 animate-pulse rounded-sm bg-white/[0.03]" />)}
-          {news?.map((n) => <NewsRow key={n.id} n={n} onInsight={setInsight} />)}
+          {news?.map((n) => <NewsRow key={n.id} n={n} onInsight={setInsight} mine={mineW} />)}
           {news?.length === 0 && (
             <p className="m-0 px-3 py-3 font-mono text-[11px] leading-relaxed text-zinc-600">
               No headlines yet — the news collector fills this once it runs (needs FINNHUB_API_KEY).
