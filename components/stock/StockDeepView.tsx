@@ -279,7 +279,7 @@ function Financials({ d }: { d: StockData }) {
           <div className={`mt-auto flex flex-wrap items-center gap-3 border-t ${B} pt-3`}>
             <span className="flex gap-1">
               {RANGES.map((r) => (
-                <button key={r} type="button" onClick={() => setRange(r)} className={`h-6 border px-2 font-mono text-[10px] font-bold ${range === r ? "border-emerald-500/50 bg-emerald-500/10 text-emerald-300" : `${B} text-zinc-500 hover:text-zinc-200`}`}>[ {r === 20 ? "5Y" : `${r}Q`} ]</button>
+                <button key={r} type="button" onClick={() => setRange(r)} className={`h-6 border px-2 font-mono text-[10px] font-bold ${range === r ? "oasis-on" : `${B} text-zinc-500 hover:text-zinc-200`}`}>[ {r === 20 ? "5Y" : `${r}Q`} ]</button>
               ))}
             </span>
             <span className="ml-auto font-mono text-[9.5px] tracking-[0.06em] text-zinc-600">SRC: SEC 10-Q / 10-K (XBRL) · Q4 &amp; CASH-FLOW QUARTERS DERIVED FROM YTD TOTALS</span>
@@ -533,7 +533,7 @@ export default function StockDeepView({ ticker, yahoo = ticker }: { ticker: stri
         <nav className="mt-1 flex flex-wrap gap-x-8">
           {TABS.map(([k, l]) => (
             <button key={k} type="button" onClick={() => setTab(k)}
-              className={`-mb-px whitespace-nowrap border-b-2 pb-2.5 pt-2 font-mono text-[13px] font-semibold uppercase tracking-[0.06em] ${tab === k ? "border-green-500 text-white" : "border-transparent text-gray-500 hover:text-gray-300"}`}>
+              className={`-mb-px whitespace-nowrap border-b-2 pb-2.5 pt-2 font-mono text-[13px] font-semibold uppercase tracking-[0.06em] ${tab === k ? "oasis-tab" : "border-transparent text-gray-500 hover:text-gray-300"}`}>
               [ {l} ]
             </button>
           ))}

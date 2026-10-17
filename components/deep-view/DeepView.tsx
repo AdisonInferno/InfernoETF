@@ -79,7 +79,7 @@ export default function DeepView({ fund, onBack, onSelectAlt }: Props) {
                 type="button"
                 onClick={() => setTab(k)}
                 className={`-mb-px whitespace-nowrap border-b-2 pb-2.5 pt-2 font-mono text-[13px] font-semibold uppercase tracking-[0.06em] ${
-                  on ? "border-green-500 text-white" : "border-transparent text-gray-500 hover:text-gray-300"
+                  on ? "oasis-tab" : "border-transparent text-gray-500 hover:text-gray-300"
                 }`}
               >
                 [ {l} ]

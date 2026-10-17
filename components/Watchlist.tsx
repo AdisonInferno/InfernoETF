@@ -61,7 +61,7 @@ export default function Watchlist() {
 
   const tile = (id: string, label: string, n: number, accent = "emerald") => (
     <button key={id} type="button" onClick={() => setTab(id)} aria-pressed={cur === id}
-      className={`flex min-w-[150px] flex-col items-start gap-1 border px-3.5 py-2.5 text-left transition-colors ${cur === id ? (accent === "amber" ? "border-amber-400/50 bg-amber-400/[0.07]" : "border-emerald-500/50 bg-emerald-500/[0.07]") : `${B} bg-[#0a0a0c] hover:border-white/[0.14]`}`}>
+      className={`flex min-w-[150px] flex-col items-start gap-1 border px-3.5 py-2.5 text-left transition-colors ${cur === id ? (accent === "amber" ? "border-amber-400/50 bg-amber-400/[0.07]" : "oasis-on") : `${B} bg-[#0a0a0c] hover:border-white/[0.14]`}`}>
       <span className={`text-[11px] font-bold tracking-[0.14em] ${cur === id ? "text-white" : "text-zinc-300"}`}>{label}</span>
       <span className="text-[10px] tracking-[0.08em] text-zinc-500">{n} INSTRUMENT{n === 1 ? "" : "S"}</span>
     </button>

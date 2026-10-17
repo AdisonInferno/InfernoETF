@@ -345,10 +345,10 @@ export default function EtfTableScanner() {
                     onClick={() => setOpen((o) => ({ ...o, [g.id]: !isOpen }))}
                     className="flex w-full items-center gap-2.5 rounded-sm py-[7px] text-left transition-colors hover:text-white"
                   >
-                    <span className={`text-[9px] text-red-500 transition-transform ${isOpen ? "rotate-90" : ""}`}>▶</span>
+                    <span className={`text-[9px] text-oasis transition-transform ${isOpen ? "rotate-90" : ""}`}>▶</span>
                     <GroupIcon id={g.id} />
                     <span className="flex-1 font-mono text-[11.5px] font-semibold tracking-[0.1em] text-zinc-300">{g.label}</span>
-                    {n > 0 && <span className="rounded bg-red-500/15 px-1.5 font-mono text-[10px] font-bold text-red-400">{n}</span>}
+                    {n > 0 && <span className="rounded bg-oasis-muted px-1.5 font-mono text-[10px] font-bold text-oasis">{n}</span>}
                   </button>
                   {isOpen && (
                     <div className="mb-2 ml-[22px] flex flex-wrap gap-1.5 pt-1">
@@ -360,7 +360,7 @@ export default function EtfTableScanner() {
                             type="button"
                             onClick={() => toggleOpt(g.id, o)}
                             className={`rounded-sm border px-2 py-1 text-[11px] transition-colors ${
-                              on ? "border-red-500/40 bg-red-500/[0.12] text-red-300" : "border-white/[0.06] bg-white/[0.03] text-zinc-400 hover:bg-white/[0.07] hover:text-zinc-200"
+                              on ? "oasis-on" : "border-white/[0.06] bg-white/[0.03] text-zinc-400 hover:bg-white/[0.07] hover:text-zinc-200"
                             }`}
                           >
                             {o}
@@ -440,7 +440,7 @@ export default function EtfTableScanner() {
                 aria-selected={mode === m}
                 onClick={() => { setMode(m); setHidden("none"); }}
                 className={`h-7 rounded-sm px-3 font-mono text-[11px] font-bold uppercase tracking-[0.1em] transition-colors ${
-                  mode === m ? "bg-white/[0.09] text-white shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)]" : "text-zinc-500 hover:text-zinc-200"
+                  mode === m ? "oasis-on" : "text-zinc-500 hover:text-zinc-200"
                 }`}
               >
                 {m}
@@ -454,7 +454,7 @@ export default function EtfTableScanner() {
               onClick={() => { setTab("portfolio"); setSort("default"); setSortDir(1); }}
               title="Positions from your portfolio"
               className={`flex flex-none items-center gap-2 rounded-none px-3.5 py-1.5 font-mono text-[11.5px] font-bold tracking-[0.06em] transition-colors ${
-                tab === "portfolio" ? "bg-emerald-400/[0.12] text-emerald-300 shadow-[inset_0_0_0_1px_rgba(52,211,153,0.4)]" : "bg-emerald-400/[0.04] text-emerald-400/80 hover:bg-emerald-400/[0.1] hover:text-emerald-300"
+                tab === "portfolio" ? "oasis-on" : "bg-emerald-400/[0.04] text-emerald-400/80 hover:bg-emerald-400/[0.1] hover:text-emerald-300"
               }`}
             >
               ★ PORTFOLIO
@@ -470,7 +470,7 @@ export default function EtfTableScanner() {
                 type="button"
                 onClick={() => { setTab(c.id); setSort("default"); setSortDir(1); }}
                 className={`flex flex-none items-center gap-2 rounded-none px-3.5 py-1.5 font-mono text-[11.5px] font-bold tracking-[0.06em] transition-colors ${
-                  active ? "bg-red-500/[0.12] text-red-400 shadow-[inset_0_0_0_1px_rgba(239,68,68,0.35)]" : "bg-white/[0.04] text-zinc-400 hover:bg-white/[0.08] hover:text-zinc-200"
+                  active ? "oasis-on" : "bg-white/[0.04] text-zinc-400 hover:bg-white/[0.08] hover:text-zinc-200"
                 }`}
               >
                 {c.label}
@@ -493,7 +493,7 @@ export default function EtfTableScanner() {
                   type="button"
                   onClick={() => setSub(sc.id)}
                   className={`flex flex-none items-center gap-1.5 rounded-none px-3 py-1 font-mono text-[10.5px] font-bold tracking-[0.05em] transition-colors ${
-                    on ? "bg-red-500/[0.14] text-zinc-100 shadow-[inset_0_0_0_1px_rgba(239,68,68,0.25)]" : "bg-white/[0.035] text-zinc-500 hover:bg-white/[0.07] hover:text-zinc-200"
+                    on ? "oasis-on" : "bg-white/[0.035] text-zinc-500 hover:bg-white/[0.07] hover:text-zinc-200"
                   }`}
                 >
                   {sc.label}

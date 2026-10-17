@@ -631,7 +631,7 @@ export default function PortfolioPage() {
               <nav className="-mt-1 flex flex-wrap gap-x-8 border-b border-white/[0.06]" onClick={(e) => e.stopPropagation()}>
                 {([["OV", "OVERVIEW"], ["MAP", "COMPOSITION MAP"], ["SEAS", "CHARTS"], ["NEWS", "NEWS"], ["AN", "ANALYZE"], ["TOOLS", "TOOLS"]] as const).map(([k, l]) => (
                   <button key={k} type="button" onClick={() => setPfTab(k)}
-                    className={`-mb-px whitespace-nowrap border-b-2 pb-2.5 pt-1 font-mono text-[13px] font-semibold uppercase tracking-[0.06em] ${pfTab === k ? "border-green-500 text-white" : "border-transparent text-gray-500 hover:text-gray-300"}`}>
+                    className={`-mb-px whitespace-nowrap border-b-2 pb-2.5 pt-1 font-mono text-[13px] font-semibold uppercase tracking-[0.06em] ${pfTab === k ? "oasis-tab" : "border-transparent text-gray-500 hover:text-gray-300"}`}>
                     [ {l} ]
                   </button>
                 ))}

@@ -173,7 +173,7 @@ export default function SectorSplitView() {
   const spread = retA != null && retB != null ? retA - retB : null;
   const top = act?.fund?.holdings[0];
 
-  const chip = (on: boolean) => `h-7 rounded-sm border px-2.5 text-[10.5px] font-bold tracking-[0.08em] transition-colors ${on ? "border-emerald-500/50 bg-emerald-500/10 text-emerald-300" : `${B} text-zinc-500 hover:text-zinc-200`}`;
+  const chip = (on: boolean) => `h-7 rounded-sm border px-2.5 text-[10.5px] font-bold tracking-[0.08em] transition-colors ${on ? "oasis-on" : `${B} text-zinc-500 hover:text-zinc-200`}`;
   const winLabel = WINDOWS.find(([, v]) => v === win)?.[0];
 
   return (
@@ -239,7 +239,7 @@ export default function SectorSplitView() {
                   {h?.model && <span className="mr-1 bg-amber-400/10 px-1.5 py-px text-[9.5px] font-bold tracking-[0.1em] text-amber-300">MODEL DATA</span>}
                   {WINDOWS.map(([l, v]) => (
                     <button key={v} type="button" onClick={() => setWin(v)} aria-pressed={win === v}
-                      className={`h-6 px-2 text-[10px] font-bold ${win === v ? "bg-white/[0.09] text-white" : "text-zinc-500 hover:text-zinc-200"}`}>{l}</button>
+                      className={`h-6 px-2 text-[10px] font-bold ${win === v ? "oasis-on" : "text-zinc-500 hover:text-zinc-200"}`}>{l}</button>
                   ))}
                 </span>
               </header>

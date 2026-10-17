@@ -110,7 +110,7 @@ function PickBar({ options, value, onChange, placeholder, upper }: { options: st
   const [typing, setTyping] = useState(false);
   const [q, setQ] = useState("");
   const chip = (on: boolean) =>
-    `h-7 rounded-sm border px-2.5 text-[10.5px] font-bold tracking-[0.1em] transition-colors ${on ? "border-white/[0.2] bg-white/[0.08] text-white" : "border-white/[0.06] bg-[#030303] text-zinc-500 hover:text-zinc-200"}`;
+    `h-7 rounded-sm border px-2.5 text-[10.5px] font-bold tracking-[0.1em] transition-colors ${on ? "oasis-on" : "border-white/[0.06] bg-[#030303] text-zinc-500 hover:text-zinc-200"}`;
   const custom = value && !options.some((o) => o.toLowerCase() === value.toLowerCase()) ? value : null;
   const submit = () => {
     const v = q.trim();
@@ -206,7 +206,7 @@ function FilingsPanel({ filings: sectorFilings, error: sectorError, loading: sec
         <h2 className="m-0 font-mono text-[12px] font-bold tracking-[0.16em] text-zinc-200">[ SEC FILINGS ]</h2>
         <div className="flex rounded-sm border border-white/[0.06] bg-[#030303] p-0.5">
           {(["weight", "time"] as const).map((k) => (
-            <button key={k} type="button" onClick={() => setSort(k)} className={`h-6 rounded px-2 text-[9.5px] font-bold tracking-[0.12em] ${sort === k ? "bg-white/[0.08] text-white" : "text-zinc-500 hover:text-zinc-200"}`}>
+            <button key={k} type="button" onClick={() => setSort(k)} className={`h-6 rounded px-2 text-[9.5px] font-bold tracking-[0.12em] ${sort === k ? "oasis-on" : "text-zinc-500 hover:text-zinc-200"}`}>
               {k === "weight" ? "IMPORTANT" : "LATEST"}
             </button>
           ))}
@@ -370,7 +370,7 @@ export default function MarketIntel() {
         <div className="flex rounded-sm border border-white/[0.06] bg-[#0a0a0c] p-0.5" role="tablist" aria-label="News focus">
           {SECTORS.map(([id, l]) => (
             <button key={id} type="button" role="tab" aria-selected={!mine && sector === id} onClick={() => { setSector(id); setMine(false); }}
-              className={`h-8 rounded-sm px-4 text-[11px] font-bold tracking-[0.16em] ${!mine && sector === id ? "bg-white/[0.08] text-white" : "text-zinc-500 hover:text-zinc-200"}`}>
+              className={`h-8 rounded-sm px-4 text-[11px] font-bold tracking-[0.16em] ${!mine && sector === id ? "oasis-on" : "text-zinc-500 hover:text-zinc-200"}`}>
               {l}
             </button>
           ))}

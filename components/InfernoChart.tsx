@@ -334,7 +334,7 @@ export default function InfernoChart({ main, pinned: pinnedAll = [], picker = []
           <span className="flex rounded-sm border border-white/[0.06] bg-[#030303] p-0.5">
             {(["LINE", "BARS"] as const).map((k) => (
               <button key={k} type="button" onClick={() => setKind(k)} aria-pressed={kind === k}
-                className={`h-5 rounded-sm px-2 text-[9.5px] font-bold tracking-[0.08em] ${kind === k ? "bg-white/[0.09] text-white" : "text-zinc-500 hover:text-zinc-200"}`}>{k}</button>
+                className={`h-5 rounded-sm px-2 text-[9.5px] font-bold tracking-[0.08em] ${kind === k ? "oasis-on" : "text-zinc-500 hover:text-zinc-200"}`}>{k}</button>
             ))}
           </span>
         </span>

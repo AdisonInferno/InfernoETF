@@ -407,7 +407,7 @@ export default function TradingChart({ fund }: { fund: FundData }) {
                   type="button"
                   onClick={() => setKind(c)}
                   aria-pressed={kind === c}
-                  className={`flex h-7 items-center gap-1.5 rounded-sm px-2.5 text-[10.5px] font-bold uppercase tracking-[0.08em] transition-colors ${kind === c ? "bg-white/[0.08] text-white" : "text-zinc-500 hover:text-zinc-100"}`}
+                  className={`flex h-7 items-center gap-1.5 rounded-sm px-2.5 text-[10.5px] font-bold uppercase tracking-[0.08em] transition-colors ${kind === c ? "oasis-on" : "text-zinc-500 hover:text-zinc-100"}`}
                 >
                   <svg viewBox="0 0 14 14" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="1.4" aria-hidden>
                     {c === "line" ? <path d="M1 10l3-4 3 2 3-5 3 3" /> : <><path d="M4 2v10M10 1v12" /><rect x="2.5" y="4" width="3" height="5" fill="currentColor" /><rect x="8.5" y="3" width="3" height="6" /></>}

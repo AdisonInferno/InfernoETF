@@ -62,7 +62,7 @@ export default function EtfNewsPanel({ ticker, items: basket }: { ticker: string
         <span className="text-[11px] font-bold tracking-[0.18em] text-neutral-200">{ticker} · NEWS</span>
         <div className="flex rounded-sm border border-white/[0.06] bg-[#030303] p-0.5">
           {(["company", "sector", "macro"] as Kind[]).map((k) => (
-            <button key={k} type="button" onClick={() => setTab(k)} title={TAB_HINT[k]} className={`h-7 rounded-sm px-2.5 text-[10.5px] font-bold tracking-[0.08em] ${tab === k ? "bg-white/[0.08] text-white" : "text-zinc-500 hover:text-zinc-200"}`}>
+            <button key={k} type="button" onClick={() => setTab(k)} title={TAB_HINT[k]} className={`h-7 rounded-sm px-2.5 text-[10.5px] font-bold tracking-[0.08em] ${tab === k ? "oasis-on" : "text-zinc-500 hover:text-zinc-200"}`}>
               {TAB_LABEL[k]} <span className="font-normal text-zinc-500">{d ? d[k].length : "·"}</span>
             </button>
           ))}

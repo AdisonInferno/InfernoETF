@@ -239,7 +239,7 @@ const ToggleButton: React.FC<{ active: boolean; onClick: () => void; children: R
     className={[
       "flex-1 cursor-pointer rounded-sm border px-1 py-[9px] text-center text-xs font-semibold transition-colors",
       active
-        ? "border-white/[0.14] bg-white/[0.10] text-[#FAFAFA] hover:bg-white/[0.14]"
+        ? "oasis-on"
         : "border-white/[0.06] bg-white/[0.03] text-[#A1A1AA] hover:bg-white/[0.08]",
     ].join(" ")}
   >
@@ -444,7 +444,7 @@ export default function InfernoEtfScanner() {
         {/* Sector zoom / compare bar */}
         <nav aria-label="Sectors" className={`${MONO} flex flex-none flex-wrap items-center gap-1 px-1 text-[11px]`}>
           <button type="button" onClick={() => setFocus([])} aria-pressed={!focus.length}
-            className={`rounded-sm px-2 py-1 font-bold tracking-[0.1em] transition-colors duration-75 ${!focus.length ? "bg-white/[0.09] text-white" : "text-zinc-500 hover:bg-white/[0.05] hover:text-white"}`}>
+            className={`rounded-sm px-2 py-1 font-bold tracking-[0.1em] transition-colors duration-75 ${!focus.length ? "oasis-on" : "text-zinc-500 hover:bg-white/[0.05] hover:text-white"}`}>
             ALL
           </button>
           {groupsSrc.map(({ title }) => {
@@ -453,7 +453,7 @@ export default function InfernoEtfScanner() {
               <button key={title} type="button" onClick={() => zoom(title)} onContextMenu={(e) => { e.preventDefault(); compare(title); }}
                 aria-pressed={on} title="Click: zoom · Right-click: add to compare"
                 className={`rounded-sm px-2 py-1 font-bold tracking-[0.1em] transition-colors duration-75 ${
-                  on ? "bg-red-500/[0.14] text-red-300 shadow-[inset_0_0_0_1px_rgba(239,68,68,0.35)]" : focus.length ? "text-zinc-600 hover:text-zinc-200" : "text-zinc-400 hover:bg-white/[0.05] hover:text-white"
+                  on ? "oasis-on" : focus.length ? "text-zinc-600 hover:text-zinc-200" : "text-zinc-400 hover:bg-white/[0.05] hover:text-white"
                 }`}>
                 {shortOf[title] ?? title}
               </button>
@@ -470,7 +470,7 @@ export default function InfernoEtfScanner() {
               onContextMenu={(e) => { e.preventDefault(); compare(s.title); }}
               onMouseEnter={() => setHoverSector(s.title)}
               onMouseLeave={() => setHoverSector(null)}
-              className={`absolute box-border overflow-hidden rounded-sm border bg-[#0a0a0c] ${focus.includes(s.title) ? "border-red-500/40" : s.title === "MY PORTFOLIO" ? "border-emerald-400/40 shadow-[inset_0_0_18px_rgba(52,211,153,0.08)]" : "border-white/[0.06]"}`}
+              className={`absolute box-border overflow-hidden rounded-sm border bg-[#0a0a0c] ${focus.includes(s.title) ? "border-oasis/60" : s.title === "MY PORTFOLIO" ? "border-emerald-400/40 shadow-[inset_0_0_18px_rgba(52,211,153,0.08)]" : "border-white/[0.06]"}`}
               style={{ left: s.x, top: s.y, width: s.w, height: s.h, zIndex: hoverSector === s.title ? 5 : 1 }}
             >
               <div className="absolute inset-x-0 top-0 flex h-[34px] items-center justify-between gap-2 overflow-hidden px-3.5">

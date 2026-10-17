@@ -14,7 +14,7 @@ export default function EtfTools() {
       <nav className="flex gap-1 font-mono">
         {TOOLS.map(([k, l]) => (
           <button key={k} type="button" onClick={() => setTool(k)} aria-pressed={tool === k}
-            className={`h-8 rounded-sm border px-3 text-[11px] font-bold tracking-[0.1em] transition-colors ${tool === k ? "border-white/[0.15] bg-white/[0.08] text-white" : "border-white/[0.05] text-zinc-500 hover:text-zinc-200"}`}>
+            className={`h-8 rounded-sm border px-3 text-[11px] font-bold tracking-[0.1em] transition-colors ${tool === k ? "oasis-on" : "border-white/[0.05] text-zinc-500 hover:text-zinc-200"}`}>
             [ {l} ]
           </button>
         ))}

@@ -154,7 +154,7 @@ export function LookThroughFeed({ items }: { items: PItem[] }) {
     return [...src].sort(sort === "NEWEST" ? (a, b) => b.ts - a.ts : (a, b) => wScore(b) - wScore(a));
   }, [raw, items, sort]);
 
-  const btn = (on: boolean) => `h-7 border px-2.5 text-[10.5px] font-bold tracking-[0.08em] transition-colors ${on ? "border-emerald-500/50 bg-emerald-500/10 text-emerald-300" : `${B} text-zinc-500 hover:text-zinc-200`}`;
+  const btn = (on: boolean) => `h-7 border px-2.5 text-[10.5px] font-bold tracking-[0.08em] transition-colors ${on ? "oasis-on" : `${B} text-zinc-500 hover:text-zinc-200`}`;
   return (
     <section className={`${MONO} flex flex-col border ${B} bg-[#030303]`}>
       <header className={`flex flex-wrap items-center gap-2 border-b ${B} px-3 py-2`}>
@@ -163,7 +163,7 @@ export function LookThroughFeed({ items }: { items: PItem[] }) {
         <button type="button" onClick={() => setSort("WEIGHT")} aria-pressed={sort === "WEIGHT"} className={btn(sort === "WEIGHT")}>[ SORT: WEIGHT-ADJUSTED ]</button>
         <span className="ml-auto flex items-center gap-1">
           {sample && <span className="mr-2 bg-amber-400/10 px-1.5 py-px text-[9.5px] font-bold tracking-[0.1em] text-amber-300" title="News archive is empty — sample headlines built from your real weights">SAMPLE FEED</span>}
-          {[1, 7, 30].map((d) => <button key={d} type="button" onClick={() => setDays(d)} className={`h-6 px-2 text-[10px] font-bold ${days === d ? "bg-white/[0.09] text-white" : "text-zinc-500 hover:text-zinc-200"}`}>{d}D</button>)}
+          {[1, 7, 30].map((d) => <button key={d} type="button" onClick={() => setDays(d)} className={`h-6 px-2 text-[10px] font-bold ${days === d ? "oasis-on" : "text-zinc-500 hover:text-zinc-200"}`}>{d}D</button>)}
         </span>
       </header>
       {list === null && Array.from({ length: 6 }, (_, i) => <div key={i} className={`h-[46px] animate-pulse border-b ${B} bg-white/[0.015]`} />)}

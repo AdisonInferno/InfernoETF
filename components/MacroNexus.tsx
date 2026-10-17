@@ -43,7 +43,7 @@ function Seg<T extends string | number>({ label, items, value, onChange, fmt }: 
             role="radio"
             aria-checked={it === value}
             onClick={() => onChange(it)}
-            className={`h-6 rounded-sm px-2 text-[10.5px] font-bold tracking-[0.06em] transition-colors ${it === value ? "bg-white/[0.09] text-white" : "text-zinc-500 hover:text-zinc-200"}`}
+            className={`h-6 rounded-sm px-2 text-[10.5px] font-bold tracking-[0.06em] transition-colors ${it === value ? "oasis-on" : "text-zinc-500 hover:text-zinc-200"}`}
           >
             {fmt ? fmt(it) : String(it)}
           </button>
@@ -281,7 +281,7 @@ export default function MacroNexus() {
           <Seg label="LABELS" items={["KEY", "ALL"] as const} value={labels} onChange={setLabels} />
           {held.size > 0 && (
             <button type="button" onClick={() => setOnlyMine((v) => !v)} aria-pressed={onlyMine}
-              className={`h-7 rounded-sm border px-2.5 text-[10.5px] font-bold tracking-[0.08em] transition-colors ${onlyMine ? "border-emerald-400/50 bg-emerald-400/10 text-emerald-300" : "border-white/[0.08] text-zinc-400 hover:text-white"}`}>
+              className={`h-7 rounded-sm border px-2.5 text-[10.5px] font-bold tracking-[0.08em] transition-colors ${onlyMine ? "oasis-on" : "border-white/[0.08] text-zinc-400 hover:text-white"}`}>
               ● MY PORTFOLIO
             </button>
           )}

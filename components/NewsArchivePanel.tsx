@@ -185,7 +185,7 @@ export default function NewsArchivePanel() {
             )}
           </div>
           {["SPY", "QQQ", "SOXX", "ITA", "URA", "XLE", "XLF"].map((t) => (
-            <button key={t} type="button" onClick={() => { setEtf(etf === t ? null : t); setEtfQuery(""); }} className={`h-7 rounded-sm px-2 text-[10.5px] font-bold ${etf === t ? "bg-white/[0.1] text-white" : "text-zinc-500 hover:text-zinc-200"}`}>{t}</button>
+            <button key={t} type="button" onClick={() => { setEtf(etf === t ? null : t); setEtfQuery(""); }} className={`h-7 rounded-sm px-2 text-[10.5px] font-bold ${etf === t ? "oasis-on" : "text-zinc-500 hover:text-zinc-200"}`}>{t}</button>
           ))}
           {etf && <button type="button" onClick={() => setEtf(null)} className="ml-auto text-[10px] font-bold tracking-[0.1em] text-zinc-500 hover:text-white">[ CLOSE ]</button>}
         </div>
@@ -209,7 +209,7 @@ export default function NewsArchivePanel() {
           </button>
           <div className="hidden flex-wrap gap-1 lg:flex">
             {(s?.topTickers ?? []).slice(0, 8).map(([t, n]) => (
-              <button key={t} type="button" onClick={() => setTicker(ticker === t ? "" : t)} className={`h-7 rounded-sm px-2 text-[10.5px] font-bold ${ticker === t ? "bg-white/[0.1] text-white" : "text-zinc-500 hover:text-zinc-200"}`}>
+              <button key={t} type="button" onClick={() => setTicker(ticker === t ? "" : t)} className={`h-7 rounded-sm px-2 text-[10.5px] font-bold ${ticker === t ? "oasis-on" : "text-zinc-500 hover:text-zinc-200"}`}>
                 {t} <span className="font-normal text-zinc-600">{n}</span>
               </button>
             ))}

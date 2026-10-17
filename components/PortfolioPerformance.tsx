@@ -84,7 +84,7 @@ export default function PortfolioPerformance({ positions, chartHeight = 200, tf:
               key={k}
               type="button"
               onClick={() => { setTf(k); setHover(null); }}
-              className={`rounded-sm px-2.5 py-1 font-mono text-[10.5px] font-bold transition-colors ${tf === k ? "bg-white/[0.1] text-white shadow-[inset_0_0_0_1px_rgba(255,255,255,0.1)]" : "text-zinc-500 hover:text-zinc-200"}`}
+              className={`rounded-sm px-2.5 py-1 font-mono text-[10.5px] font-bold transition-colors ${tf === k ? "oasis-on" : "text-zinc-500 hover:text-zinc-200"}`}
             >
               {k}
             </button>

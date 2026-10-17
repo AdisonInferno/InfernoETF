@@ -15,7 +15,7 @@ export default function ScannerShell() {
       type="button"
       onClick={() => setView(v)}
       className={`rounded-sm px-3 py-1.5 font-mono text-[11px] font-bold tracking-[0.1em] transition-colors ${
-        view === v ? "bg-white/[0.08] text-white shadow-[inset_0_0_0_1px_rgba(255,255,255,0.06)]" : "text-zinc-500 hover:text-zinc-200"
+        view === v ? "oasis-on" : "text-zinc-500 hover:text-zinc-200"
       }`}
     >
       {label}

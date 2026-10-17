@@ -111,7 +111,7 @@ function HoldingsNews({ tickers }: { tickers: string[] }) {
           <div className="flex flex-none flex-wrap gap-1 px-3 py-1.5">
             {[null, ...tickers].map((t) => (
               <button key={t ?? "ALL"} type="button" onClick={() => setOnly(t)}
-                className={`rounded-sm border px-1.5 py-px text-[10px] font-bold transition-all duration-75 ${only === t ? "border-white/[0.2] bg-white/[0.08] text-white" : "border-transparent text-zinc-500 hover:text-zinc-200"}`}>
+                className={`rounded-sm border px-1.5 py-px text-[10px] font-bold transition-all duration-75 ${only === t ? "oasis-on" : "border-transparent text-zinc-500 hover:text-zinc-200"}`}>
                 {t ?? "ALL"}
               </button>
             ))}

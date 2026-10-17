@@ -213,7 +213,7 @@ export default function CompositionMap({ fund }: { fund: FundData }) {
         tools={
           <span className="hidden gap-1 sm:flex">
             {MAP_TFS.map((k) => (
-              <button key={k} type="button" onClick={() => setTf(k)} className={`flex h-6 min-w-7 items-center justify-center rounded-sm px-1.5 font-mono text-[10px] font-bold ${k === tf ? "bg-white/[0.1] text-white shadow-[inset_0_0_0_1px_rgba(255,255,255,0.12)]" : "text-zinc-500 hover:text-zinc-200"}`}>{k}</button>
+              <button key={k} type="button" onClick={() => setTf(k)} className={`flex h-6 min-w-7 items-center justify-center rounded-sm px-1.5 font-mono text-[10px] font-bold ${k === tf ? "oasis-on" : "text-zinc-500 hover:text-zinc-200"}`}>{k}</button>
             ))}
           </span>
         }

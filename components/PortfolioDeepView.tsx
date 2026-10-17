@@ -235,7 +235,7 @@ export function OpenPositions({ positions, lots, saveLot, live, fx, tf, onTfChan
       </button>
     );
   };
-  const chip = (on: boolean) => `rounded-sm border px-2 py-[3px] font-mono text-[10px] font-bold tracking-[0.08em] transition-colors ${on ? "border-emerald-400/50 bg-emerald-400/10 text-emerald-300" : "border-white/[0.08] text-zinc-500 hover:border-white/[0.16] hover:text-zinc-200"}`;
+  const chip = (on: boolean) => `rounded-sm border px-2 py-[3px] font-mono text-[10px] font-bold tracking-[0.08em] transition-colors ${on ? "oasis-on" : "border-white/[0.08] text-zinc-500 hover:border-white/[0.16] hover:text-zinc-200"}`;
 
   return (
     <div className={`${panel} flex h-full min-w-0 flex-col gap-3`}>
