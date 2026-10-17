@@ -13,6 +13,7 @@ import { useSnapshot } from "@/lib/market-snapshot";
 import { useHistory, useLiveQuotes, yahooOf, type PTf } from "@/lib/portfolio-live";
 import PortfolioFlows from "@/components/PortfolioFlows";
 import ResizableSplit from "@/components/ResizableSplit";
+import PortfolioPies from "@/components/PortfolioPies";
 import XtbImport, { type ImportResult } from "@/components/XtbImport";
 import {
   PRESETS,
@@ -761,7 +762,10 @@ export default function PortfolioPage() {
             <AnimatePresence initial={false}>
               {isExpanded && pfTab === "OV" && (
                 <motion.div key="deep" layout="position" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, transition: { duration: 0.15 } }}>
-                  <PnlAttribution rows={attribRows} />
+                  <div className="flex flex-col gap-3">
+                    <PortfolioPies positions={livePos} />
+                    <PnlAttribution rows={attribRows} />
+                  </div>
                 </motion.div>
               )}
             </AnimatePresence>

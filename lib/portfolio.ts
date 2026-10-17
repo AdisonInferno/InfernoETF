@@ -278,11 +278,12 @@ export function assetClass(a: Asset): AssetClass {
 
 /** Look-through exposure by parent sector, split by the position that contributes it. */
 export function sectorExposure(positions: Position[]) {
-  const map: Record<string, { total: number; by: Record<string, number> }> = {};
-  const add = (sector: string, ticker: string, v: number) => {
-    const s = (map[sector] ??= { total: 0, by: {} });
+  const map: Record<string, { total: number; by: Record<string, number>; subs: Record<string, number> }> = {};
+  const add = (sector: string, ticker: string, v: number, sub = sector) => {
+    const s = (map[sector] ??= { total: 0, by: {}, subs: {} });
     s.total += v;
     s.by[ticker] = (s.by[ticker] ?? 0) + v;
+    s.subs[sub] = (s.subs[sub] ?? 0) + v;
   };
   for (const { asset, weight } of positions) {
     if (asset.kind === "stock") { add(asset.sector === "Consumer" ? "Consumer Disc." : asset.sector, asset.ticker, weight); continue; }
@@ -291,11 +292,11 @@ export function sectorExposure(positions: Position[]) {
     if (!prof) { add(asset.sector || "Other", asset.ticker, weight); continue; }
     if (prof.sectors) {
       const tot = prof.sectors.reduce((a, [, v]) => a + v, 0);
-      prof.sectors.forEach(([sub, v]) => add(SUB_PARENT[sub] ?? "Other", asset.ticker, (weight * v) / tot));
+      prof.sectors.forEach(([sub, v]) => add(SUB_PARENT[sub] ?? "Other", asset.ticker, (weight * v) / tot, sub));
     } else {
       const lines = prof.holdings.map((l) => l.split("|"));
       const tot = lines.reduce((a, l) => a + Number(l[2]), 0);
-      lines.forEach((l) => add(SUB_PARENT[l[3]] ?? "Other", asset.ticker, (weight * Number(l[2])) / tot));
+      lines.forEach((l) => add(SUB_PARENT[l[3]] ?? "Other", asset.ticker, (weight * Number(l[2])) / tot, l[3] || undefined));
     }
   }
   return Object.entries(map)
