@@ -9,6 +9,17 @@
   --font-geist: "Geist Mono Variable", "JetBrains Mono Variable", ui-monospace, monospace;
 }
 
+/* ── OASIS brand accent (light blue / cyan) — tuned live with the colour scrubber (bottom-right) ── */
+:root {
+  --oasis-accent: #38bdf8;
+  --oasis-accent-muted: rgba(56, 189, 248, 0.15);
+}
+/* Tailwind 4: utilities text-oasis / border-oasis / bg-oasis/20 / bg-oasis-muted … resolve to the live variables */
+@theme inline {
+  --color-oasis: var(--oasis-accent);
+  --color-oasis-muted: var(--oasis-accent-muted);
+}
+
 @theme {
   --animate-ticker: ticker 160s linear infinite;
 

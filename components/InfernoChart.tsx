@@ -103,11 +103,11 @@ export function SegRail<T extends string>({ items, value, pos, onChange, width =
       onPointerDown={(e) => { e.currentTarget.setPointerCapture(e.pointerId); pick(e.clientX); }}
       onPointerMove={(e) => { if (e.currentTarget.hasPointerCapture(e.pointerId)) pick(e.clientX); }}
       style={{ width }}
-      className="relative flex h-[30px] max-w-full flex-none cursor-ew-resize touch-none select-none overflow-hidden rounded-[5px] border border-sky-400/25 bg-[#060a0e] outline-none focus-visible:ring-1 focus-visible:ring-sky-300/40">
-      <span className="pointer-events-none absolute inset-y-[2px] rounded-[4px] border border-sky-300/80 bg-sky-400/20 shadow-[0_0_14px_rgba(56,189,248,0.55),inset_0_0_8px_rgba(56,189,248,0.25)] transition-[left] duration-150 ease-out"
+      className="relative flex h-[30px] max-w-full flex-none cursor-ew-resize touch-none select-none overflow-hidden rounded-[5px] border border-oasis/25 bg-[#060a0e] outline-none focus-visible:ring-1 focus-visible:ring-oasis/40">
+      <span className="pointer-events-none absolute inset-y-[2px] rounded-[4px] border border-oasis/80 bg-oasis/20 shadow-[0_0_14px_color-mix(in_srgb,var(--oasis-accent)_55%,transparent),inset_0_0_8px_color-mix(in_srgb,var(--oasis-accent)_25%,transparent)] transition-[left] duration-150 ease-out"
         style={{ left: `calc(${(p / n) * 100}% + 2px)`, width: `calc(${100 / n}% - 4px)` }} />
       {items.map((t, i) => (
-        <span key={t} className={`relative z-[1] flex flex-1 items-center justify-center ${i ? "border-l border-sky-400/10" : ""} ${MONO} text-[10.5px] font-bold tracking-[0.06em] ${i === idx ? "text-sky-100" : "text-zinc-500"}`}>{t}</span>
+        <span key={t} className={`relative z-[1] flex flex-1 items-center justify-center ${i ? "border-l border-oasis/10" : ""} ${MONO} text-[10.5px] font-bold tracking-[0.06em] ${i === idx ? "text-oasis" : "text-zinc-500"}`}>{t}</span>
       ))}
     </div>
   );
@@ -321,7 +321,7 @@ export default function InfernoChart({ main, pinned: pinnedAll = [], picker = []
         {pinned.filter((l) => !isGroup(l.id)).map((l) => chip(l.id, l.label, l.color, l.dashed, pctOver(ready?.raw[l.sym]), false))}
         {hasGroup && (
           <button type="button" onClick={() => setShowGroup((v) => !v)} aria-pressed={showGroup}
-            className={`mx-1 h-5 rounded-sm border px-2 text-[9.5px] font-bold tracking-[0.08em] transition-colors ${showGroup ? "border-sky-400/50 bg-sky-400/10 text-sky-200" : "border-white/[0.12] text-zinc-400 hover:border-white/[0.3] hover:text-white"}`}>
+            className={`mx-1 h-5 rounded-sm border px-2 text-[9.5px] font-bold tracking-[0.08em] transition-colors ${showGroup ? "border-oasis/50 bg-oasis-muted text-oasis" : "border-white/[0.12] text-zinc-400 hover:border-white/[0.3] hover:text-white"}`}>
             {showGroup ? `HIDE ${groupLabel}` : `SHOW ${groupLabel}`}
           </button>
         )}

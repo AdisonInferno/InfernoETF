@@ -81,7 +81,7 @@ function NewsRow({ n, onInsight, mine }: { n: News; onInsight: (id: string, i: I
           <span className="text-zinc-400">{ago(n.ts)}</span>
           <span className="truncate text-zinc-600">{n.source.toUpperCase()}</span>
           {inPf.length > 0 && (
-            <span className="flex-none rounded-sm bg-sky-400/15 px-1.5 py-px text-[9.5px] font-bold tracking-[0.08em] text-sky-300" title={`In your portfolio: ${inPf.map((t) => `${t} ${mine[t].toFixed(1)}%`).join(", ")}`}>★ PORTFOLIO</span>
+            <span className="flex-none rounded-sm bg-oasis-muted px-1.5 py-px text-[9.5px] font-bold tracking-[0.08em] text-oasis" title={`In your portfolio: ${inPf.map((t) => `${t} ${mine[t].toFixed(1)}%`).join(", ")}`}>★ PORTFOLIO</span>
           )}
           <span className="ml-auto flex flex-none gap-1">
             {tickers.slice(0, 3).map((t) => (

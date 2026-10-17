@@ -177,7 +177,7 @@ export function LookThroughFeed({ items }: { items: PItem[] }) {
                 <span key={h.tic} className="border border-emerald-500/30 bg-emerald-500/[0.07] px-1.5 py-px text-emerald-300">[ {h.tic} — {h.w.toFixed(1)}% PORTFOLIO WEIGHT ]</span>
               ))}
               {n.kind === "sector" && n.sectors.slice(0, 2).map((s) => (
-                <span key={s.sub} className="border border-sky-500/30 bg-sky-500/[0.07] px-1.5 py-px text-sky-300">[ SECTOR: {s.sub.toUpperCase()} — {s.pct.toFixed(1)}% ]</span>
+                <span key={s.sub} className="border border-oasis/30 bg-oasis-muted px-1.5 py-px text-oasis">[ SECTOR: {s.sub.toUpperCase()} — {s.pct.toFixed(1)}% ]</span>
               ))}
               {n.kind === "macro" && <span className={`border ${B} px-1.5 py-px text-zinc-400`}>[ MACRO — ALL POSITIONS ]</span>}
               <span className="font-normal text-zinc-600">{n.source.toUpperCase()}</span>

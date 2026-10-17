@@ -301,7 +301,7 @@ export function OpenPositions({ positions, lots, saveLot, live, fx, tf, onTfChan
                         <span className="flex items-center gap-2">
                           <span className="font-mono text-[14px] font-bold text-zinc-50">{p.asset.ticker}</span>
                           <span className="rounded-sm bg-white/[0.06] px-1.5 py-px font-mono text-[9px] font-bold tracking-[0.1em] text-zinc-400">{p.asset.kind === "etf" ? "ETF" : "STOCK"}</span>
-                          {r.ccy !== "USD" && r.ccy !== "?" && <span className="font-mono text-[9px] text-sky-400" title={`Trades in ${r.ccy}, converted to USD at today's rate`}>{r.ccy}→$</span>}
+                          {r.ccy !== "USD" && r.ccy !== "?" && <span className="font-mono text-[9px] text-oasis" title={`Trades in ${r.ccy}, converted to USD at today's rate`}>{r.ccy}→$</span>}
                         </span>
                         <span className="truncate text-[11px] text-zinc-500">{p.asset.name}</span>
                       </span>

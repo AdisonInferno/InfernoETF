@@ -9,6 +9,7 @@ import "@fontsource/chakra-petch/600.css";
 import "@fontsource/chakra-petch/700.css";
 import SiteHeader from "@/components/SiteHeader";
 import TickerContextMenu from "@/components/TickerContextMenu";
+import OasisColorScrubber from "@/components/OasisColorScrubber";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -28,6 +29,7 @@ export default function RootLayout({
         <SiteHeader />
         <main className="relative flex min-h-0 w-full flex-1 flex-col overflow-y-auto">{children}</main>
         <TickerContextMenu />
+        <OasisColorScrubber />
       </body>
     </html>
   );

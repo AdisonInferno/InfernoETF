@@ -211,8 +211,8 @@ export default function SectorSplitView() {
                   const on = act?.ticker === r.ticker;
                   return (
                     <tr key={r.ticker} onClick={() => setActive(r.ticker)} aria-selected={on}
-                      className={`cursor-pointer border-b ${B} transition-colors ${on ? "bg-white/[0.08]" : "hover:bg-white/[0.03]"}`}>
-                      <td className={`py-2.5 pl-3 font-bold ${on ? "border-l-2 border-emerald-500 pl-[10px] text-white" : "border-l-2 border-transparent text-zinc-200"}`}>{r.ticker}</td>
+                      className={`cursor-pointer border-b ${B} transition-colors ${on ? "bg-oasis-muted" : "hover:bg-white/[0.03]"}`}>
+                      <td className={`py-2.5 pl-3 font-bold ${on ? "border-l-2 border-oasis pl-[10px] text-oasis" : "border-l-2 border-transparent text-zinc-200"}`}>{r.ticker}</td>
                       <td className="truncate py-2.5 pr-2 font-sans text-[12px] text-zinc-400" title={r.name}>{r.name}</td>
                       <td className="py-2.5 text-right text-zinc-300">{fmtAum(r.aum)}</td>
                       <td className={`py-2.5 text-right font-bold ${tone(r.m1)}`}>{sgn(r.m1, 1)}</td>

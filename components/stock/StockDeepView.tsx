@@ -163,7 +163,7 @@ function Bars({ title, qs, k, sel, onSel, cf }: { title: string; qs: Quarter[]; 
     <div className="flex flex-col gap-1.5">
       <div className="flex items-baseline justify-between">
         <span className={LABEL}>{title}</span>
-        {cf && <span className="flex items-center gap-1.5 font-mono text-[10px] text-zinc-500"><span className="h-[2px] w-3 bg-sky-300" />FREE CASH FLOW = OPERATING CF − CAPEX</span>}
+        {cf && <span className="flex items-center gap-1.5 font-mono text-[10px] text-zinc-500"><span className="h-[2px] w-3 bg-oasis" />FREE CASH FLOW = OPERATING CF − CAPEX</span>}
       </div>
       <div ref={boxRef} onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp}
         onClickCapture={(e) => { if (e.ctrlKey || e.metaKey) { e.stopPropagation(); e.preventDefault(); } }}
@@ -176,7 +176,7 @@ function Bars({ title, qs, k, sel, onSel, cf }: { title: string; qs: Quarter[]; 
           return (
             <button key={q.end} type="button" onClick={() => onSel(q.end)} title={`${q.label}: ${big(v)}`} className="group relative min-w-0 flex-1" style={{ height: H + 30 }}>
               <span className={`absolute inset-x-0 ${neg ? (on ? "bg-rose-400" : "bg-rose-500/55 group-hover:bg-rose-400/80") : on ? "bg-emerald-400" : "bg-emerald-500/45 group-hover:bg-emerald-400/70"}`} style={{ top, height: h }} />
-              {cf && q.fcf != null && <span className="absolute left-[15%] right-[15%] h-[2px] bg-sky-300" style={{ top: y(q.fcf) - 1 }} title={`FCF ${big(q.fcf)}`} />}
+              {cf && q.fcf != null && <span className="absolute left-[15%] right-[15%] h-[2px] bg-oasis" style={{ top: y(q.fcf) - 1 }} title={`FCF ${big(q.fcf)}`} />}
               <span className={`absolute inset-x-0 text-center font-mono text-[9px] tabular-nums ${on ? "text-white" : neg ? "text-rose-300/80" : "text-zinc-500"}`} style={{ top: neg ? top + h + 1 : top - 13 }}>{v == null ? "—" : big(v).replace("$", "")}</span>
               <span className={`absolute inset-x-0 -bottom-0 truncate text-center font-mono text-[8.5px] tracking-[0.04em] ${on ? "text-emerald-300" : "text-zinc-600"}`} style={{ top: H + 17 }}>{q.label}</span>
             </button>
@@ -188,17 +188,18 @@ function Bars({ title, qs, k, sel, onSel, cf }: { title: string; qs: Quarter[]; 
           const x1 = Math.min(cx(ruler.a), cx(ruler.b)), x2 = Math.max(cx(ruler.a), cx(ruler.b));
           const half = W / qs.length / 2;
           const up = (delta ?? 0) >= 0;
-          const col = up ? "56,189,248" : "251,113,133";
+          const accent = up ? "var(--oasis-accent)" : "rgb(251,113,133)";
+          const tint = (a: number) => `color-mix(in srgb, ${accent} ${a * 100}%, transparent)`;
           return (
             <>
-              <span className="pointer-events-none absolute border-x" style={{ left: x1 - half, width: x2 - x1 + 2 * half, top: PAD, height: H, background: `rgba(${col},0.08)`, borderColor: `rgba(${col},0.5)` }} />
+              <span className="pointer-events-none absolute border-x" style={{ left: x1 - half, width: x2 - x1 + 2 * half, top: PAD, height: H, background: tint(0.08), borderColor: tint(0.5) }} />
               <svg className="pointer-events-none absolute inset-0 overflow-visible" width={W} height={H + 46}>
-                <line x1={cx(ruler.a)} y1={yv(va)} x2={cx(ruler.b)} y2={yv(vb)} stroke={`rgb(${col})`} strokeWidth={1.5} strokeDasharray="4 3" />
-                <circle cx={cx(ruler.a)} cy={yv(va)} r={3} fill={`rgb(${col})`} />
-                <circle cx={cx(ruler.b)} cy={yv(vb)} r={3} fill={`rgb(${col})`} />
+                <line x1={cx(ruler.a)} y1={yv(va)} x2={cx(ruler.b)} y2={yv(vb)} stroke={accent} strokeWidth={1.5} strokeDasharray="4 3" />
+                <circle cx={cx(ruler.a)} cy={yv(va)} r={3} fill={accent} />
+                <circle cx={cx(ruler.b)} cy={yv(vb)} r={3} fill={accent} />
               </svg>
               <span className="pointer-events-none absolute z-10 -translate-x-1/2 whitespace-nowrap border bg-[#030303] px-2 py-0.5 font-mono text-[10.5px] font-bold tabular-nums"
-                style={{ left: Math.min(W - 90, Math.max(90, (x1 + x2) / 2)), top: 0, borderColor: `rgba(${col},0.6)`, color: `rgb(${col})` }}>
+                style={{ left: Math.min(W - 90, Math.max(90, (x1 + x2) / 2)), top: 0, borderColor: tint(0.6), color: accent }}>
                 {qs[ruler.a].label} → {qs[ruler.b].label} · Δ {delta == null ? "—" : `${delta >= 0 ? "+" : "−"}${big(Math.abs(delta))}`} | {dPct == null ? "—" : `${dPct >= 0 ? "+" : "−"}${Math.abs(dPct).toFixed(1)}%`}
               </span>
             </>
@@ -270,7 +271,7 @@ function Financials({ d }: { d: StockData }) {
         <section className={`${CARD} flex flex-col gap-5 p-4`}>
           <div className="flex items-center gap-2">
             <span className={`${LABEL} text-zinc-300`}>[ QUARTERLY RESULTS ]</span>
-            <span className="ml-auto font-mono text-[9.5px] tracking-[0.1em] text-zinc-600">CLICK = QUARTER · <span className="text-sky-300/80">CTRL + DRAG = MEASURE</span></span>
+            <span className="ml-auto font-mono text-[9.5px] tracking-[0.1em] text-zinc-600">CLICK = QUARTER · <span className="text-oasis">CTRL + DRAG = MEASURE</span></span>
           </div>
           <Bars title="REVENUE" qs={qs} k="revenue" sel={cur.end} onSel={setSel} />
           <Bars title="NET INCOME · PROFIT / LOSS" qs={qs} k="netIncome" sel={cur.end} onSel={setSel} />
