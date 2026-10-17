@@ -30,7 +30,7 @@ const fmtVol = (m: number) => (m >= 1000 ? `$${(m / 1000).toFixed(1)}B` : `$${m.
 
 type Dir = "up" | "down" | "neutral";
 interface Insight { summary: string; impacts: { ticker: string; direction: Dir; why: string }[] }
-interface News { id: string; ts: number; headline: string; url: string; source: string; tickers: string[]; tone: number; insight: Insight | null }
+interface News { id: string; ts: number; headline: string; url: string; source: string; tickers: string[]; tone: number; impact?: 1 | 2 | 3; impactPts?: number; insight: Insight | null }
 
 const ago = (ts: number) => {
   const m = Math.max(1, Math.round((Date.now() / 1000 - ts) / 60));
@@ -53,6 +53,19 @@ const H = ({ t, sub }: { t: string; sub?: string }) => (
 const Pct = ({ v }: { v: number }) => (
   <span className={`w-[70px] text-right font-bold ${v >= 0 ? "text-emerald-400" : "text-rose-400"}`}>{v > 0 ? "▲" : v < 0 ? "▼" : "■"} {fmtPct(v)}</span>
 );
+
+/** 1-3 rising bars = how market-moving the headline is */
+function Impact({ n, pts }: { n: number; pts?: number }) {
+  const cls = n === 3 ? "bg-rose-400" : n === 2 ? "bg-amber-300" : "bg-zinc-400";
+  return (
+    <span className="flex h-[11px] flex-none items-end gap-[2px]" title={`Impact ${n}/3${pts != null ? ` · score ${pts}` : ""} — event words, tone, mega-caps, coverage, source`}>
+      {[5, 8, 11].map((h, i) => <span key={h} className={`w-[3px] rounded-[1px] ${i < n ? cls : "bg-white/10"}`} style={{ height: h }} />)}
+    </span>
+  );
+}
+
+type NRange = "d" | "w" | "m";
+const NRANGES: [NRange, string][] = [["d", "DAILY"], ["w", "WEEKLY"], ["m", "MONTHLY"]];
 
 function NewsRow({ n, onInsight, mine }: { n: News; onInsight: (id: string, i: Insight) => void; /** look-through weight of each ticker in MY portfolio */ mine: Record<string, number> }) {
   /** Popover anchor (viewport coords) — fixed so the scrolling rail can't clip it */
@@ -78,6 +91,7 @@ function NewsRow({ n, onInsight, mine }: { n: News; onInsight: (id: string, i: I
     <div className="relative" onMouseEnter={load} onMouseLeave={() => setHover(null)} onFocus={load} onBlur={() => setHover(null)}>
       <a href={n.url} target="_blank" rel="noreferrer" className="flex flex-col gap-1 border-b border-white/[0.04] px-3 py-2 hover:bg-white/[0.03]">
         <span className="flex items-center gap-2 font-mono text-[10.5px] tracking-[0.06em]">
+          <Impact n={n.impact ?? 1} pts={n.impactPts} />
           <span className="text-zinc-400">{ago(n.ts)}</span>
           <span className="truncate text-zinc-600">{n.source.toUpperCase()}</span>
           {inPf.length > 0 && (
@@ -126,17 +140,18 @@ export default function MarketPulse({ rows, all = ETFS }: { rows: EtfRow[]; /** 
   const down = byMove.slice(-3).reverse().filter((e) => e.chg1d < 0);
 
   const [news, setNews] = useState<News[] | null>(null);
+  const [nr, setNr] = useState<NRange>("d");
   /* my portfolio, look-through (ETFs opened up) → which news touch what I own */
   const myPos = useMyPortfolio();
   const mineW = useMemo(() => lookThrough(myPos), [myPos]);
   useEffect(() => {
     let off = false;
-    fetch("/api/pulse/news?limit=12")
+    fetch(`/api/pulse/news?limit=12&range=${nr}`)
       .then((r) => (r.ok ? r.json() : { news: [] }))
       .then((j: { news?: News[] }) => { if (!off) setNews(j.news ?? []); })
       .catch(() => { if (!off) setNews([]); });
     return () => { off = true; };
-  }, []);
+  }, [nr]);
   const setInsight = (id: string, i: Insight) => setNews((l) => l?.map((n) => (n.id === id ? { ...n, insight: i } : n)) ?? l);
 
   return (
@@ -180,6 +195,14 @@ export default function MarketPulse({ rows, all = ETFS }: { rows: EtfRow[]; /** 
 
         {/* News */}
         <H t="MARKET-MOVING NEWS" sub="LIVE" />
+        <div className="grid grid-cols-3 gap-1.5 px-3 py-2">
+          {NRANGES.map(([k, l]) => (
+            <button key={k} type="button" onClick={() => { if (k !== nr) { setNews(null); setNr(k); } }}
+              className={`h-6 rounded-full border font-mono text-[9.5px] font-bold tracking-[0.12em] transition-colors ${nr === k ? "oasis-on" : "border-white/[0.08] text-zinc-500 hover:text-zinc-200"}`}>
+              {l}
+            </button>
+          ))}
+        </div>
         <div className="flex flex-col">
           {news === null && Array.from({ length: 5 }, (_, i) => <div key={i} className="mx-3 my-1.5 h-9 animate-pulse rounded-sm bg-white/[0.03]" />)}
           {news?.map((n) => <NewsRow key={n.id} n={n} onInsight={setInsight} mine={mineW} />)}
