@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import StockDeepView from "@/components/stock/StockDeepView";
+import { toYahoo } from "@/lib/yahoo";
 
 type Params = { params: Promise<{ ticker: string }>; searchParams?: Promise<{ y?: string }> };
 
@@ -16,5 +17,5 @@ export default async function StockPage({ params, searchParams }: Params) {
   const y = (await searchParams)?.y?.toUpperCase();
   const t = decodeURIComponent(ticker).toUpperCase();
   if (!/^[A-Z0-9.^-]{1,12}$/.test(t)) notFound();
-  return <StockDeepView ticker={t} yahoo={y && /^[A-Z0-9.^=-]{1,15}$/.test(y) ? y : t} />;
+  return <StockDeepView ticker={t} yahoo={y && /^[A-Z0-9.^=-]{1,15}$/.test(y) ? y : toYahoo(t)} />;
 }

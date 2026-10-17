@@ -31,6 +31,9 @@ const PROBE = [".WA", ".DE", ".L", ".AS", ".PA", ".MI", ".SW"];
 
 /** Broker symbol ("CDR.PL", "VWCE.DE", "NVDA.US") → Yahoo symbol ("CDR.WA", "VWCE.DE", "NVDA") */
 export function yahooOf(ticker: string, brokerSym?: string): string {
+  // our ticker may already carry the XTB exchange suffix ("BDX.PL")
+  const own = /^([A-Z0-9-]+)\.([A-Z]{2})$/.exec(ticker.toUpperCase());
+  if (own && own[2] in SUFFIX) return own[1] + SUFFIX[own[2]];
   const m = /^([A-Z0-9-]+)\.([A-Z]{2})$/.exec((brokerSym ?? "").toUpperCase().trim());
   if (m && m[2] in SUFFIX) return ticker.toUpperCase() + SUFFIX[m[2]]; // suffix from the broker, base = our (editable) ticker
   return ticker.toUpperCase();

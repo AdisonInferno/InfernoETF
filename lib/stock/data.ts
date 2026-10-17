@@ -10,6 +10,7 @@
    ───────────────────────────────────────────────────────────── */
 
 import { cikMap, sec } from "@/lib/intel/sec";
+import { summary, toYahoo } from "@/lib/yahoo";
 
 const DATA = process.env.SEC_DATA_BASE_URL ?? "https://data.sec.gov";
 const FINN = process.env.FINNHUB_BASE_URL ?? "https://finnhub.io/api/v1";
@@ -34,6 +35,12 @@ export interface StockData {
   earnings: EarningsRow[];
   earningsDates: string[]; // 8-K item 2.02 acceptance dates (results releases), newest first
   peers: string[];
+  /** Yahoo profile / fund data (works for any market, incl. Warsaw and UCITS ETFs) */
+  quoteType: string | null; sector: string | null; description: string | null; forwardPe: number | null;
+  aum: number | null; ter: number | null; category: string | null; family: string | null;
+  fundHoldings: { symbol: string; name: string; w: number }[];
+  /** main index of the listing's market (S&P 500 for US, WIG20 for Warsaw, DAX for Xetra …) */
+  benchmark: { sym: string; label: string };
   sources: string[];
   missing: string[];
 }
@@ -152,28 +159,46 @@ async function yahooDaily(sym: string, range = "1y") {
   } catch { return null; }
 }
 
+/** The main index of the market a symbol trades on (Yahoo suffix → index). */
+export function benchmarkOf(ysym: string): { sym: string; label: string } {
+  const sfx = (/\.([A-Z]{1,2})$/.exec(ysym.toUpperCase()) ?? [])[1] ?? "";
+  const M: Record<string, { sym: string; label: string }> = {
+    WA: { sym: "WIG20.WA", label: "WIG20" }, DE: { sym: "^GDAXI", label: "DAX" }, F: { sym: "^GDAXI", label: "DAX" }, L: { sym: "^FTSE", label: "FTSE 100" },
+    PA: { sym: "^FCHI", label: "CAC 40" }, AS: { sym: "^AEX", label: "AEX" }, MI: { sym: "FTSEMIB.MI", label: "FTSE MIB" }, MC: { sym: "^IBEX", label: "IBEX 35" },
+    SW: { sym: "^SSMI", label: "SMI" }, T: { sym: "^N225", label: "NIKKEI 225" }, HK: { sym: "^HSI", label: "HANG SENG" }, TO: { sym: "^GSPTSE", label: "TSX" },
+    AX: { sym: "^AXJO", label: "ASX 200" }, ST: { sym: "^OMX", label: "OMX 30" }, CO: { sym: "^OMXC25", label: "OMXC25" }, OL: { sym: "OBX.OL", label: "OBX" },
+  };
+  return M[sfx] ?? { sym: "SPY", label: "S&P 500" };
+}
+
 export async function stockData(raw: string, yahooSym?: string): Promise<StockData> {
   const ticker = raw.toUpperCase();
-  const ysym = yahooSym ?? ticker;
+  const ysym = yahooSym ?? toYahoo(ticker);
   const hit = cache.get(`${ticker}|${ysym}`);
   if (hit && Date.now() - hit.at < 15 * 60_000) return hit.d;
   const sources: string[] = [], missing: string[] = [];
 
+  // SEC / Finnhub only cover US listings — never look up "BDX" at the SEC for Budimex (BDX.WA)
+  const foreign = /\.[A-Z]{1,2}$/.test(ysym) || /\.[A-Z]{2}$/.test(ticker);
   let cik: number | null = null, title: string | null = null;
-  try { const m = await cikMap(); cik = m[ticker]?.cik ?? null; title = m[ticker]?.title ?? null; } catch { missing.push("SEC"); }
+  if (!foreign) { try { const m = await cikMap(); cik = m[ticker]?.cik ?? null; title = m[ticker]?.title ?? null; } catch { missing.push("SEC"); } }
+  const ySum = summary(ysym);
 
   const [fin, prof, px, spy, fEarn, fProf, fPeers, fMet] = await Promise.all([
     cik ? secFinancials(cik).catch(() => null) : Promise.resolve(null),
     cik ? secProfile(cik).catch(() => null) : Promise.resolve(null),
     yahooDaily(ysym), yahooDaily("SPY"),
-    finn<{ actual: number | null; estimate: number | null; period: string; quarter: number; year: number; surprise: number | null; surprisePercent: number | null }[]>(`/stock/earnings?symbol=${ticker}`),
-    finn<{ name?: string; country?: string; marketCapitalization?: number; weburl?: string; logo?: string; finnhubIndustry?: string; exchange?: string }>(`/stock/profile2?symbol=${ticker}`),
-    finn<string[]>(`/stock/peers?symbol=${ticker}`),
-    finn<{ metric?: Record<string, number | null> }>(`/stock/metric?symbol=${ticker}&metric=all`),
+    foreign ? Promise.resolve(null) : finn<{ actual: number | null; estimate: number | null; period: string; quarter: number; year: number; surprise: number | null; surprisePercent: number | null }[]>(`/stock/earnings?symbol=${ticker}`),
+    foreign ? Promise.resolve(null) : finn<{ name?: string; country?: string; marketCapitalization?: number; weburl?: string; logo?: string; finnhubIndustry?: string; exchange?: string }>(`/stock/profile2?symbol=${ticker}`),
+    foreign ? Promise.resolve(null) : finn<string[]>(`/stock/peers?symbol=${ticker}`),
+    foreign ? Promise.resolve(null) : finn<{ metric?: Record<string, number | null> }>(`/stock/metric?symbol=${ticker}&metric=all`),
   ]);
   if (fin) sources.push("SEC XBRL"); else if (cik) missing.push("SEC financials");
   if (px) sources.push("Yahoo"); else missing.push("Yahoo prices");
-  if (process.env.FINNHUB_API_KEY) sources.push("Finnhub"); else missing.push("FINNHUB_API_KEY (EPS estimates, peers)");
+  if (foreign) { /* EPS estimates / peers / SEC filings exist only for US companies */ }
+  else if (process.env.FINNHUB_API_KEY) sources.push("Finnhub"); else missing.push("FINNHUB_API_KEY (EPS estimates, peers)");
+  const y = await ySum;
+  if (y) sources.push("Yahoo profile");
 
   const qs = fin?.quarters ?? [];
   const last4 = qs.slice(-4);
@@ -200,21 +225,26 @@ export async function stockData(raw: string, yahooSym?: string): Promise<StockDa
   const marketCap = fProf?.marketCapitalization ? fProf.marketCapitalization * 1e6 : (met.marketCapitalization ? met.marketCapitalization * 1e6 : null);
 
   const d: StockData = {
-    ticker, name: fProf?.name ?? prof?.name ?? fin?.name ?? title ?? ticker, cik,
-    industry: fProf?.finnhubIndustry ?? prof?.industry ?? null, exchange: fProf?.exchange ?? prof?.exchange ?? null,
-    country: fProf?.country ?? null, web: fProf?.weburl ?? prof?.web ?? null, logo: fProf?.logo ?? null,
+    ticker, name: (foreign ? y?.name : null) ?? fProf?.name ?? prof?.name ?? fin?.name ?? title ?? y?.name ?? ticker, cik,
+    industry: fProf?.finnhubIndustry ?? y?.industry ?? prof?.industry ?? null, exchange: fProf?.exchange ?? prof?.exchange ?? y?.exchange ?? null,
+    country: fProf?.country ?? y?.country ?? null, web: fProf?.weburl ?? prof?.web ?? y?.web ?? null, logo: fProf?.logo ?? null,
     price, currency: px?.currency ?? "USD", chg1d,
-    marketCap, pe: price && epsTTM && epsTTM > 0 ? price / epsTTM : (met.peTTM ?? met.peBasicExclExtraTTM ?? null),
-    epsTTM, revenueTTM, netIncomeTTM,
+    marketCap: marketCap ?? y?.marketCap ?? null,
+    pe: price && epsTTM && epsTTM > 0 ? price / epsTTM : (y?.pe ?? met.peTTM ?? met.peBasicExclExtraTTM ?? null),
+    epsTTM: epsTTM ?? y?.eps ?? null, revenueTTM, netIncomeTTM,
     grossMargin: gpTTM != null && revenueTTM ? (gpTTM / revenueTTM) * 100 : (met.grossMarginTTM ?? null),
     netMargin: netIncomeTTM != null && revenueTTM ? (netIncomeTTM / revenueTTM) * 100 : (met.netProfitMarginTTM ?? null),
-    dividendYield: met.dividendYieldIndicatedAnnual ?? null,
-    beta: beta ?? met.beta ?? null,
+    dividendYield: y?.dividendYield ?? met.dividendYieldIndicatedAnnual ?? null,
+    beta: beta ?? y?.beta ?? met.beta ?? null,
     hi52: px ? Math.max(...px.c) : (met["52WeekHigh"] ?? null), lo52: px ? Math.min(...px.c) : (met["52WeekLow"] ?? null),
     quarters: qs,
     earnings: (fEarn ?? []).map((e) => ({ period: e.period, quarter: e.quarter, year: e.year, actual: e.actual, estimate: e.estimate, surprise: e.surprise, surprisePct: e.surprisePercent })),
     earningsDates: prof?.earningsDates ?? [],
     peers: (fPeers ?? []).filter((p) => p !== ticker).slice(0, 6),
+    quoteType: y?.type ?? null, sector: y?.sector ?? null, description: y?.description ?? null, forwardPe: y?.forwardPe ?? null,
+    aum: y?.totalAssets ?? null, ter: y?.expenseRatio ?? null, category: y?.category ?? null, family: y?.family ?? null,
+    fundHoldings: y?.holdings ?? [],
+    benchmark: benchmarkOf(ysym),
     sources, missing,
   };
   cache.set(`${ticker}|${ysym}`, { at: Date.now(), d });

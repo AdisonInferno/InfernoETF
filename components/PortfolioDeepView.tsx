@@ -142,6 +142,50 @@ function lookRows(p: Position, n: number) {
   return [...m.values()].sort((a, b) => b.inFund - a.inFund).slice(0, n);
 }
 
+/**
+ * One position in US dollars — the single formula used by the positions table AND for portfolio weights
+ * (so weights everywhere = real USD market value / total). Price: live quote × FX → broker value ÷ shares
+ * (account currency → USD) → database quote. Cost: broker value − broker P&L (→ USD) → shares × avg price.
+ */
+export function positionUsd(p: Position, lots: Record<string, Lot>, live: Record<string, Live>, fx: Record<string, number>) {
+  const usdOf = (c?: string) => (c ? fx[c] : 1);
+  const lot = lots[p.asset.ticker] ?? defaultLot(p);
+  const lv = live[p.asset.ticker];
+  const acct = lot.ccy ?? "USD", acctFx = usdOf(acct);
+  const ccy = lv?.currency ?? (lot.price != null && acct !== "USD" ? "?" : "USD");
+  const insFx = ccy === "?" ? undefined : usdOf(ccy);
+  const price = lv && insFx ? lv.price * insFx
+    : lot.value != null && acctFx && lot.qty ? (lot.value * acctFx) / lot.qty
+    : (lot.price ?? p.asset.price) * (insFx ?? 1);
+  const value = lot.qty * price;
+  const cost = lot.pl != null && lot.value != null && acctFx ? (lot.value - lot.pl) * acctFx : lot.qty * lot.avg * (insFx ?? acctFx ?? 1);
+  /** false while an FX rate this position needs is still missing (values not yet comparable) */
+  const ready = (acct === "USD" || acctFx != null) && (ccy === "USD" || ccy === "?" || insFx != null);
+  return { lot, ccy, price, value, cost, ready };
+}
+
+/** Cost basis · YTD · TER · AUM (· P/E) — from our database, or from Yahoo for anything outside it (UCITS ETFs, Warsaw stocks …). */
+function PositionFacts({ ticker, sym, cost, ytd, dbTer, dbAum }: { ticker: string; sym?: string; cost: string; ytd: string; dbTer: string | null; dbAum: string | null }) {
+  const [y, setY] = useState<{ totalAssets: number | null; expenseRatio: number | null; pe: number | null; type: string | null } | null>(null);
+  useEffect(() => {
+    if (dbTer && dbAum) return;
+    let off = false;
+    fetch(`/api/instrument?s=${encodeURIComponent(sym ?? ticker)}`).then((r) => r.json()).then((j) => { if (!off && j && !j.error) setY(j); }).catch(() => {});
+    return () => { off = true; };
+  }, [ticker, sym, dbTer, dbAum]);
+  const aum = dbAum ?? (y?.totalAssets ? fmtAum(y.totalAssets / 1e9) : "—");
+  const ter = dbTer ?? (y?.expenseRatio != null ? `${y.expenseRatio.toFixed(2)}%` : "—");
+  const items: [string, string][] = [["COST BASIS", cost], ["YTD", ytd], ["TER", ter], ["AUM", aum]];
+  if (y?.pe != null && y.type !== "ETF") items.push(["P/E", y.pe.toFixed(1)]);
+  return (
+    <div className="grid grid-cols-2 gap-x-6 gap-y-1 border-t border-white/[0.06] px-4 py-3 font-mono text-[11px] sm:grid-cols-5">
+      {items.map(([k, v]) => (
+        <span key={k} className="flex justify-between gap-2"><span className="text-zinc-600">{k}</span><span className="text-zinc-200">{v}</span></span>
+      ))}
+    </div>
+  );
+}
+
 type SortKey = "name" | "qty" | "avg" | "price" | "value" | "pl" | "ret" | "weight";
 type KindFilter = "ALL" | "ETF" | "STOCK" | "UP" | "DOWN";
 
@@ -171,24 +215,12 @@ export function OpenPositions({ positions, lots, saveLot, live, fx, tf, onTfChan
     return n;
   }, [positions]);
 
-  const usdOf = (c?: string) => (c ? fx[c] : 1);
   const base = positions.map((p, i) => {
     const etf = ETFS.find((e) => e.ticker === p.asset.ticker);
     const ter = etf ? QUOTE[p.asset.ticker]?.[1] ?? 0 : 0;
     const custom = !!lots[p.asset.ticker];
-    const lot = lots[p.asset.ticker] ?? defaultLot(p);
+    const { lot, ccy, price, value, cost } = positionUsd(p, lots, live, fx);
     const lv = live[p.asset.ticker];
-    const acct = lot.ccy ?? "USD", acctFx = usdOf(acct);
-    // Instrument currency: from the live quote; without one, an imported price is in an unknown currency.
-    const ccy = lv?.currency ?? (lot.price != null && acct !== "USD" ? "?" : "USD");
-    const insFx = ccy === "?" ? undefined : usdOf(ccy);
-    // Price in USD: live quote → broker value / shares (account ccy → USD) → our own quote.
-    const price = lv && insFx ? lv.price * insFx
-      : lot.value != null && acctFx && lot.qty ? (lot.value * acctFx) / lot.qty
-      : (lot.price ?? p.asset.price) * (insFx ?? 1);
-    const value = lot.qty * price;
-    // Cost in USD: broker figures (value − P&L, account ccy) when imported, else shares × avg price.
-    const cost = lot.pl != null && lot.value != null && acctFx ? (lot.value - lot.pl) * acctFx : lot.qty * lot.avg * (insFx ?? acctFx ?? 1);
     const pl = value - cost;
     const chg = tf === "1D" ? lv?.chg ?? rets?.[p.asset.ticker] ?? p.asset.chg1d : rets?.[p.asset.ticker] ?? null;
     return { p, i, etf, ter, lot, custom, ccy, price, avgUsd: lot.qty ? cost / lot.qty : 0, cost, value, pl, plPct: cost ? (pl / cost) * 100 : 0, chg };
@@ -330,16 +362,7 @@ export function OpenPositions({ positions, lots, saveLot, live, fx, tf, onTfChan
                       >
                         <LotEditor key={`${r.lot.qty}-${r.lot.avg}`} lot={r.lot} custom={r.custom} ccy={r.ccy === "?" ? "BROKER CCY" : r.ccy} onSave={(l) => saveLot(p.asset.ticker, l)} />
 
-                        <div className="grid grid-cols-2 gap-x-6 gap-y-1 border-t border-white/[0.06] px-4 py-3 font-mono text-[11px] sm:grid-cols-4">
-                          {([
-                            ["COST BASIS", money(r.cost)],
-                            ["YTD", pct(p.asset.ytd)],
-                            ["TER", etf ? terFmt(ter) : "—"],
-                            ["AUM", etf ? fmtAum(etf.aum) : "—"],
-                          ] as const).map(([k, v]) => (
-                            <span key={k} className="flex justify-between gap-2"><span className="text-zinc-600">{k}</span><span className="text-zinc-200">{v}</span></span>
-                          ))}
-                        </div>
+                        <PositionFacts ticker={p.asset.ticker} sym={r.lot.sym} cost={money(r.cost)} ytd={pct(p.asset.ytd)} dbTer={etf ? terFmt(ter) : null} dbAum={etf ? fmtAum(etf.aum) : null} />
 
                         <div className="grid grid-cols-[60px_minmax(0,1fr)_64px_84px_92px] gap-3 border-t border-white/[0.06] px-4 pb-1 pt-3 font-mono text-[9px] tracking-[0.12em] text-zinc-600">
                           <span>STOCK</span><span />

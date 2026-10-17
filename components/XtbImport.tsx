@@ -7,6 +7,12 @@ import { isKnownTicker, type Asset, type Lot } from "@/lib/portfolio";
 
 interface RawPos {
   symbol: string;
+  /** set by the server: true = symbol checked against the exchange (name / price), false = could not confirm */
+  verified?: boolean;
+  /** the symbol Gemini read, when the server corrected it by name search */
+  fixedFrom?: string;
+  /** company name as listed at the exchange */
+  listedName?: string;
   symbolShown?: boolean;
   name: string | null;
   kind: "etf" | "stock";
@@ -30,6 +36,9 @@ interface Row {
   source: string; // symbol as shown at the broker
   sym?: string; // broker symbol incl. exchange suffix (e.g. "CDR.PL") → used for live quotes / currency
   inferred: boolean; // ticker guessed from the name (not printed on screen)
+  verified?: boolean;
+  fixedFrom?: string;
+  listedName?: string;
   ticker: string; // our ticker
   name: string;
   kind: "etf" | "stock";
@@ -57,9 +66,13 @@ const str = (v: number | null | undefined) => (v == null ? "" : String(v));
 const fmt = (v: number | null, d = 2) => (v == null ? "—" : v.toLocaleString("en-US", { minimumFractionDigits: d, maximumFractionDigits: d }));
 
 /** "VWCE.DE" → "VWCE", "NVDA.US" → "NVDA"; must start with a letter for the portfolio parser. */
+/** Our ticker: US listings plain ("NVDA"), every other market keeps its exchange suffix ("BDX.PL", "VWCE.DE")
+ *  so a Warsaw company can never be confused with a US one that shares the letters (Budimex BDX.PL ≠ Becton Dickinson BDX). */
 function toTicker(symbol: string) {
-  const base = symbol.toUpperCase().trim().replace(/\s+/g, "").replace(/\.[A-Z]{1,3}$/, "").replace(/[^A-Z0-9.]/g, "");
-  return /^[A-Z]/.test(base) ? base.slice(0, 7) : ("X" + base).slice(0, 7);
+  const s = symbol.toUpperCase().trim().replace(/\s+/g, "").replace(/[^A-Z0-9.]/g, "");
+  const m = /^([A-Z0-9-]+)\.([A-Z]{2})$/.exec(s);
+  const base = m ? (m[2] === "US" ? m[1] : `${m[1]}.${m[2]}`) : s.replace(/\.[A-Z]{1,3}$/, "");
+  return /^[A-Z]/.test(base) ? base.slice(0, 10) : ("X" + base).slice(0, 10);
 }
 
 /** Same instrument bought in several rows → one position (summed qty, weighted avg price). */
@@ -81,6 +94,9 @@ function merge(list: RawPos[]): Row[] {
     id: i,
     source: (p.symbolShown === false ? p.name ?? p.symbol : p.symbol) + (p.n > 1 ? ` ×${p.n}` : ""),
     inferred: p.symbolShown === false,
+    verified: p.verified,
+    fixedFrom: p.fixedFrom,
+    listedName: p.listedName,
     sym: /\.[A-Z]{2}$/.test(p.symbol.toUpperCase().trim()) ? p.symbol.toUpperCase().trim() : undefined,
     ticker: toTicker(p.symbol),
     name: p.name ?? p.symbol,
@@ -98,7 +114,7 @@ function merge(list: RawPos[]): Row[] {
 function rowIssues(r: Row): string[] {
   const out: string[] = [];
   const q = num(r.qty), a = num(r.avg), p = num(r.price), v = num(r.value), pl = num(r.pl);
-  if (!/^[A-Z][A-Z0-9.]{0,6}$/.test(r.ticker)) out.push("ticker");
+  if (!/^[A-Z][A-Z0-9.]{0,9}$/.test(r.ticker)) out.push("ticker");
   if (q == null || q <= 0) out.push("qty");
   if (a == null || a < 0) out.push("avg"); // 0 is valid (e.g. spin-off shares)
   if (v == null && (q == null || p == null)) out.push("value");
@@ -246,7 +262,9 @@ export default function XtbImport({ onImport, onClose }: { onImport: (r: ImportR
                           <span className={`flex-none rounded-sm px-1 font-mono text-[8.5px] font-bold tracking-[0.08em] ${known ? "bg-emerald-500/10 text-emerald-400" : "bg-amber-500/10 text-amber-400"}`} title={known ? "W bazie Inferno" : "Spoza bazy: dodam jako własną pozycję (bez składu i sektorów)"}>
                             {known ? "DB" : "NEW"}
                           </span>
-                          {r.inferred && <span className="flex-none rounded-sm bg-sky-500/10 px-1 font-mono text-[8.5px] font-bold tracking-[0.08em] text-sky-300" title="Ticker odgadnięty z nazwy — sprawdź">GUESS</span>}
+                          {r.verified === true && <span className="flex-none rounded-sm bg-emerald-500/10 px-1 font-mono text-[8.5px] font-bold tracking-[0.08em] text-emerald-400" title={`Sprawdzone na giełdzie: ${r.listedName ?? ""}${r.fixedFrom ? ` (poprawione z ${r.fixedFrom})` : ""}`}>✓ {r.fixedFrom ? "FIXED" : "OK"}</span>}
+                          {r.verified === false && <span className="flex-none rounded-sm bg-amber-500/15 px-1 font-mono text-[8.5px] font-bold tracking-[0.08em] text-amber-300" title="Nie udało się potwierdzić tickera na giełdzie — sprawdź ręcznie">CHECK</span>}
+                          {r.inferred && r.verified == null && <span className="flex-none rounded-sm bg-sky-500/10 px-1 font-mono text-[8.5px] font-bold tracking-[0.08em] text-sky-300" title="Ticker odgadnięty z nazwy — sprawdź">GUESS</span>}
                           <span className="truncate text-[11.5px] text-zinc-400">{r.name}</span>
                         </span>
                         <input value={r.qty} onChange={(e) => set(r.id, "qty", e.target.value)} className={`${cell} ${iss.includes("qty") ? bad : ""}`} />

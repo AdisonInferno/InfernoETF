@@ -1,3 +1,4 @@
+import { SUFFIX_BY_CCY, search, toXtb, toYahoo } from "@/lib/yahoo";
 import { GoogleGenAI, Type } from "@google/genai";
 
 // Reads a broker screenshot (XTB "Open positions" table) and returns the positions as JSON.
@@ -29,7 +30,11 @@ Rules:
 - symbol: the ticker exactly as shown, including any suffix (e.g. "VWCE.DE", "NVDA.US", "CDR.PL", "CSPX.UK").
   XTB often shows ONLY the instrument name (e.g. "Intuitive Machines", "Lubawa", "Space Innovators"). Then set
   symbolShown=false and put your best exchange ticker in symbol (e.g. "LUNR", "LBW.PL", "RCAT", "KTOS", "SPOT", "MNST").
-  Never leave symbol empty.
+  ALWAYS add the XTB exchange suffix: Warsaw (GPW) companies → ".PL" (Budimex → "BDX.PL", CD Projekt → "CDR.PL",
+  Orlen → "PKN.PL"; if unsure of the ticker keep the NAME exact — the app verifies every symbol against the exchange),
+  US → ".US", Xetra → ".DE", London → ".UK", Amsterdam → ".NL", Paris → ".FR", Milan → ".IT".
+  NEVER map a Polish / European company to a US ticker that merely shares the letters (Budimex is NOT Becton Dickinson "BDX").
+  Never leave symbol empty. The name is the source of truth — copy it exactly.
 - symbolShown: true only if the ticker itself is printed on screen.
 - name: the instrument name exactly as shown (without the "Akcje"/"ETF" tag).
 - quantity: the "Wolumen"/"Volume"/"Ilość" column (number of shares/units).
@@ -79,6 +84,51 @@ const SCHEMA = {
   required: ["positions", "accountCurrency", "totalMarketValue", "totalProfit"],
 };
 
+/* ── symbol verification (Yahoo): the screenshot NAME is the source of truth ── */
+type P = { symbol: string; symbolShown?: boolean; name: string | null; kind: "etf" | "stock"; currentPrice: number | null; verified?: boolean; fixedFrom?: string; yahoo?: string; listedName?: string };
+const YQ = process.env.YAHOO_BASE_URL ?? "https://query1.finance.yahoo.com";
+const words = (s: string) => s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\b(s\.?a\.?|inc|corp|corporation|plc|ag|se|nv|ltd|co|company|holdings?|group|the|ucits|etf|acc|dist|usd|eur)\b/g, " ").split(/[^a-z0-9]+/).filter((w) => w.length > 1);
+function nameSim(a: string, b: string) {
+  const A = new Set(words(a)), B = new Set(words(b));
+  if (!A.size || !B.size) return 0;
+  let hit = 0;
+  for (const w of A) if (B.has(w) || [...B].some((x) => x.startsWith(w) || w.startsWith(x))) hit++;
+  return hit / Math.min(A.size, B.size);
+}
+async function meta(sym: string): Promise<{ name: string; price: number | null; currency: string; type: string } | null> {
+  try {
+    const r = await fetch(`${YQ}/v8/finance/chart/${encodeURIComponent(sym)}?range=5d&interval=1d`, { headers: { "User-Agent": "Mozilla/5.0 InfernoETF" }, signal: AbortSignal.timeout(6000) });
+    if (!r.ok) return null;
+    const m = (await r.json())?.chart?.result?.[0]?.meta;
+    if (!m) return null;
+    const k = m.currency === "GBp" ? 0.01 : 1;
+    return { name: m.longName ?? m.shortName ?? sym, price: typeof m.regularMarketPrice === "number" ? m.regularMarketPrice * k : null, currency: m.currency === "GBp" ? "GBP" : m.currency ?? "", type: m.instrumentType ?? "" };
+  } catch { return null; }
+}
+const priceOk = (a: number | null, b: number | null) => a != null && b != null && b > 0 && Math.abs(a / b - 1) < 0.2;
+async function resolveOne(p: P, acct: string | null): Promise<P> {
+  if (!p.name) return p;
+  const y = toYahoo(p.symbol.replace(/\.US$/i, ""));
+  const m = await meta(y);
+  if (m && (nameSim(p.name, m.name) >= 0.5 || priceOk(m.price, p.currentPrice))) return { ...p, verified: true, yahoo: y, listedName: m.name };
+  // wrong / unknown ticker → search by the NAME shown on screen, prefer the listing in the account's market
+  const pref = SUFFIX_BY_CCY[acct ?? ""] ?? [];
+  const hits = (await search(p.name)).map((h) => ({ h, sim: nameSim(p.name!, h.name), local: pref.some((sfx) => (sfx ? h.symbol.endsWith(sfx) : !h.symbol.includes("."))) }))
+    .filter((x) => x.sim >= 0.5).sort((a, b) => Number(b.local) - Number(a.local) || b.sim - a.sim).slice(0, 4);
+  for (const { h } of hits) {
+    const mm = await meta(h.symbol);
+    if (!mm) continue;
+    if (p.currentPrice == null || priceOk(mm.price, p.currentPrice) || hits.length === 1)
+      return { ...p, symbol: toXtb(h.symbol), verified: true, fixedFrom: p.symbol, yahoo: h.symbol, listedName: mm.name, kind: h.type === "ETF" ? "etf" : p.kind };
+  }
+  return { ...p, verified: false };
+}
+async function resolveAll(list: P[], acct: string | null): Promise<P[]> {
+  const out: P[] = [];
+  for (let i = 0; i < list.length; i += 4) out.push(...(await Promise.all(list.slice(i, i + 4).map((p) => resolveOne(p, acct)))));
+  return out;
+}
+
 export async function POST(req: Request) {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) return Response.json({ error: "Brak GEMINI_API_KEY w .env.local." }, { status: 500 });
@@ -107,6 +157,8 @@ export async function POST(req: Request) {
         config: { temperature: 0, responseMimeType: "application/json", responseSchema: SCHEMA },
       });
       const json = JSON.parse(res.text ?? "{}");
+      // Verify every symbol against the exchange (name + price), and fix it by NAME search when it doesn't match.
+      if (Array.isArray(json.positions)) json.positions = await resolveAll(json.positions, json.accountCurrency ?? null);
       return Response.json({ ...json, model });
     } catch (err) {
       const e = errInfo(err);

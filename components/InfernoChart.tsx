@@ -125,7 +125,11 @@ const mute = (hex: string, a: number) => {
   return `rgba(${n >> 16},${(n >> 8) & 255},${n & 255},${a})`;
 };
 
-export default function InfernoChart({ main, pinned: pinnedAll = [], picker = [], tf: tfProp, onTfChange, initialTf = "1Y", className = "", groupLabel = "TOP 5 HOLDINGS" }: {
+export default function InfernoChart({ main, pinned: pinnedAll = [], picker = [], tf: tfProp, onTfChange, initialTf = "1Y", className = "", groupLabel = "TOP 5 HOLDINGS", valueScale, unitLabel = "PRICE" }: {
+  /** basket only: today's value (e.g. portfolio $) — PRICE mode then plots the basket in money, not an index */
+  valueScale?: number;
+  /** label for the price-mode button ("PRICE", "VALUE") */
+  unitLabel?: string;
   /** label of the button that reveals the grouped comparisons (ids "top:…" / "peer:…") */
   groupLabel?: string;
   main: MainDef;
@@ -142,6 +146,8 @@ export default function InfernoChart({ main, pinned: pinnedAll = [], picker = []
   const tf = tfProp ?? tfLocal;
   const setTf = (t: ChartTf) => { setTfLocal(t); onTfChange?.(t); };
   const [kind, setKind] = useState<"LINE" | "BARS">("LINE");
+  /** right axis: real price / value (default) or % change from the first visible bar */
+  const [unit, setUnit] = useState<"PRICE" | "PCT">("PRICE");
   const [off, setOff] = useState<Set<string>>(new Set());
   const [extras, setExtras] = useState<LineDef[]>([]);
   const [pickOpen, setPickOpen] = useState(false);
@@ -232,7 +238,10 @@ export default function InfernoChart({ main, pinned: pinnedAll = [], picker = []
         : chart.addSeries(LineSeries, { color: main.color, lineWidth: 3, priceLineVisible: false, lastValueVisible: true, title: main.label });
       map.set(mainKey, ms);
     }
-    const r = mainRaw;
+    chart.applyOptions({ rightPriceScale: { mode: unit === "PCT" ? PriceScaleMode.Percentage : PriceScaleMode.Normal } });
+    // PRICE mode: basket scaled to today's money value; comparisons rebased onto the main line's starting level
+    const k0 = unit === "PRICE" && valueScale && mainRaw.c.length ? valueScale / mainRaw.c[mainRaw.c.length - 1] : 1;
+    const r = k0 === 1 ? mainRaw : { ...mainRaw, c: mainRaw.c.map((v) => v * k0), o: mainRaw.o?.map((v) => v * k0), h: mainRaw.h?.map((v) => v * k0), l: mainRaw.l?.map((v) => v * k0) };
     if (kind === "BARS") {
       const real = !!(r.o && r.h && r.l);
       ms.setData(dedupe(r.t, (i) => {
@@ -254,7 +263,8 @@ export default function InfernoChart({ main, pinned: pinnedAll = [], picker = []
         ls = chart.addSeries(LineSeries, { color: mute(l.color, l.dashed ? 0.55 : 0.45), lineWidth: 1, lineStyle: l.dashed ? LineStyle.Dashed : LineStyle.Solid, priceLineVisible: false, lastValueVisible: false, title: "" });
         map.set(k, ls);
       }
-      ls.setData(dedupe(s.t, (i) => s.c[i]).map(([t, value]) => ({ time: t as UTCTimestamp, value })));
+      const kk = unit === "PRICE" ? r.c[0] / (at(s, r.t[0]) || 1) : 1;
+      ls.setData(dedupe(s.t, (i) => s.c[i] * kk).map(([t, value]) => ({ time: t as UTCTimestamp, value })));
       ls.applyOptions({ visible: !off.has(l.id) });
     }
     for (const [k, s] of map) if (!want.has(k)) { chart.removeSeries(s); map.delete(k); }
@@ -265,7 +275,7 @@ export default function InfernoChart({ main, pinned: pinnedAll = [], picker = []
       chart.timeScale().setVisibleRange({ from: Math.max(r.t[0], from) as Time, to: end as Time });
       fitTo.current = null;
     }
-  }, [ready, mainRaw, lines, kind, off, main.id, main.label, main.color]);
+  }, [ready, mainRaw, lines, kind, off, main.id, main.label, main.color, unit, valueScale]);
 
   const pick = (t: ChartTf) => { fitTo.current = t; setTf(t); };
   // same data range (e.g. 1M → 3M on the 2-year daily set): just zoom, no reload
@@ -331,6 +341,12 @@ export default function InfernoChart({ main, pinned: pinnedAll = [], picker = []
           className={`ml-0.5 flex h-5 w-5 items-center justify-center rounded-sm border text-[13px] leading-none transition-colors ${pickOpen ? "border-emerald-400/50 text-emerald-300" : "border-white/[0.12] text-zinc-400 hover:border-white/[0.3] hover:text-white"}`}>+</button>
         <span className="ml-auto flex items-center gap-2">
           {ready?.model && <span className="rounded-sm bg-amber-400/10 px-1.5 py-px text-[9.5px] font-bold tracking-[0.1em] text-amber-300" title="Live prices unavailable — synthetic data">MODEL DATA</span>}
+          <span className="flex rounded-sm border border-white/[0.06] bg-[#030303] p-0.5" title="Right axis: price / value, or % change from the first visible bar">
+            {(["PRICE", "PCT"] as const).map((u) => (
+              <button key={u} type="button" onClick={() => setUnit(u)} aria-pressed={unit === u}
+                className={`h-5 rounded-sm px-2 text-[9.5px] font-bold tracking-[0.08em] ${unit === u ? "oasis-on" : "text-zinc-500 hover:text-zinc-200"}`}>{u === "PRICE" ? (valueScale ? "$ VALUE" : unitLabel) : "%"}</button>
+            ))}
+          </span>
           <span className="flex rounded-sm border border-white/[0.06] bg-[#030303] p-0.5">
             {(["LINE", "BARS"] as const).map((k) => (
               <button key={k} type="button" onClick={() => setKind(k)} aria-pressed={kind === k}
@@ -362,7 +378,7 @@ export default function InfernoChart({ main, pinned: pinnedAll = [], picker = []
         </div>
       )}
 
-      <div className="relative min-h-[300px] min-w-0 flex-1">
+      <div className="relative min-h-[170px] min-w-0 flex-1">
         <div ref={box} className="absolute inset-0" />
         {!ready && <div className="absolute inset-0 animate-pulse bg-white/[0.02]" />}
       </div>

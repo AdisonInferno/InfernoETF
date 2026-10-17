@@ -18,7 +18,7 @@ import InfernoChart from "@/components/InfernoChart";
 import EtfNewsPanel from "@/components/EtfNewsPanel";
 import { ETFS } from "@/lib/etfs";
 import { PROFILE_OF } from "@/lib/fund-profiles";
-import { lookThrough } from "@/lib/portfolio";
+import { getAsset, lookThrough } from "@/lib/portfolio";
 import { useMyPortfolio } from "@/lib/my-portfolio";
 import { useSnapshot } from "@/lib/market-snapshot";
 import { toggleFavorite, useWatchlist } from "@/lib/watchlist";
@@ -58,7 +58,13 @@ function holders(ticker: string) {
 function Overview({ d, held, sym }: { d: StockData; held: { etf: string; name: string; w: number }[]; sym: string }) {
   const peers = d.peers.slice(0, 4);
   const pos52 = d.price != null && d.hi52 != null && d.lo52 != null && d.hi52 > d.lo52 ? ((d.price - d.lo52) / (d.hi52 - d.lo52)) * 100 : null;
-  const groups: { t: string; items: [string, string, string?][] }[] = [
+  const isFund = d.quoteType === "ETF" || d.quoteType === "MUTUALFUND";
+  const groups: { t: string; items: [string, string, string?][] }[] = isFund ? [
+    { t: "FUND PROFILE", items: [["AUM", big(d.aum)], ["TER", d.ter != null ? `${d.ter.toFixed(2)}%` : "—"]] },
+    { t: "CATEGORY", items: [["CATEGORY", d.category ?? "—"], ["ISSUER", d.family ?? "—"]] },
+    { t: "INCOME", items: [["YIELD", d.dividendYield != null ? `${d.dividendYield.toFixed(2)}%` : "—"], ["P/E", d.pe != null ? d.pe.toFixed(1) : "—"]] },
+    { t: "RISK", items: [["BETA (1Y)", d.beta != null ? d.beta.toFixed(2) : "—"], ["52W", d.lo52 != null && d.hi52 != null ? `${d.lo52.toFixed(0)}–${d.hi52.toFixed(0)}` : "—"]] },
+  ] : [
     { t: "VALUATION", items: [["MARKET CAP", big(d.marketCap)], ["P/E (TTM)", d.pe != null ? d.pe.toFixed(1) : "—"]] },
     { t: "PROFITABILITY", items: [["GROSS MARGIN", d.grossMargin != null ? `${d.grossMargin.toFixed(1)}%` : "—"], ["NET MARGIN", d.netMargin != null ? `${d.netMargin.toFixed(1)}%` : "—", d.netMargin != null && d.netMargin < 0 ? "text-rose-400" : undefined]] },
     { t: "EPS & REVENUE (TTM)", items: [["EPS", d.epsTTM != null ? `$${d.epsTTM.toFixed(2)}` : "—", d.epsTTM != null && d.epsTTM < 0 ? "text-rose-400" : undefined], ["REVENUE", big(d.revenueTTM)]] },
@@ -69,7 +75,7 @@ function Overview({ d, held, sym }: { d: StockData; held: { etf: string; name: s
       <section className={`${CARD} flex h-[520px] flex-col p-3`}>
         <InfernoChart key={d.ticker} groupLabel="PEERS"
           main={{ id: d.ticker, label: d.ticker, sym, color: "#f87171" }}
-          pinned={[{ id: "SPY", label: "S&P 500", sym: "SPY", color: "#a1a1aa", dashed: true },
+          pinned={[{ id: "BENCH", label: d.benchmark.label, sym: d.benchmark.sym, color: "#a1a1aa", dashed: true },
             ...peers.map((p, i) => ({ id: `peer:${p}`, label: p, sym: p, color: ["#60a5fa", "#f59e0b", "#f472b6", "#22d3ee"][i] }))]}
           picker={[...d.peers.map((p) => ({ sym: p, label: p, sub: "peer" })), ...held.slice(0, 12).map((h) => ({ sym: h.etf, label: h.etf, sub: `holds ${h.w.toFixed(2)}% · ${h.name}` }))]} />
       </section>
@@ -98,6 +104,15 @@ function Overview({ d, held, sym }: { d: StockData; held: { etf: string; name: s
               </span>
             ))}
           </div>
+          {d.description && <p className="m-0 line-clamp-4 font-sans text-[12.5px] leading-snug text-zinc-400" title={d.description}>{d.description}</p>}
+          {isFund && d.fundHoldings.length > 0 && (
+            <div className="flex flex-col gap-1 font-mono text-[11.5px] tabular-nums">
+              <span className="text-[9.5px] tracking-[0.12em] text-zinc-600">TOP HOLDINGS</span>
+              {d.fundHoldings.slice(0, 10).map((h) => (
+                <span key={h.symbol + h.name} className="grid grid-cols-[80px_minmax(0,1fr)_56px] gap-2"><span className="font-bold text-zinc-200">{h.symbol || "—"}</span><span className="truncate font-sans text-zinc-500">{h.name}</span><span className="text-right text-zinc-200">{h.w.toFixed(2)}%</span></span>
+              ))}
+            </div>
+          )}
           <div className="flex flex-col gap-1.5">
             <span className="text-[9.5px] tracking-[0.12em] text-zinc-600 font-mono">52-WEEK RANGE</span>
             <div className="flex items-center gap-3 font-mono text-[11.5px] tabular-nums">
@@ -498,6 +513,12 @@ export default function StockDeepView({ ticker, yahoo = ticker }: { ticker: stri
   }, [ticker, yahoo]);
   const d = st?.t === ticker ? st.d : null;
   const held = useMemo(() => holders(ticker), [ticker]);
+  /* name from an imported (XTB) position — browser storage, so only after mount */
+  const [localName, setLocalName] = useState<string | null>(null);
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time read from browser storage
+    setLocalName(getAsset(ticker)?.name ?? null);
+  }, [ticker]);
   const live = useSnapshot([yahoo])[yahoo];
   const w = useWatchlist();
   const fav = w.favorites.includes(ticker);
@@ -514,7 +535,7 @@ export default function StockDeepView({ ticker, yahoo = ticker }: { ticker: stri
         </div>
         <div className="flex flex-wrap items-end gap-x-[22px] gap-y-2.5">
           <span className="text-[56px] font-bold leading-[0.82] tracking-[0.01em] text-white">{ticker}</span>
-          <span className="pb-0.5 text-xl font-medium tracking-[0.02em] text-neutral-400">{d?.name ?? (st ? "" : "…")}</span>
+          <span className="pb-0.5 text-xl font-medium tracking-[0.02em] text-neutral-400">{(d?.name && d.name !== ticker ? d.name : localName ?? d?.name) ?? (st ? "" : "…")}</span>
           <div className="ml-auto flex items-baseline gap-3 font-mono tabular-nums">
             <span className="text-[30px] font-semibold text-neutral-100">{price != null ? `${(live?.currency ?? d?.currency) === "USD" ? "$" : (live?.currency ?? d?.currency ?? "") + " "}${price.toFixed(2)}` : "—"}</span>
             <span className={`text-[13px] font-bold ${tone(chg)}`}>{pct(chg, 2)}</span>

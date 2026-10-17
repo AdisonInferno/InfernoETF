@@ -131,7 +131,7 @@ export function parsePortfolio(input: string): ParseResult {
     const clean = tok.replace(/%$/, "");
     if (/^\d+(\.\d+)?(\/\d+(\.\d+)?)+$/.test(clean)) weights.push(...clean.split("/").map(Number));
     else if (/^\d+(\.\d+)?$/.test(clean)) weights.push(Number(clean));
-    else if (/^[A-Z][A-Z0-9.]{0,6}$/.test(clean)) tickers.push(clean);
+    else if (/^[A-Z][A-Z0-9.]{0,9}$/.test(clean)) tickers.push(clean);
   }
 
   const unknown = tickers.filter((t) => !getAsset(t));

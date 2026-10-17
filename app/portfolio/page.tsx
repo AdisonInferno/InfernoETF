@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { AnimatePresence, LayoutGroup, motion, useReducedMotion, type Variants } from "framer-motion";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { OpenPositions, SEG_COLORS, SectorOverlap, useLots } from "@/components/PortfolioDeepView";
+import { OpenPositions, SEG_COLORS, SectorOverlap, positionUsd, useLots } from "@/components/PortfolioDeepView";
 import { LookThroughFeed, PnlAttribution, RiskTelemetry, ToolSkeleton, riskStats } from "@/components/PortfolioTelemetry";
 import InfernoChart, { type ChartTf } from "@/components/InfernoChart";
 import CompositionMap from "@/components/deep-view/CompositionMap";
@@ -209,10 +209,20 @@ export default function PortfolioPage() {
   const symOf = useMemo(() => Object.fromEntries(posItems.map((i) => [i.ticker, live[i.ticker]?.sym ?? yahooOf(i.ticker, i.lot?.sym)])), [posItems, live]);
   /* Today's real 1D / YTD (Yahoo) on every position — the database values are only a fallback */
   const snap = useSnapshot(useMemo(() => Object.values(symOf), [symOf]));
+  /* Real weights = each position's USD market value ÷ total (same formula as the positions table), once every
+     FX rate is in; until then (or with no imported lots) the saved target weights are used. */
+  const usdVal = useMemo(() => {
+    const rows = parsed.positions.map((p) => ({ t: p.asset.ticker, ...positionUsd(p, lots, live, fx) }));
+    const total = rows.reduce((a, r) => a + r.value, 0);
+    const ok = Object.keys(lots).length > 0 && rows.every((r) => r.ready) && total > 0;
+    const cost = rows.reduce((a, r) => a + r.cost, 0);
+    return { total: ok ? total : null, cost: ok ? cost : null, w: ok ? Object.fromEntries(rows.map((r) => [r.t, +((r.value / total) * 100).toFixed(2)])) : null };
+  }, [parsed.positions, lots, live, fx]);
   const livePos = useMemo(() => parsed.positions.map((p) => {
     const s = snap[(symOf[p.asset.ticker] ?? p.asset.ticker).toUpperCase()];
-    return s ? { ...p, asset: { ...p.asset, chg1d: s.chg1d, ytd: s.ytd ?? p.asset.ytd, price: s.currency === "USD" ? s.price : p.asset.price } } : p;
-  }), [parsed.positions, snap, symOf]);
+    const weight = usdVal.w?.[p.asset.ticker] ?? p.weight;
+    return s ? { ...p, weight, asset: { ...p.asset, chg1d: s.chg1d, ytd: s.ytd ?? p.asset.ytd, price: s.currency === "USD" ? s.price : p.asset.price } } : { ...p, weight };
+  }), [parsed.positions, snap, symOf, usdVal]);
   const assets = useMemo(() => livePos.map((p) => p.asset), [livePos]);
   const chartHist = useHistory(isExpanded ? assets : [], symOf, chartTf);
   const tableHist = useHistory(isExpanded ? assets : [], symOf, tableTf);
@@ -235,13 +245,17 @@ export default function PortfolioPage() {
   const todayPct = livePos.reduce((a, p) => a + (p.weight / 100) * p.asset.chg1d, 0);
   const ytdPct = livePos.reduce((a, p) => a + (p.weight / 100) * p.asset.ytd, 0);
   const allTimePct = livePos.reduce((a, p) => a + (p.weight / 100) * allTimeOf(p.asset.ytd), 0);
-  const todayUsd = (MODEL_BALANCE * todayPct) / 100;
+  // real account (imported from XTB, in USD) when available, otherwise the model account
+  const BAL = usdVal.total ?? MODEL_BALANCE;
+  const realGain = usdVal.total != null && usdVal.cost ? ((usdVal.total - usdVal.cost) / usdVal.cost) * 100 : null;
+  const gainPct = realGain ?? allTimePct;
+  const todayUsd = (BAL * todayPct) / 100;
 
   const METRICS = [
     { k: "TODAY P&L", v: fmtP(todayPct), sub: (todayUsd >= 0 ? "+" : "") + usd(todayUsd), tone: todayPct >= 0 ? "up" : "down" },
     { k: "YTD RETURN", v: fmtP(ytdPct), sub: "since Jan 1", tone: ytdPct >= 0 ? "up" : "down" },
-    { k: "TOTAL BALANCE", v: usd(MODEL_BALANCE, 2), sub: "model account", tone: "flat" },
-    { k: "ALL-TIME GAIN", v: (allTimePct >= 0 ? "+" : "") + allTimePct.toFixed(1) + "%", sub: (allTimePct >= 0 ? "+" : "") + usd(MODEL_BALANCE - MODEL_BALANCE / (1 + allTimePct / 100)), tone: allTimePct >= 0 ? "up" : "down" },
+    { k: "TOTAL BALANCE", v: usd(BAL, 2), sub: usdVal.total != null ? "market value · USD" : "model account", tone: "flat" },
+    { k: usdVal.total != null ? "UNREALIZED GAIN" : "ALL-TIME GAIN", v: (gainPct >= 0 ? "+" : "") + gainPct.toFixed(1) + "%", sub: (gainPct >= 0 ? "+" : "") + usd(usdVal.total != null && usdVal.cost != null ? usdVal.total - usdVal.cost : BAL - BAL / (1 + gainPct / 100)), tone: gainPct >= 0 ? "up" : "down" },
   ] as const;
   const toneTxt = (t: string, dim = false) => (t === "up" ? (dim ? "text-emerald-400/70" : "text-emerald-400") : t === "down" ? (dim ? "text-rose-400/70" : "text-rose-400") : dim ? "text-zinc-600" : "text-zinc-50");
 
@@ -544,7 +558,7 @@ export default function PortfolioPage() {
             transition={{ layout: reduceMotion ? { duration: 0 } : LAYOUT_SPRING }}
             onClick={onCardClick}
             title={isDeep ? undefined : "Click for the full portfolio deep view"}
-            className={`${card} flex flex-none flex-col gap-3 p-3 ${isExpanded ? "min-h-[calc(100dvh-230px)]" : isDeep ? "" : "min-h-[calc(75dvh-60px)] cursor-pointer transition-colors hover:border-white/[0.09]"}`}
+            className={`${card} flex flex-none flex-col gap-3 p-3 ${isExpanded ? "min-h-[calc(100dvh-230px)]" : isDeep ? "" : "cursor-pointer transition-colors hover:border-white/[0.09]"}`}
           >
             <motion.div layout="position" className="flex flex-wrap items-end justify-between gap-4">
               <div className="flex flex-col gap-3">
@@ -655,14 +669,14 @@ export default function PortfolioPage() {
               /* Overview: chart ⇄ positions in resizable panes */
               <motion.div layout="position" onClick={(e) => e.stopPropagation()}>
                 <ResizableSplit
-                  storageKey="inferno.portfolio.deep.top.v2"
-                  minPx={[420, 880]}
-                  initial={0.42}
+                  storageKey="inferno.portfolio.deep.top.v3"
+                  minPx={[520, 640]}
+                  initial={0.56}
                   height={{ initial: 520, min: 360, max: 1100 }}
                   left={() => (
                     <div className="flex h-full min-h-[420px] flex-col gap-2 rounded-sm border border-white/[0.06] bg-[#030303] p-3">
                       <span className="font-mono text-[10px] font-semibold tracking-[0.14em] text-zinc-300">PERFORMANCE</span>
-                      <InfernoChart main={chartMain} pinned={chartPinned} picker={chartPicker} tf={chartTf} onTfChange={setChartTf} />
+                      <InfernoChart main={chartMain} pinned={chartPinned} picker={chartPicker} tf={chartTf} onTfChange={setChartTf} valueScale={usdVal.total ?? MODEL_BALANCE} />
                     </div>
                   )}
                   right={(h) => (
@@ -676,8 +690,8 @@ export default function PortfolioPage() {
             /* Chart (left) · metrics + positions (right) — side by side on wide screens */
             <motion.div layout="position" className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1.45fr)_minmax(0,1fr)]">
               <div onClick={(e) => e.stopPropagation()} className="min-w-0">
-                <div className="flex h-[max(400px,calc(75dvh-260px))] flex-col rounded-sm border border-white/[0.06] bg-[#030303] p-3">
-                  <InfernoChart main={chartMain} pinned={chartPinned} picker={chartPicker} tf={chartTf} onTfChange={setChartTf} />
+                <div className="flex h-[max(260px,calc(100dvh-735px))] flex-col rounded-sm border border-white/[0.06] bg-[#030303] p-3">
+                  <InfernoChart main={chartMain} pinned={chartPinned} picker={chartPicker} tf={chartTf} onTfChange={setChartTf} valueScale={usdVal.total ?? MODEL_BALANCE} />
                 </div>
               </div>
               <div className="flex min-w-0 flex-col gap-2.5">
@@ -707,7 +721,7 @@ export default function PortfolioPage() {
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1, transition: { delay: 0.15 } }}
                       exit={{ opacity: 0, transition: { duration: 0.15 } }}
-                      className="flex min-h-0 flex-col gap-1.5 xl:max-h-[max(176px,calc(75dvh-440px))] xl:overflow-y-auto xl:pr-1"
+                      className="flex min-h-0 flex-col gap-1.5 xl:max-h-[max(150px,calc(100dvh-880px))] xl:overflow-y-auto xl:pr-1"
                     >
                   {livePos.map((p, i) => {
                     const color = SEG_COLORS[i % SEG_COLORS.length];
