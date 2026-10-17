@@ -41,7 +41,7 @@ function ChangeBadge({ v }: { v: number }) {
 
 function Card({ title, aside, children, className = "" }: { title: string; aside?: React.ReactNode; children: React.ReactNode; className?: string }) {
   return (
-    <section className={`flex min-w-0 flex-col gap-4 rounded-sm border border-white/[0.06] bg-[var(--oasis-panel)] p-3 ${className}`}>
+    <section className={`flex min-w-0 flex-col gap-4 oasis-glass border border-white/[0.06] bg-[var(--oasis-panel)] p-3 ${className}`}>
       <div className="flex items-center justify-between">
         <span className="text-[11px] font-semibold tracking-[0.1em] text-zinc-500">{title}</span>
         {aside}

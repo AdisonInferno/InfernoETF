@@ -14,7 +14,7 @@ import { sg } from "./utils";
    ───────────────────────────────────────────────────────────── */
 
 
-const SURFACE = "rounded-sm border border-white/[0.06] bg-[var(--oasis-panel)]";
+const SURFACE = "oasis-glass border border-white/[0.06] bg-[var(--oasis-panel)]";
 const pct2 = (v: number) => v.toFixed(2) + "%";
 /** 450.2 → "$450.2B", 0.84 → "$840M" */
 const aumFmt = (b: number) => (b >= 1 ? "$" + b.toFixed(1) + "B" : "$" + Math.round(b * 1000) + "M");

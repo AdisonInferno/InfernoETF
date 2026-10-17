@@ -30,7 +30,7 @@ const tone = (v: number) => (v > 0 ? "text-emerald-400" : v < 0 ? "text-rose-400
 
 function Widget({ title, right, className = "", children }: { title: string; right?: React.ReactNode; className?: string; children: React.ReactNode }) {
   return (
-    <section className={`flex min-h-0 min-w-0 flex-col rounded-sm border border-white/[0.05] bg-[var(--oasis-panel)] ${className}`}>
+    <section className={`flex min-h-0 min-w-0 flex-col oasis-glass border border-white/[0.05] bg-[var(--oasis-panel)] ${className}`}>
       <header className="flex flex-none items-center justify-between gap-2 border-b border-white/[0.05] px-3 py-1.5">
         <span className={`${MONO} text-[10.5px] font-bold tracking-[0.14em] text-zinc-300`}>[ {title} ]</span>
         {right}

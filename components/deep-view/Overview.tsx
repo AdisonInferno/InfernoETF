@@ -8,7 +8,7 @@ import { COUNTRY_CODE } from "./mockData";
 import { aumFmt, pctOf, squarify } from "./utils";
 import PriceChart from "./PriceChart";
 
-const CARD = "rounded-sm border border-white/[0.06] bg-[var(--oasis-panel)]";
+const CARD = "oasis-glass border border-white/[0.06] bg-[var(--oasis-panel)]";
 const H_LABEL = "font-display text-[10.5px] font-bold tracking-[0.18em] text-neutral-300";
 const SECTOR_RGB: Record<string, string> = {
   Technology: "16,185,129", Materials: "251,191,36", "Cash & Other": "148,163,184", Other: "113,113,122",

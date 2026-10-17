@@ -56,7 +56,7 @@ export default function EtfNewsPanel({ ticker, items: basket }: { ticker: string
   const empty = d && d.company.length + d.sector.length + d.macro.length === 0;
 
   return (
-    <section className="flex flex-col overflow-hidden rounded-sm border border-white/[0.06] bg-[var(--oasis-panel)] font-mono">
+    <section className="flex flex-col overflow-hidden oasis-glass border border-white/[0.06] bg-[var(--oasis-panel)] font-mono">
       {/* Header */}
       <div className="flex flex-wrap items-center gap-3 border-b border-white/[0.06] px-4 py-3">
         <span className="text-[11px] font-bold tracking-[0.18em] text-neutral-200">{ticker} · NEWS</span>

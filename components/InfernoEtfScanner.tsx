@@ -369,7 +369,7 @@ export default function InfernoEtfScanner() {
   return (
     <div className="absolute inset-0 grid grid-cols-[260px_minmax(0,1fr)] grid-rows-[minmax(0,1fr)] gap-4 overflow-hidden bg-[var(--oasis-bg)] p-4 font-sans text-[#E5E5E5]">
       {/* ── Sidebar ── */}
-      <aside className="flex min-h-0 flex-col gap-5 self-stretch overflow-y-auto rounded-sm border border-white/[0.06] bg-[var(--oasis-panel)] p-3">
+      <aside className="flex min-h-0 flex-col gap-5 self-stretch overflow-y-auto oasis-glass border border-white/[0.06] bg-[var(--oasis-panel)] p-3">
         <div className="flex flex-col gap-1">
           <span className={`${MONO} text-[13px] font-semibold tracking-[0.12em] text-[#FAFAFA]`}>[ ETF MARKET MAP ]</span>
         </div>
@@ -422,7 +422,7 @@ export default function InfernoEtfScanner() {
                   }`}
                 >
                   <span
-                    className={`flex h-4 w-4 flex-none items-center justify-center rounded-[2px] border text-[10px] font-bold text-[#031] ${
+                    className={`flex h-4 w-4 flex-none items-center justify-center rounded-xs border text-[10px] font-bold text-[#031] ${
                       on ? "border-[#34D399] bg-[#34D399]" : "border-white/[0.18] bg-transparent"
                     }`}
                   >

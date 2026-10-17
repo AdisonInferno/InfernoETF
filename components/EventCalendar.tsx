@@ -68,7 +68,7 @@ export default function EventCalendar() {
   const monthName = new Date(ym.y, ym.m, 1).toLocaleDateString("en-US", { month: "long", year: "numeric" }).toUpperCase();
 
   return (
-    <section className="flex min-h-[460px] min-w-0 flex-1 flex-col gap-2.5 rounded-sm border border-white/[0.06] bg-[var(--oasis-panel)] p-4">
+    <section className="flex min-h-[460px] min-w-0 flex-1 flex-col gap-2.5 oasis-glass border border-white/[0.06] bg-[var(--oasis-panel)] p-4">
       {/* Header: title · month switcher */}
       <div className="flex items-center justify-between gap-2">
         <h2 className="m-0 flex items-baseline gap-2 font-mono text-[12px] font-bold tracking-[0.16em] text-zinc-200">
@@ -117,7 +117,7 @@ export default function EventCalendar() {
                 {evs.length > 2 && <span className="font-mono text-[8.5px] font-bold text-zinc-500">+{evs.length - 2}</span>}
               </span>
               {evs.slice(0, 2).map((e, i) => (
-                <span key={i} className={`truncate rounded-[2px] px-1 font-mono text-[8.5px] font-bold leading-[13px] tracking-[0.04em] ${src(e.source).chip}`}>{e.code}</span>
+                <span key={i} className={`truncate rounded-xs px-1 font-mono text-[8.5px] font-bold leading-[13px] tracking-[0.04em] ${src(e.source).chip}`}>{e.code}</span>
               ))}
             </button>
           );

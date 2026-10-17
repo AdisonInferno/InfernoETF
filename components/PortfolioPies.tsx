@@ -116,7 +116,7 @@ export default function PortfolioPies({ positions }: { positions: Position[] }) 
           {sectors.map((s) => (
             <div key={s.key} onMouseEnter={() => setHover(s.key)} onMouseLeave={() => setHover(null)} className={`border-b border-white/[0.03] py-1 ${hover === s.key ? "bg-white/[0.03]" : ""}`}>
               <div className="grid grid-cols-[12px_minmax(0,1fr)_64px] items-center gap-2 text-[12px]">
-                <span className="h-2.5 w-2.5 rounded-[2px]" style={{ background: s.color }} />
+                <span className="h-2.5 w-2.5 rounded-xs" style={{ background: s.color }} />
                 <span className="truncate text-zinc-200">{s.label}</span>
                 <span className="text-right font-semibold tabular-nums text-zinc-100">{s.v.toFixed(1)}%</span>
               </div>

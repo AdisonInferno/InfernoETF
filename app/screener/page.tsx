@@ -71,7 +71,7 @@ function FilterDeck({ filters, setFilters, onReset }: { filters: Filters; setFil
   const toggle = (p: string) =>
     setFilters({ ...filters, providers: filters.providers.includes(p) ? filters.providers.filter((x) => x !== p) : [...filters.providers, p] });
   return (
-    <aside className="flex flex-col gap-6 self-start rounded-sm border border-white/[0.06] bg-[var(--oasis-panel)] p-3">
+    <aside className="flex flex-col gap-6 self-start oasis-glass border border-white/[0.06] bg-[var(--oasis-panel)] p-3">
       <div className="flex items-center justify-between">
         <span className="text-base font-semibold tracking-tight text-zinc-50">Filters</span>
         <button type="button" onClick={onReset} className="text-xs text-zinc-500 transition-colors hover:text-white">Reset</button>
@@ -85,7 +85,7 @@ function FilterDeck({ filters, setFilters, onReset }: { filters: Filters; setFil
             return (
               <button key={p} type="button" onClick={() => toggle(p)}
                 className={`flex items-center gap-2.5 rounded-sm px-3 py-[9px] text-left transition-colors hover:bg-white/10 ${on ? "bg-white/[0.05]" : ""}`}>
-                <span className={`flex h-4 w-4 items-center justify-center rounded-[5px] border text-[10px] font-bold text-emerald-950 ${on ? "border-emerald-400 bg-emerald-400" : "border-white/[0.18]"}`}>{on ? "✓" : ""}</span>
+                <span className={`flex h-4 w-4 items-center justify-center rounded-sm border text-[10px] font-bold text-emerald-950 ${on ? "border-emerald-400 bg-emerald-400" : "border-white/[0.18]"}`}>{on ? "✓" : ""}</span>
                 <span className={`text-[13px] ${on ? "text-neutral-200" : "text-zinc-500"}`}>{p}</span>
               </button>
             );
@@ -137,7 +137,7 @@ export default function ScreenerPage() {
       <div className="mx-auto grid w-full max-w-[3200px] flex-1 grid-cols-[260px_minmax(0,1fr)] gap-4 px-3 pb-6 pt-4 max-lg:grid-cols-1">
         <FilterDeck filters={filters} setFilters={setFilters} onReset={() => { setFilters(defaults); setCategory("All"); }} />
 
-        <section className="flex min-w-0 flex-col gap-4 rounded-sm border border-white/[0.06] bg-[var(--oasis-panel)] p-3">
+        <section className="flex min-w-0 flex-col gap-4 oasis-glass border border-white/[0.06] bg-[var(--oasis-panel)] p-3">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex flex-wrap gap-1.5">
               {CATEGORIES.map((c) => <Pill key={c} active={category === c} onClick={() => setCategory(c)}>{c}</Pill>)}

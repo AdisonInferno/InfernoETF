@@ -251,7 +251,7 @@ export function ExplorerTable({ x }: { x: Explorer }) {
                 style={on ? { boxShadow: `inset 2px 0 0 ${c}` } : undefined}
               >
                 <span className="flex justify-center">
-                  <span className={`flex h-4 w-4 items-center justify-center rounded-[4px] border transition-colors ${full ? "opacity-30" : ""}`} style={{ borderColor: on ? c : "#3f3f46", background: on ? c : "transparent" }}>
+                  <span className={`flex h-4 w-4 items-center justify-center rounded-xs border transition-colors ${full ? "opacity-30" : ""}`} style={{ borderColor: on ? c : "#3f3f46", background: on ? c : "transparent" }}>
                     {on && (
                       <svg viewBox="0 0 12 12" className="h-2.5 w-2.5" aria-hidden>
                         <path d="M2.5 6.2 5 8.6 9.6 3.6" fill="none" stroke="#030303" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />

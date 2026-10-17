@@ -213,7 +213,7 @@ export default function XtbImport({ onImport, onClose }: { onImport: (r: ImportR
   const bad = "border-rose-500/60";
 
   return (
-    <div className="flex flex-col gap-4 rounded-sm border border-white/[0.06] bg-[var(--oasis-panel)] p-3">
+    <div className="flex flex-col gap-4 oasis-glass border border-white/[0.06] bg-[var(--oasis-panel)] p-3">
       <div className="flex items-center justify-between gap-3">
         <span className="font-mono text-[10.5px] font-semibold tracking-[0.14em] text-zinc-300">[ IMPORT FROM XTB SCREENSHOT ]</span>
         <button type="button" onClick={onClose} className="font-mono text-[11px] text-zinc-500 hover:text-white">[ CLOSE ]</button>

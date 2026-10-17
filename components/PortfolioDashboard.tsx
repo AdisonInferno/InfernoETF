@@ -5,7 +5,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { PRESETS, clearPortfolio, loadPortfolio, parsePortfolio, roastPortfolio, savePortfolio, type SavedPortfolio } from "@/lib/portfolio";
 
 const SEG_COLORS = ["#4ade80", "#60a5fa", "#a78bfa", "#f59e0b", "#f472b6", "#22d3ee", "#f87171", "#a3e635"];
-const card = "rounded-2xl border border-white/[0.05] bg-[#121214]";
+const card = "oasis-glass border border-white/[0.05] bg-[#121214]";
 const label = "font-mono text-[10px] font-semibold tracking-[0.14em] text-zinc-500";
 
 /* ───────────────────────────── Builder ───────────────────────────── */

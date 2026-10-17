@@ -37,7 +37,7 @@ const ITEMS: TickerItem[] = [
 
 /* Inline SVG flags — Windows does not render flag emoji. */
 function FlagIcon({ flag }: { flag: Flag }) {
-  const common = { width: 18, height: 12, className: "flex-none rounded-[2px]" } as const;
+  const common = { width: 18, height: 12, className: "flex-none rounded-xs" } as const;
   switch (flag) {
     case "us":
       return (

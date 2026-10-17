@@ -123,7 +123,7 @@ function Spark({ pts, w = 72, h = 22 }: { pts: number[]; w?: number; h?: number 
   );
 }
 
-const card = "rounded-sm border border-white/[0.06] bg-[var(--oasis-panel)]";
+const card = "oasis-glass border border-white/[0.06] bg-[var(--oasis-panel)]";
 
 type Mode = "price" | "charts";
 /** Which half of the Charts view is tucked away */

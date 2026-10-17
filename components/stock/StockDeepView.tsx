@@ -25,7 +25,7 @@ import { toggleFavorite, useWatchlist } from "@/lib/watchlist";
 import type { EarningsRow, Quarter, StockData } from "@/lib/stock/data";
 
 const B = "border-white/[0.06]";
-const CARD = `rounded-sm border ${B} bg-[var(--oasis-panel)]`;
+const CARD = `oasis-glass border ${B} bg-[var(--oasis-panel)]`;
 const LABEL = "font-mono text-[10px] font-semibold tracking-[0.14em] text-zinc-500";
 
 const big = (v: number | null | undefined, cur = "$") => {

@@ -96,7 +96,7 @@ function Panel({ title, meta, tools, expanded, onToggle, weight, axis = "y", chi
       animate={{ flexGrow: expanded ? weight : 0 }}
       transition={{ duration: reduce ? 0 : 0.42, ease }}
       style={horiz ? { flexShrink: 1, flexBasis: HEADER_H, minWidth: HEADER_H } : { flexShrink: 1, flexBasis: HEADER_H, minHeight: HEADER_H }}
-      className="flex flex-col overflow-hidden rounded-sm border border-white/[0.06] bg-[var(--oasis-panel)]"
+      className="flex flex-col overflow-hidden oasis-glass border border-white/[0.06] bg-[var(--oasis-panel)]"
     >
       {expanded ? (
         <header className="flex h-10 flex-none items-center gap-3 border-b border-white/[0.06] pl-4 pr-1.5">

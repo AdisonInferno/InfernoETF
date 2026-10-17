@@ -71,7 +71,7 @@ export default function InfernoChat() {
 
   return (
     <div className="mx-auto flex min-h-[480px] w-full max-w-[1100px] flex-1 flex-col gap-4 px-3 py-3">
-      <section className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-sm border border-white/[0.06] bg-[var(--oasis-panel)]">
+      <section className="flex min-h-0 flex-1 flex-col overflow-hidden oasis-glass border border-white/[0.06] bg-[var(--oasis-panel)]">
         <div className="flex items-center justify-between border-b border-white/[0.06] px-5 py-4">
           <span className="font-mono text-[11px] font-bold tracking-[0.16em] text-zinc-300">[ QUERY TERMINAL ]</span>
           {messages.length > 0 && (

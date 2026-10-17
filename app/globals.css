@@ -9,6 +9,34 @@
   --font-geist: "Geist Mono Variable", "JetBrains Mono Variable", ui-monospace, monospace;
 }
 
+/* ── OASIS corner scale — soft but not bubbly. One place for the whole site:
+      every rounded-xs / rounded-sm / rounded / … utility reads these. ── */
+@theme {
+  --radius-xs: 4px;   /* tiny chips, badges, calendar codes */
+  --radius-sm: 7px;   /* buttons, inputs, tiles, rows (the default across the app) */
+  --radius-md: 8px;
+  --radius-lg: 9px;
+  --radius-xl: 11px;
+  --radius-2xl: 13px;
+  --radius-3xl: 16px;
+}
+@theme inline {
+  --radius: var(--radius-sm); /* bare `rounded` */
+}
+
+/* Main panels: 12px corners + a light "glass" finish (Apple-style) —
+   a faint top sheen, a 1px highlight on the upper edge and a soft drop shadow. */
+.oasis-glass {
+  border-radius: 12px;
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.035) 0%, rgba(255, 255, 255, 0.008) 38%, transparent 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.015),
+    0 10px 28px -16px rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(14px) saturate(140%);
+  -webkit-backdrop-filter: blur(14px) saturate(140%);
+}
+
 /* ── OASIS brand accent (light blue / cyan) — tuned live with the colour scrubber (bottom-right) ── */
 :root {
   --oasis-accent: #38bdf8;

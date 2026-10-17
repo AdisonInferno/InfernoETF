@@ -347,7 +347,7 @@ export default function TradingChart({ fund }: { fund: FundData }) {
   const drawing = tool === "hline" || tool === "range";
 
   return (
-    <div className="flex h-[560px] flex-none overflow-hidden rounded-sm border border-white/[0.06] bg-[var(--oasis-panel)] font-mono">
+    <div className="flex h-[560px] flex-none overflow-hidden oasis-glass border border-white/[0.06] bg-[var(--oasis-panel)] font-mono">
       {/* ── Left drawing toolbar ── */}
       <div className="flex w-12 flex-none flex-col items-center gap-1 border-r border-white/[0.06] bg-[var(--oasis-panel)] py-3">
         {(Object.keys(ICONS) as Tool[]).map((t) => {
@@ -434,7 +434,7 @@ export default function TradingChart({ fund }: { fund: FundData }) {
                     const on = ind.has(d.id);
                     return (
                       <button key={d.id} type="button" role="menuitemcheckbox" aria-checked={on} onClick={() => toggleInd(d.id)} className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-[11px] text-zinc-300 hover:bg-white/[0.05]">
-                        <span className="flex h-3.5 w-3.5 items-center justify-center rounded-[3px] border" style={{ borderColor: on ? d.color : "#3f3f46", background: on ? d.color : "transparent" }}>
+                        <span className="flex h-3.5 w-3.5 items-center justify-center rounded-xs border" style={{ borderColor: on ? d.color : "#3f3f46", background: on ? d.color : "transparent" }}>
                           {on && <svg viewBox="0 0 12 12" className="h-2.5 w-2.5" aria-hidden><path d="M2.5 6.2 5 8.6 9.6 3.6" fill="none" stroke="#030303" strokeWidth="2" strokeLinecap="round" /></svg>}
                         </span>
                         <span className="flex-1">{d.label}</span>

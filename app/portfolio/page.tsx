@@ -30,7 +30,7 @@ import {
 
 /* ───────────────────────────── Theme ───────────────────────────── */
 
-const card = "rounded-sm border border-white/[0.06] bg-[var(--oasis-panel)]";
+const card = "oasis-glass border border-white/[0.06] bg-[var(--oasis-panel)]";
 const label = "font-mono text-[10px] font-semibold tracking-[0.14em] text-zinc-500";
 const fmtP = (v: number) => (v >= 0 ? "+" : "") + v.toFixed(2) + "%";
 

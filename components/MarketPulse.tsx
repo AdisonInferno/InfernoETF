@@ -155,7 +155,7 @@ export default function MarketPulse({ rows, all = ETFS }: { rows: EtfRow[]; /** 
   const setInsight = (id: string, i: Insight) => setNews((l) => l?.map((n) => (n.id === id ? { ...n, insight: i } : n)) ?? l);
 
   return (
-    <aside className="flex min-h-0 flex-col overflow-hidden rounded-sm border border-white/[0.06] bg-[var(--oasis-panel)]">
+    <aside className="flex min-h-0 flex-col overflow-hidden oasis-glass border border-white/[0.06] bg-[var(--oasis-panel)]">
       <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
         {/* Most active — bar length = $ volume, colour = today's move */}
         <H t="MOST ACTIVE" />

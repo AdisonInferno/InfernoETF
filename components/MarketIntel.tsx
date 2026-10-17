@@ -40,7 +40,7 @@ interface Data {
 
 const REGIONS: [Region, string][] = [["global", "GLOBAL"], ["us", "USA"], ["eu", "EUROPE"], ["asia", "ASIA"]];
 const SECTORS: [SectorId, string][] = [["tech", "TECHNOLOGY"], ["defense", "DEFENSE"]];
-const card = "rounded-sm border border-white/[0.06] bg-[var(--oasis-panel)]";
+const card = "oasis-glass border border-white/[0.06] bg-[var(--oasis-panel)]";
 const label = "font-mono text-[10px] font-bold tracking-[0.16em] text-zinc-500";
 
 /** "TODAY 14:30" · "TOMORROW 20:00" · "YESTERDAY" · "3D AGO" · "OCT 28 20:00" — viewer's time zone */

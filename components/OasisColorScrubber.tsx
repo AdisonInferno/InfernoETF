@@ -91,7 +91,7 @@ export default function OasisColorScrubber() {
         {PRESETS.map(([name, v]) => (
           <button key={v} type="button" onClick={() => set(v)}
             className={`flex items-center gap-2 border px-2 py-1.5 text-left text-[9.5px] font-bold tracking-[0.08em] transition-colors ${hex.toLowerCase() === v ? "border-white/30 text-white" : "border-white/[0.06] text-zinc-400 hover:text-white"}`}>
-            <span className="h-2.5 w-2.5 flex-none rounded-[2px]" style={{ background: v }} />{name}
+            <span className="h-2.5 w-2.5 flex-none rounded-xs" style={{ background: v }} />{name}
           </button>
         ))}
       </div>
@@ -106,7 +106,7 @@ export default function OasisColorScrubber() {
           {BG_PRESETS.map(([name, v]) => (
             <button key={v} type="button" onClick={() => setBg(v)}
               className={`flex items-center gap-2 border px-2 py-1.5 text-left text-[9.5px] font-bold tracking-[0.08em] transition-colors ${bg.toLowerCase() === v ? "border-white/30 text-white" : "border-white/[0.06] text-zinc-400 hover:text-white"}`}>
-              <span className="h-2.5 w-2.5 flex-none rounded-[2px] border border-white/20" style={{ background: v }} />{name}
+              <span className="h-2.5 w-2.5 flex-none rounded-xs border border-white/20" style={{ background: v }} />{name}
             </button>
           ))}
         </div>
@@ -114,7 +114,7 @@ export default function OasisColorScrubber() {
       {/* live sample of the accent in use */}
       <div className="flex items-center gap-2 border-t border-white/[0.06] pt-2 text-[9.5px]">
         <span className="border border-oasis/50 bg-oasis-muted px-1.5 py-0.5 font-bold text-oasis">★ PORTFOLIO</span>
-        <span className="rounded-[4px] border border-oasis/80 bg-oasis/20 px-2 py-0.5 font-bold text-oasis" style={{ boxShadow: `0 0 4px ${hex}40` }}>1M</span>
+        <span className="rounded-xs border border-oasis/80 bg-oasis/20 px-2 py-0.5 font-bold text-oasis" style={{ boxShadow: `0 0 4px ${hex}40` }}>1M</span>
         <span className="text-zinc-500">PREVIEW</span>
       </div>
     </div>
