@@ -8,7 +8,7 @@ import { binaryTreemap, hash01 } from "./utils";
 import { ExplorerChart, ExplorerTable, useHoldingsExplorer } from "./HoldingsPerformance";
 
 type MapTf = "12M" | "6M" | "3M" | "1M" | "1D";
-const MAP_TFS: MapTf[] = ["12M", "6M", "3M", "1M", "1D"];
+const MAP_TFS: MapTf[] = ["1D", "1M", "3M", "6M", "12M"];
 /** [volatility scale, bias] per timeframe — placeholder; replace with real per-ticker returns. */
 const SCALE: Record<MapTf, [number, number]> = { "12M": [50, 8], "6M": [30, 5], "3M": [20, 3], "1M": [10, 1.5], "1D": [3, 0.2] };
 const fp = (v: number) => (v >= 0 ? "+" : "−") + Math.abs(v).toFixed(2) + "%";

@@ -15,10 +15,9 @@ if errorlevel 1 (
   exit /b 1
 )
 
-if not exist "node_modules" (
-  echo Pierwsze uruchomienie - instaluje biblioteki, to potrwa 1-2 minuty...
-  call npm install
-)
+rem npm install za kazdym razem: gdy nic nowego nie ma, trwa kilka sekund; gdy doszla biblioteka - doinstaluje ja
+echo Sprawdzam biblioteki (npm install)...
+call npm install --no-audit --no-fund
 
 if not exist ".env.local" (
   echo [UWAGA] Brak pliku .env.local - czat AI nie bedzie dzialal bez klucza GEMINI_API_KEY.

@@ -72,14 +72,7 @@ export default function OasisColorScrubber() {
     navigator.clipboard?.writeText(hex.toUpperCase()).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1200); }).catch(() => {});
   };
 
-  if (!open) {
-    return (
-      <button type="button" onClick={() => setOpen(true)} title="Tune the OASIS accent colour"
-        className="fixed bottom-4 right-4 z-[9999] flex h-8 items-center gap-2 rounded-sm border border-white/10 bg-[var(--oasis-panel)] px-2.5 font-mono text-[10px] font-bold tracking-[0.12em] text-zinc-400 hover:text-white">
-        <span className="h-3 w-3 rounded-[2px]" style={{ background: hex }} />ACCENT
-      </button>
-    );
-  }
+  if (!open) return null; // opened from the ⚙ button in the header
   return (
     <div className="fixed bottom-4 right-4 z-[9999] flex w-[264px] flex-col gap-2.5 rounded-sm border border-white/10 bg-[var(--oasis-panel)] p-3 font-mono shadow-[0_8px_30px_rgba(0,0,0,0.6)]">
       <div className="flex items-center justify-between">

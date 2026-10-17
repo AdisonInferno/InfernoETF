@@ -71,6 +71,14 @@ const PRESETS: { icon: string; label: string; tab: TabId; filters: Filters; sort
 
 /* ───────────────────────────── UI pieces ───────────────────────────── */
 
+/** Exchange + currency of a stock from its XTB-style suffix ("BDX.PL" → GPW / PLN) */
+const LISTING: Record<string, [string, string]> = { PL: ["GPW", "PLN"], DE: ["XETRA", "EUR"], UK: ["LSE", "GBP"], NL: ["EURONEXT", "EUR"], FR: ["EURONEXT", "EUR"], IT: ["BORSA IT.", "EUR"], ES: ["BME", "EUR"], CH: ["SIX", "CHF"], BE: ["EURONEXT", "EUR"], DK: ["NASDAQ CPH", "DKK"], SE: ["NASDAQ STO", "SEK"], NO: ["OSLO", "NOK"], FI: ["NASDAQ HEL", "EUR"], CZ: ["PSE", "CZK"], AT: ["VIENNA", "EUR"], PT: ["EURONEXT", "EUR"], IE: ["EURONEXT", "EUR"] };
+function listingOf(t: string): { exchange: string; currency: EtfRow["currency"] } {
+  const m = /\.([A-Z]{2})$/.exec(t);
+  const [exchange, currency] = (m && LISTING[m[1]]) || ["NYSE / NASDAQ", "USD"];
+  return { exchange, currency: currency as EtfRow["currency"] };
+}
+
 function GroupIcon({ id }: { id: GroupId }) {
   return (
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="flex-none text-zinc-500">
@@ -195,8 +203,8 @@ export default function EtfTableScanner() {
   const mineW = useMemo<Record<string, number>>(() => Object.fromEntries(mine.map((p) => [p.asset.ticker, p.weight])), [mine]);
   const stockRows = useMemo<EtfRow[]>(() => mine.filter((p) => !ETFS.some((e) => e.ticker === p.asset.ticker)).map(({ asset: a }) => ({
     ticker: a.ticker, name: a.name, issuer: "Stock", category: "others", sector: a.sector.toUpperCase(), sectorIcon: "",
-    aum: NaN, ytd: a.ytd, chg1d: a.chg1d, volatility: "High", dividendYield: 0, leverage: "1x", region: "", exchange: "", currency: "USD",
-  })), [mine]);
+    aum: NaN, ytd: a.ytd, chg1d: a.chg1d, volatility: "High", dividendYield: 0, leverage: "1x", region: "", ...listingOf(a.ticker),
+  }) as EtfRow), [mine]);
   const stockSet = useMemo(() => new Set(stockRows.map((r) => r.ticker)), [stockRows]);
 
   // Filters + search, before the category tab is applied (tab counts come from this).
@@ -262,17 +270,19 @@ export default function EtfTableScanner() {
 
   const fullTable = (
     <>
-      <table className="w-full min-w-[818px] table-fixed border-separate border-spacing-0">
+      <table className="w-full min-w-[958px] table-fixed border-separate border-spacing-0">
             <colgroup>
               {/* base widths + an equal share of any extra width → gaps grow evenly, FUND→SECTOR stays tight */}
-              {[250, 132, 86, 96, 104, 150].map((w, i) => (
-                <col key={i} style={{ width: `calc(${w}px + (100% - 818px) / 6)` }} />
+              {[250, 132, 58, 82, 86, 96, 104, 150].map((w, i) => (
+                <col key={i} style={{ width: `calc(${w}px + (100% - 958px) / 8)` }} />
               ))}
             </colgroup>
             <thead className="sticky top-0 z-10 bg-[var(--oasis-panel)]">
               <tr className="text-left">
                 <th className={`${th} pl-2`}>FUND</th>
                 <th className={`${th} ${gapFirst} text-right`}>SECTOR</th>
+                <th className={`${th} ${gap} text-right`}>CCY</th>
+                <th className={`${th} ${gap} text-right`} title="Exchange the fund is listed on">EXCHANGE</th>
                 {sortTh("aum", "AUM")}
                 {sortTh("ytd", "YTD")}
                 {sortTh("chg1d", "1D CHG")}
@@ -303,6 +313,10 @@ export default function EtfTableScanner() {
                   </td>
                   <td className={`${gapFirst} py-[8px] text-right transition-colors group-hover:bg-white/[0.03]`}>
                     <span className="block truncate font-mono text-[10.5px] font-semibold tracking-[0.06em] text-zinc-400">{e.sector}</span>
+                  </td>
+                  <td className={`${gap} py-[8px] text-right font-mono text-[11px] font-semibold text-zinc-300 transition-colors group-hover:bg-white/[0.03]`}>{e.currency || "—"}</td>
+                  <td className={`${gap} py-[8px] text-right transition-colors group-hover:bg-white/[0.03]`}>
+                    <span className="block truncate font-mono text-[10.5px] tracking-[0.04em] text-zinc-400" title={e.exchange}>{(e.exchange || "—").toUpperCase()}</span>
                   </td>
                   <td className={`${gap} py-[8px] text-right font-mono text-[12px] tabular-nums text-zinc-300 transition-colors group-hover:bg-white/[0.03]`}>{Number.isFinite(e.aum) ? fmtAum(e.aum) : <span className="text-zinc-600">—</span>}</td>
                   <td className={`${gap} py-[8px] text-right transition-colors group-hover:bg-white/[0.03]`}><PctBadge v={e.ytd} /></td>

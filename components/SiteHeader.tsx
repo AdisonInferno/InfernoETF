@@ -109,6 +109,16 @@ function IconButton({ label, children, onClick }: { label: string; children: Rea
   );
 }
 
+/** Wide sci-fi logotype (Syncopate 700) + technical JetBrains Mono sub-label */
+function OasisLogo() {
+  return (
+    <span className="flex items-baseline gap-3 leading-none">
+      <span className="font-[Syncopate] text-[30px] font-bold uppercase tracking-[0.25em] text-white [text-shadow:0_0_12px_rgba(255,255,255,0.12)]">OASIS</span>
+      <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.45em] text-zinc-500">Terminal</span>
+    </span>
+  );
+}
+
 export default function SiteHeader() {
   const pathname = usePathname();
 
@@ -117,7 +127,7 @@ export default function SiteHeader() {
       {/* Row 1: logo · search · actions */}
       <div className="grid h-[68px] grid-cols-[1fr_minmax(0,620px)_1fr] items-center gap-6 px-3">
         <Link href="/scanner" className="flex items-center gap-3 justify-self-start">
-          <span className="text-[17px] font-bold tracking-[0.28em] text-white">OASIS</span>
+          <OasisLogo />
         </Link>
 
         <SearchBox />

@@ -46,7 +46,7 @@ interface Rect {
 
 /* ─────────────────────────── Timeframes ─────────────────────────── */
 
-const TFS = ["1Y", "6M", "3M", "1M", "2W", "1W", "1D"] as const;
+const TFS = ["1D", "1W", "2W", "1M", "3M", "6M", "1Y"] as const;
 type TfKey = (typeof TFS)[number];
 /** Colour-scale stretch per timeframe (≈ √time): a ±1.5% day is as "loud" as a ±22% year. */
 const TF_SCALE: Record<TfKey, number> = { "1D": 1, "1W": 2.2, "2W": 3.1, "1M": 4.5, "3M": 7.5, "6M": 10.5, "1Y": 15 };

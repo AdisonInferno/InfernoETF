@@ -21,7 +21,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { ETFS } from "@/lib/etfs";
 
 export type ChartTf = "1Y" | "YTD" | "3M" | "1M" | "1W" | "1D";
-export const CHART_TFS: ChartTf[] = ["1Y", "YTD", "3M", "1M", "1W", "1D"];
+/** shortest → longest, left → right */
+export const CHART_TFS: ChartTf[] = ["1D", "1W", "1M", "3M", "YTD", "1Y"];
 
 type Raw = { t: number[]; c: number[]; o?: number[]; h?: number[]; l?: number[] };
 export interface LineDef { id: string; label: string; sym: string; color: string; dashed?: boolean }
@@ -41,15 +42,15 @@ const ytdDays = () => { const n = new Date(); return Math.max(1, (n.getTime() - 
 const spanOf = (tf: ChartTf) => ({ "1Y": 365, YTD: ytdDays(), "3M": 91, "1M": 30, "1W": 7, "1D": 1 })[tf];
 const sgn = (v: number) => (v >= 0 ? "+" : "−") + Math.abs(v).toFixed(2) + "%";
 
-/** Rail position (0 = 1Y … 5 = 1D, fractional) for a visible span in days — log-interpolated between stops. */
+/** Rail position (0 = 1D … 5 = 1Y, fractional) for a visible span in days — log-interpolated between stops. */
 function posOf(spanDays: number): number {
-  const s = CHART_TFS.map(spanOf);
-  if (spanDays >= s[0]) return 0;
-  for (let i = 0; i < s.length - 1; i++) {
+  const s = [...CHART_TFS].reverse().map(spanOf), n = s.length - 1;
+  if (spanDays >= s[0]) return n;
+  for (let i = 0; i < n; i++) {
     const a = s[i], b = s[i + 1];
-    if (spanDays <= a && spanDays >= b && a !== b) return i + Math.log(a / spanDays) / Math.log(a / b);
+    if (spanDays <= a && spanDays >= b && a !== b) return n - (i + Math.log(a / spanDays) / Math.log(a / b));
   }
-  return s.length - 1;
+  return 0;
 }
 
 /** Deterministic stand-in when Yahoo is unreachable */
@@ -234,8 +235,8 @@ export default function InfernoChart({ main, pinned: pinnedAll = [], picker = []
     let ms = map.get(mainKey);
     if (!ms) {
       ms = kind === "BARS"
-        ? chart.addSeries(BarSeries, { upColor: "#34d399", downColor: "#f87171", thinBars: false, priceLineVisible: false, lastValueVisible: true, title: main.label })
-        : chart.addSeries(LineSeries, { color: main.color, lineWidth: 3, priceLineVisible: false, lastValueVisible: true, title: main.label });
+        ? chart.addSeries(BarSeries, { upColor: "#34d399", downColor: "#f87171", thinBars: false, priceLineVisible: false, lastValueVisible: false, title: "" })
+        : chart.addSeries(LineSeries, { color: main.color, lineWidth: 3, priceLineVisible: false, lastValueVisible: false, title: "" });
       map.set(mainKey, ms);
     }
     chart.applyOptions({ rightPriceScale: { mode: unit === "PCT" ? PriceScaleMode.Percentage : PriceScaleMode.Normal } });
@@ -252,6 +253,15 @@ export default function InfernoChart({ main, pinned: pinnedAll = [], picker = []
       ms.setData(dedupe(r.t, (i) => r.c[i]).map(([t, value]) => ({ time: t as UTCTimestamp, value })));
     }
     ms.applyOptions({ visible: !off.has(main.id) });
+    // current price: plain white number on the right axis — no coloured box covering the line
+    const last = r.c[r.c.length - 1];
+    const old = (ms as unknown as { __pl?: ReturnType<typeof ms.createPriceLine> }).__pl;
+    if (old) ms.removePriceLine(old);
+    if (Number.isFinite(last)) {
+      (ms as unknown as { __pl?: ReturnType<typeof ms.createPriceLine> }).__pl = ms.createPriceLine({
+        price: last, lineVisible: false, axisLabelVisible: true, axisLabelColor: "rgba(0,0,0,0)", axisLabelTextColor: "#ffffff", title: "",
+      });
+    }
     // comparisons
     for (const l of lines) {
       const s = ready.raw[l.sym];

@@ -18,16 +18,14 @@ function ChartBtn({ open, onClick }: { open: boolean; onClick: () => void }) {
   );
 }
 
-/* Market Intel
+/* Market News
    ┌ region ─────────────────────────────────────────────────────────┐
-   │ sentiment: TECHNOLOGY · DEFENSE                                  │
    │ sector switch  [ TECHNOLOGY | DEFENSE ]                          │
    │ SEC filings (sector) │ Commodities (sector + all) │ Macro (all)  │
    └──────────────────────────────────────────────────────────────────┘ */
 
-type Region = "us" | "eu" | "asia";
+type Region = "global" | "us" | "eu" | "asia";
 type SectorId = "tech" | "defense";
-interface Sector { id: SectorId; label: string; index: number; articles: number; driver: { headline: string; url: string; source: string } | null }
 interface Filing { ticker: string; company: string; form: string; acceptedAt: string; description: string; url: string; cik: number; accession: string; doc: string; items: string }
 interface Insight { direction: "up" | "down" | "neutral"; headline: string; detail: string; basis: "form4" | "xbrl" | "rules" | "ai" | "none"; importance: number; sector?: string }
 interface Commodity { id: string; ts: number; headline: string; url: string; source: string; commodity: string; tag: { sectors: string[]; importance: number; why: string; basis: "ai" | "rules" } }
@@ -35,13 +33,12 @@ interface Ev { source: string; code: string; at: string; title: string; allDay?:
 interface MacroNews { id: string; ts: number; headline: string; url: string; source: string; tickers?: string[] }
 interface Data {
   picks?: { filers: string[]; commodities: string[] };
-  sentiment: { sectors: Sector[]; articles: number };
   filings: { filings: Filing[]; error?: string };
   commodities: { items: Commodity[]; pending: number };
   macro: { calendar: { events: Ev[]; missing: string[] }; news: MacroNews[] };
 }
 
-const REGIONS: [Region, string][] = [["us", "USA"], ["eu", "EUROPE"], ["asia", "ASIA"]];
+const REGIONS: [Region, string][] = [["global", "GLOBAL"], ["us", "USA"], ["eu", "EUROPE"], ["asia", "ASIA"]];
 const SECTORS: [SectorId, string][] = [["tech", "TECHNOLOGY"], ["defense", "DEFENSE"]];
 const card = "rounded-sm border border-white/[0.06] bg-[var(--oasis-panel)]";
 const label = "font-mono text-[10px] font-bold tracking-[0.16em] text-zinc-500";
@@ -56,12 +53,6 @@ function when(iso: string | number, allDay = false): string {
   if (dayDiff === -1) return "YESTERDAY" + hm;
   if (dayDiff < -1 && dayDiff > -7) return `${-dayDiff}D AGO`;
   return d.toLocaleDateString("en-US", { month: "short", day: "numeric" }).toUpperCase() + hm;
-}
-
-function tone(i: number) {
-  if (i >= 15) return { box: "border-emerald-400/25 bg-emerald-400/[0.04]", num: "text-emerald-400 bg-emerald-400/10" };
-  if (i <= -15) return { box: "border-rose-400/25 bg-rose-400/[0.04]", num: "text-rose-400 bg-rose-400/10" };
-  return { box: "border-white/[0.06] bg-white/[0.015]", num: "text-zinc-300 bg-white/[0.06]" };
 }
 
 const ARROW: Record<Insight["direction"], { icon: string; chip: string; text: string; word: string }> = {
@@ -171,6 +162,8 @@ function useFetch<T>(url: string | null) {
 }
 
 /* ── SEC filings: fetch every insight, then sort by importance or time ── */
+const FORM_W: Record<string, number> = { "8-K": 6, "6-K": 5, "10-K": 4, "20-F": 4, "10-Q": 3, "4": 2 };
+
 function FilingsPanel({ filings: sectorFilings, error: sectorError, loading: sectorLoading, picks }: { filings: Filing[]; error?: string; loading: boolean; picks: string[] }) {
   const [openChart, setOpenChart] = useState<string | null>(null);
   const [pick, setPick] = useState<string | null>(null);
@@ -196,7 +189,10 @@ function FilingsPanel({ filings: sectorFilings, error: sectorError, loading: sec
 
   const rows = useMemo(() => {
     const list = [...filings];
-    if (sort === "weight") list.sort((a, b) => (insights[b.accession]?.importance ?? 0) - (insights[a.accession]?.importance ?? 0) || b.acceptedAt.localeCompare(a.acceptedAt));
+    // IMPORTANT = AI/rule importance first, then the weight of the form itself (8-K event > 10-K/10-Q > insider Form 4)
+    const rank = (f: Filing) => (insights[f.accession]?.importance ?? 0) * 10 + (FORM_W[f.form] ?? 1);
+    if (sort === "weight") list.sort((a, b) => rank(b) - rank(a) || b.acceptedAt.localeCompare(a.acceptedAt));
+    else list.sort((a, b) => b.acceptedAt.localeCompare(a.acceptedAt));
     return list;
   }, [filings, insights, sort]);
 
@@ -297,7 +293,7 @@ function CommoditiesPanel({ items: sectorItems, loading: sectorLoading, ready, p
 
 export default function MarketIntel() {
   const [openMacro, setOpenMacro] = useState<string | null>(null);
-  const [region, setRegion] = useState<Region>("us");
+  const [region, setRegion] = useState<Region>("global");
   const [sector, setSector] = useState<SectorId>("tech");
   /** third switch option: news for what YOU hold (look-through of the saved portfolio) */
   const [mine, setMine] = useState(false);
@@ -324,46 +320,21 @@ export default function MarketIntel() {
     <div className="flex flex-col gap-4 font-mono">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="m-0 font-display text-[22px] font-semibold tracking-[0.04em] text-zinc-50">MARKET INTEL</h1>
-          <p className="m-0 mt-1 text-[11px] tracking-[0.06em] text-zinc-500">[ SENTIMENT ] [ FILINGS ] [ COMMODITIES ] [ MACRO ]</p>
+          <h1 className="m-0 font-display text-[22px] font-semibold tracking-[0.04em] text-zinc-50">MARKET NEWS</h1>
+          <p className="m-0 mt-1 text-[11px] tracking-[0.06em] text-zinc-500">[ FILINGS ] [ COMMODITIES ] [ MACRO ]</p>
         </div>
         <Link href="/news/archive" className="text-[10.5px] font-bold tracking-[0.12em] text-zinc-500 hover:text-white">[ NEWS ARCHIVE → ]</Link>
       </div>
 
-      <div className="grid grid-cols-3 gap-2" role="tablist" aria-label="Region">
+      <div className="grid grid-cols-4 gap-2" role="tablist" aria-label="Region">
         {REGIONS.map(([id, l]) => (
           <button key={id} type="button" role="tab" aria-selected={region === id} onClick={() => setRegion(id)}
-            className={`h-10 rounded-sm border text-[12px] font-bold tracking-[0.18em] transition-colors ${region === id ? "border-emerald-400/40 bg-emerald-400/[0.07] text-emerald-300" : "border-white/[0.06] bg-[var(--oasis-panel)] text-zinc-500 hover:text-zinc-200"}`}>
+            className={`h-10 rounded-sm border text-[12px] font-bold tracking-[0.18em] transition-colors ${region === id ? "oasis-on" : "border-white/[0.06] bg-[var(--oasis-panel)] text-zinc-500 hover:text-zinc-200"}`}>
             {l}
           </button>
         ))}
       </div>
       {state.error && !loading && <p className="m-0 text-[11px] text-rose-400">⚠ {state.error}</p>}
-
-      {/* Sentiment — the two focus sectors (click = select) */}
-      <section className="flex flex-col gap-2.5">
-        <div className="flex items-baseline justify-between">
-          <span className={label}>SECTOR SENTIMENT · INDEX −100 TO +100 · 7D</span>
-          {d && <span className="text-[10px] text-zinc-600">{d.sentiment.articles} ARTICLES</span>}
-        </div>
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-          {!d && [0, 1].map((i) => <div key={i} className={`${card} h-[112px] animate-pulse`} />)}
-          {d?.sentiment.sectors.map((s) => {
-            const t = tone(s.index), on = s.id === sector;
-            return (
-              <button key={s.id} type="button" onClick={() => setSector(s.id)} aria-pressed={on}
-                className={`flex min-w-0 flex-col gap-2 rounded-sm border p-4 text-left transition-[box-shadow] ${t.box} ${on ? "shadow-[inset_0_0_0_1px_rgba(255,255,255,0.18)]" : "opacity-80 hover:opacity-100"}`}>
-                <div className="flex items-center justify-between gap-2">
-                  <span className="truncate font-sans text-[15px] font-semibold text-zinc-50">{s.label}</span>
-                  <span className={`rounded-sm px-2 py-0.5 text-[14px] font-bold tabular-nums ${t.num}`}>{s.index > 0 ? "+" : ""}{s.index}</span>
-                </div>
-                <span className="line-clamp-2 font-sans text-[12.5px] leading-snug text-zinc-400" title={s.driver ? `${s.driver.source}: ${s.driver.headline}` : undefined}>{s.driver?.headline ?? "No archived news in 7 days."}</span>
-                <span className="mt-auto text-[9.5px] tracking-[0.12em] text-zinc-600">{s.articles} ARTICLE{s.articles === 1 ? "" : "S"}</span>
-              </button>
-            );
-          })}
-        </div>
-      </section>
 
       {/* Sector switch */}
       <div className="flex items-center gap-3 border-y border-white/[0.06] py-2.5">
@@ -379,8 +350,7 @@ export default function MarketIntel() {
             PORTFOLIO
           </button>
         </div>
-        <span className="ml-auto hidden text-[10px] tracking-[0.08em] text-zinc-600 md:inline">Commodities shown: this sector + market-wide · Macro: all sectors</span>
-      </div>
+              </div>
 
       {/* Three pillars */}
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">

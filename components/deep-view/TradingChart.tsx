@@ -256,10 +256,12 @@ export default function TradingChart({ fund }: { fund: FundData }) {
     if (mainRef.current) { chart.removeSeries(mainRef.current); lineRefs.current = []; }
     const s: ISeriesApi<SeriesType> =
       kind === "candles"
-        ? chart.addSeries(CandlestickSeries, { upColor: UP, downColor: DOWN, borderUpColor: UP, borderDownColor: DOWN, wickUpColor: UP, wickDownColor: DOWN, priceLineColor: "rgba(255,255,255,0.25)" })
-        : chart.addSeries(LineSeries, { color: UP, lineWidth: 2, priceLineColor: "rgba(255,255,255,0.25)", crosshairMarkerRadius: 4, crosshairMarkerBackgroundColor: "#0a0a0c" });
+        ? chart.addSeries(CandlestickSeries, { upColor: UP, downColor: DOWN, borderUpColor: UP, borderDownColor: DOWN, wickUpColor: UP, wickDownColor: DOWN, priceLineVisible: false, lastValueVisible: false })
+        : chart.addSeries(LineSeries, { color: UP, lineWidth: 2, priceLineVisible: false, lastValueVisible: false, crosshairMarkerRadius: 4, crosshairMarkerBackgroundColor: "#0a0a0c" });
     if (kind === "candles") s.setData(bars.map(({ time, open, high, low, close }) => ({ time, open, high, low, close })));
     else s.setData(bars.map((b) => ({ time: b.time, value: b.close })));
+    const last = bars[bars.length - 1]?.close;
+    if (last != null) s.createPriceLine({ price: last, lineVisible: false, axisLabelVisible: true, axisLabelColor: "rgba(0,0,0,0)", axisLabelTextColor: "#ffffff", title: "" });
     mainRef.current = s;
   }, [kind, bars]);
 

@@ -7,6 +7,8 @@ import "@fontsource/chakra-petch/400.css";
 import "@fontsource/chakra-petch/500.css";
 import "@fontsource/chakra-petch/600.css";
 import "@fontsource/chakra-petch/700.css";
+// Syncopate = wide display font of the OASIS logotype
+import "@fontsource/syncopate/700.css";
 import SiteHeader from "@/components/SiteHeader";
 import TickerContextMenu from "@/components/TickerContextMenu";
 import OasisColorScrubber from "@/components/OasisColorScrubber";

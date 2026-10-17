@@ -146,7 +146,7 @@ export default function MarketPulse({ rows, all = ETFS }: { rows: EtfRow[]; /** 
   const mineW = useMemo(() => lookThrough(myPos), [myPos]);
   useEffect(() => {
     let off = false;
-    fetch(`/api/pulse/news?limit=12&range=${nr}`)
+    fetch(`/api/pulse/news?limit=25&range=${nr}`)
       .then((r) => (r.ok ? r.json() : { news: [] }))
       .then((j: { news?: News[] }) => { if (!off) setNews(j.news ?? []); })
       .catch(() => { if (!off) setNews([]); });

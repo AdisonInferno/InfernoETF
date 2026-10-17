@@ -16,8 +16,8 @@ import type { Tf } from "@/components/deep-view/types";
 import type { Asset, Lot } from "@/lib/portfolio";
 
 export type PTf = "3Y" | "1Y" | "YTD" | "3M" | "1M" | "1W" | "1D";
-/** Table timeframes (long → short) */
-export const TABLE_TFS: PTf[] = ["3Y", "1Y", "YTD", "3M", "1M", "1W", "1D"];
+/** Table timeframes (short → long) */
+export const TABLE_TFS: PTf[] = ["1D", "1W", "1M", "3M", "YTD", "1Y", "3Y"];
 /** Chart timeframes for the slider (oldest at the top) */
 export const CHART_TFS: PTf[] = ["1Y", "YTD", "3M", "1M", "1W", "1D"];
 const RANGE: Record<PTf, string> = { "3Y": "5y", "1Y": "1y", YTD: "ytd", "3M": "3mo", "1M": "1mo", "1W": "5d", "1D": "1d" };
