@@ -2,10 +2,17 @@
 
 _Generowany automatycznie z historii git. Zmiany oddalone o mniej niż godzinę = jedna sesja._
 
+## sobota, 17 października 2026
+
+### Sesja #13 · 13:44–13:44 · 1 zmian · AdisonInferno
+
+- `13:44` Stock Deep Dive (/stock/[ticker]): overview, SEC quarterly financials with per-quarter breakdown and WHY, EPS expectations vs actual, seasonality, earnings reaction, news, ETF exposure; stock tickers link to it across the app
+
 ## piątek, 16 października 2026
 
-### Sesja #12 · 17:57–18:25 · 4 zmian · AdisonInferno
+### Sesja #12 · 17:57–18:25 · 5 zmian · AdisonInferno
 
+- `18:25` Dziennik zmian
 - `18:25` Real today numbers everywhere: /api/market/snapshot (Yahoo price, 1D, YTD) overlays the static database in scanner, map, pulse, recent bar, ticker tape, ETF page, portfolio, watchlist. Portfolio dashboard: portfolio on top (~3/4), builder + whales below
 - `18:17` Dziennik zmian
 - `17:57` Dziennik zmian
