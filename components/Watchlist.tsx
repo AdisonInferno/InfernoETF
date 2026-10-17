@@ -61,7 +61,7 @@ export default function Watchlist() {
 
   const tile = (id: string, label: string, n: number, accent = "emerald") => (
     <button key={id} type="button" onClick={() => setTab(id)} aria-pressed={cur === id}
-      className={`flex min-w-[150px] flex-col items-start gap-1 border px-3.5 py-2.5 text-left transition-colors ${cur === id ? (accent === "amber" ? "border-amber-400/50 bg-amber-400/[0.07]" : "oasis-on") : `${B} bg-[#0a0a0c] hover:border-white/[0.14]`}`}>
+      className={`flex min-w-[150px] flex-col items-start gap-1 border px-3.5 py-2.5 text-left transition-colors ${cur === id ? (accent === "amber" ? "border-amber-400/50 bg-amber-400/[0.07]" : "oasis-on") : `${B} bg-[var(--oasis-panel)] hover:border-white/[0.14]`}`}>
       <span className={`text-[11px] font-bold tracking-[0.14em] ${cur === id ? "text-white" : "text-zinc-300"}`}>{label}</span>
       <span className="text-[10px] tracking-[0.08em] text-zinc-500">{n} INSTRUMENT{n === 1 ? "" : "S"}</span>
     </button>
@@ -88,7 +88,7 @@ export default function Watchlist() {
             <span className="text-[16px] leading-none">+</span> CREATE GROUP
           </button>
         ) : (
-          <form onSubmit={(e) => { e.preventDefault(); const id = createGroup(newGroup); setNewGroup(null); setTab(id); }} className={`flex items-center gap-1 border border-emerald-500/40 bg-[#0a0a0c] px-2`}>
+          <form onSubmit={(e) => { e.preventDefault(); const id = createGroup(newGroup); setNewGroup(null); setTab(id); }} className={`flex items-center gap-1 border border-emerald-500/40 bg-[var(--oasis-panel)] px-2`}>
             <input autoFocus value={newGroup} onChange={(e) => setNewGroup(e.target.value)} placeholder="GROUP NAME…" maxLength={32}
               onKeyDown={(e) => { if (e.key === "Escape") setNewGroup(null); }}
               className="h-9 w-[170px] bg-transparent text-[11px] text-zinc-100 outline-none placeholder:text-zinc-600" />
@@ -98,7 +98,7 @@ export default function Watchlist() {
       </div>
 
       {/* list */}
-      <section className={`flex flex-col border ${B} bg-[#0a0a0c]`}>
+      <section className={`flex flex-col border ${B} bg-[var(--oasis-panel)]`}>
         <header className={`flex flex-wrap items-center gap-2 border-b ${B} px-3 py-2`}>
           {group ? (
             <input defaultValue={group.name} key={group.id} onBlur={(e) => renameGroup(group.id, e.target.value)} className="h-7 w-[200px] border border-transparent bg-transparent px-1 text-[11.5px] font-bold tracking-[0.12em] text-zinc-100 outline-none hover:border-white/[0.08] focus:border-white/[0.2]" title="Click to rename" />
@@ -108,7 +108,7 @@ export default function Watchlist() {
           {canAdd && (
             <form onSubmit={(e) => { e.preventDefault(); add(); }} className="ml-2 flex items-center gap-1">
               <input value={adding} onChange={(e) => setAdding(e.target.value)} list="wl-etfs" placeholder="ADD TICKER(S) — e.g. SMH NVDA" spellCheck={false}
-                className={`h-7 w-[240px] border ${B} bg-[#030303] px-2 text-[11px] text-zinc-100 outline-none placeholder:text-zinc-600 focus:border-white/[0.2]`} />
+                className={`h-7 w-[240px] border ${B} bg-[var(--oasis-bg)] px-2 text-[11px] text-zinc-100 outline-none placeholder:text-zinc-600 focus:border-white/[0.2]`} />
               <button type="submit" className="h-7 border border-emerald-500/40 px-2 text-[10.5px] font-bold text-emerald-300 hover:bg-emerald-500/10">[ + ADD ]</button>
               <datalist id="wl-etfs">{ETFS.map((e) => <option key={e.ticker} value={e.ticker}>{e.name}</option>)}</datalist>
             </form>

@@ -8,7 +8,7 @@ import { COUNTRY_CODE } from "./mockData";
 import { aumFmt, pctOf, squarify } from "./utils";
 import PriceChart from "./PriceChart";
 
-const CARD = "rounded-sm border border-white/[0.06] bg-[#0a0a0c]";
+const CARD = "rounded-sm border border-white/[0.06] bg-[var(--oasis-panel)]";
 const H_LABEL = "font-display text-[10.5px] font-bold tracking-[0.18em] text-neutral-300";
 const SECTOR_RGB: Record<string, string> = {
   Technology: "16,185,129", Materials: "251,191,36", "Cash & Other": "148,163,184", Other: "113,113,122",
@@ -63,7 +63,7 @@ function SectorBreakdown({ fund }: { fund: FundData }) {
         <span className={H_LABEL}>SECTOR &amp; SUB-SECTOR BREAKDOWN</span>
         <span className="whitespace-nowrap text-[9.5px] text-gray-600">AUM {aumFmt(fund.aumB)} · {nSecs} SECTORS · {fund.sectors.length} SUB-SECTORS</span>
       </div>
-      <div ref={ref} onMouseLeave={() => setTip(null)} className="relative min-h-[260px] flex-1 overflow-hidden rounded-sm border border-white/[0.03] bg-[#030303]">
+      <div ref={ref} onMouseLeave={() => setTip(null)} className="relative min-h-[260px] flex-1 overflow-hidden rounded-sm border border-white/[0.03] bg-[var(--oasis-bg)]">
         {tiles.map((sc) => (
           <div key={sc.name} className="absolute box-border overflow-hidden border" style={{ left: sc.x, top: sc.y, width: sc.w, height: sc.h, borderColor: sc.bc, background: sc.bg }}>
             {sc.lbl && <span className="pointer-events-none absolute left-2 top-1 z-[1] whitespace-nowrap text-[9.5px] font-bold tracking-[0.16em]" style={{ color: sc.lc }}>{sc.name} · {sc.pct}</span>}
@@ -124,7 +124,7 @@ function TopHoldings({ fund }: { fund: FundData }) {
             </div>
           ))}
         </div>
-        {canExpand && <button type="button" onClick={() => setExp((v) => !v)} className="flex h-6 items-center justify-center rounded-sm border border-white/[0.03] bg-[#030303] text-[9.5px] font-semibold tracking-[0.14em] text-gray-500 hover:border-gray-700 hover:text-white">
+        {canExpand && <button type="button" onClick={() => setExp((v) => !v)} className="flex h-6 items-center justify-center rounded-sm border border-white/[0.03] bg-[var(--oasis-bg)] text-[9.5px] font-semibold tracking-[0.14em] text-gray-500 hover:border-gray-700 hover:text-white">
           {exp ? "[ COLLAPSE ]" : `[ EXPAND ALL · ${fund.holdings.length} ]`}
         </button>}
       </div>
@@ -145,7 +145,7 @@ function GeoAllocation({ fund }: { fund: FundData }) {
           return (
             <div
               key={name}
-              className="box-border flex min-w-0 items-center rounded-sm border border-white/[0.03] bg-[#030303] px-[18px] py-4 transition-[border-color,box-shadow] hover:border-emerald-400 "
+              className="box-border flex min-w-0 items-center rounded-sm border border-white/[0.03] bg-[var(--oasis-bg)] px-[18px] py-4 transition-[border-color,box-shadow] hover:border-emerald-400 "
               style={{ flex: `${Math.max(1, Math.round(v))} 1 ${big ? "100%" : "150px"}`, minHeight: Math.round(56 + v * 1.1), gap: big ? 24 : 12 }}
             >
               {cc ? (

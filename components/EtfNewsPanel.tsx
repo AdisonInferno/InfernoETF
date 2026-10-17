@@ -56,18 +56,18 @@ export default function EtfNewsPanel({ ticker, items: basket }: { ticker: string
   const empty = d && d.company.length + d.sector.length + d.macro.length === 0;
 
   return (
-    <section className="flex flex-col overflow-hidden rounded-sm border border-white/[0.06] bg-[#0a0a0c] font-mono">
+    <section className="flex flex-col overflow-hidden rounded-sm border border-white/[0.06] bg-[var(--oasis-panel)] font-mono">
       {/* Header */}
       <div className="flex flex-wrap items-center gap-3 border-b border-white/[0.06] px-4 py-3">
         <span className="text-[11px] font-bold tracking-[0.18em] text-neutral-200">{ticker} · NEWS</span>
-        <div className="flex rounded-sm border border-white/[0.06] bg-[#030303] p-0.5">
+        <div className="flex rounded-sm border border-white/[0.06] bg-[var(--oasis-bg)] p-0.5">
           {(["company", "sector", "macro"] as Kind[]).map((k) => (
             <button key={k} type="button" onClick={() => setTab(k)} title={TAB_HINT[k]} className={`h-7 rounded-sm px-2.5 text-[10.5px] font-bold tracking-[0.08em] ${tab === k ? "oasis-on" : "text-zinc-500 hover:text-zinc-200"}`}>
               {TAB_LABEL[k]} <span className="font-normal text-zinc-500">{d ? d[k].length : "·"}</span>
             </button>
           ))}
         </div>
-        <div className="ml-auto flex rounded-sm border border-white/[0.06] bg-[#030303] p-0.5">
+        <div className="ml-auto flex rounded-sm border border-white/[0.06] bg-[var(--oasis-bg)] p-0.5">
           {[7, 30, 90, 365].map((n) => (
             <button key={n} type="button" onClick={() => setDays(n)} className={`h-7 min-w-10 rounded-sm px-2 text-[10.5px] font-bold ${days === n ? "bg-white/[0.08] text-emerald-400" : "text-zinc-500 hover:text-zinc-200"}`}>
               {n}D
@@ -78,7 +78,7 @@ export default function EtfNewsPanel({ ticker, items: basket }: { ticker: string
 
       {/* What drives this ETF's news */}
       {d && !empty && (
-        <div className="flex flex-wrap items-center gap-x-5 gap-y-2 border-b border-white/[0.06] bg-[#030303]/40 px-4 py-2.5 text-[10.5px]">
+        <div className="flex flex-wrap items-center gap-x-5 gap-y-2 border-b border-white/[0.06] bg-[var(--oasis-bg)]/40 px-4 py-2.5 text-[10.5px]">
           <span className="text-zinc-500" title="Share of the ETF's weight whose holdings had at least one article in this window">
             COVERAGE <span className={`font-bold ${d.coverage >= 40 ? "text-emerald-400" : d.coverage >= 15 ? "text-amber-400" : "text-rose-400"}`}>{d.coverage.toFixed(0)}%</span>
           </span>

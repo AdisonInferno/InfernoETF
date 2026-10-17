@@ -25,7 +25,7 @@ import { toggleFavorite, useWatchlist } from "@/lib/watchlist";
 import type { EarningsRow, Quarter, StockData } from "@/lib/stock/data";
 
 const B = "border-white/[0.06]";
-const CARD = `rounded-sm border ${B} bg-[#0a0a0c]`;
+const CARD = `rounded-sm border ${B} bg-[var(--oasis-panel)]`;
 const LABEL = "font-mono text-[10px] font-semibold tracking-[0.14em] text-zinc-500";
 
 const big = (v: number | null | undefined, cur = "$") => {
@@ -128,7 +128,7 @@ function Overview({ d, held, sym }: { d: StockData; held: { etf: string; name: s
           <span className={LABEL}>[ PEERS ]</span>
           <div className="flex flex-wrap gap-1.5">
             {d.peers.length ? d.peers.map((p) => (
-              <Link key={p} href={`/stock/${p}`} className={`border ${B} bg-[#030303] px-2.5 py-1 font-mono text-[11.5px] font-bold text-zinc-200 hover:border-white/[0.2] hover:text-white`}>{p}</Link>
+              <Link key={p} href={`/stock/${p}`} className={`border ${B} bg-[var(--oasis-bg)] px-2.5 py-1 font-mono text-[11.5px] font-bold text-zinc-200 hover:border-white/[0.2] hover:text-white`}>{p}</Link>
             )) : <span className="font-mono text-[11px] text-zinc-600">{d.missing.some((m) => m.startsWith("FINNHUB")) ? "Peers need FINNHUB_API_KEY in .env.local." : "No peers listed."}</span>}
           </div>
           <span className="mt-auto font-mono text-[9.5px] tracking-[0.06em] text-zinc-600">SRC: {d.sources.join(" · ") || "—"}{d.missing.length ? ` · MISSING: ${d.missing.join(", ")}` : ""}</span>
@@ -213,7 +213,7 @@ function Bars({ title, qs, k, sel, onSel, cf }: { title: string; qs: Quarter[]; 
                 <circle cx={cx(ruler.a)} cy={yv(va)} r={3} fill={accent} />
                 <circle cx={cx(ruler.b)} cy={yv(vb)} r={3} fill={accent} />
               </svg>
-              <span className="pointer-events-none absolute z-10 -translate-x-1/2 whitespace-nowrap border bg-[#030303] px-2 py-0.5 font-mono text-[10.5px] font-bold tabular-nums"
+              <span className="pointer-events-none absolute z-10 -translate-x-1/2 whitespace-nowrap border bg-[var(--oasis-bg)] px-2 py-0.5 font-mono text-[10.5px] font-bold tabular-nums"
                 style={{ left: Math.min(W - 90, Math.max(90, (x1 + x2) / 2)), top: 0, borderColor: tint(0.6), color: accent }}>
                 {qs[ruler.a].label} → {qs[ruler.b].label} · Δ {delta == null ? "—" : `${delta >= 0 ? "+" : "−"}${big(Math.abs(delta))}`} | {dPct == null ? "—" : `${dPct >= 0 ? "+" : "−"}${Math.abs(dPct).toFixed(1)}%`}
               </span>
@@ -336,7 +336,7 @@ function Financials({ d }: { d: StockData }) {
               cur.netIncome != null ? (cur.netIncome >= 0 ? "profitable quarter" : "loss-making quarter") : null,
             ].filter(Boolean).join(", ");
             return (
-              <div className={`flex flex-col gap-1 border ${B} bg-[#030303] px-3 py-2.5 font-mono text-[11.5px] leading-relaxed tabular-nums`}>
+              <div className={`flex flex-col gap-1 border ${B} bg-[var(--oasis-bg)] px-3 py-2.5 font-mono text-[11.5px] leading-relaxed tabular-nums`}>
                 <span className="text-[10px] font-bold tracking-[0.14em] text-zinc-300">[ {er ? "EARNINGS BRIEF · " + cur.label : "LATEST EARNINGS BRIEF"} ]</span>
                 {e ? (
                   <>
@@ -527,7 +527,7 @@ export default function StockDeepView({ ticker, yahoo = ticker }: { ticker: stri
   const newsItems = useMemo(() => [{ ticker, name: d?.name ?? ticker, weight: 100, kind: "stock" as const, sector: d?.industry ?? "Other" }], [ticker, d?.name, d?.industry]);
 
   return (
-    <div className="flex min-h-full min-w-0 flex-col bg-[#030303] text-[#e6e6e6]">
+    <div className="flex min-h-full min-w-0 flex-col bg-[var(--oasis-bg)] text-[#e6e6e6]">
       <header className={`flex flex-col gap-3 border-b ${B} px-5 pt-3.5`}>
         <div className="flex items-center justify-between gap-3">
           <button type="button" onClick={() => (window.history.length > 1 ? router.back() : router.push("/scanner"))} className="font-mono text-[11px] font-semibold tracking-[0.14em] text-gray-500 hover:text-white">[ ← BACK ]</button>

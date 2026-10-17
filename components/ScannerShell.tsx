@@ -25,7 +25,7 @@ export default function ScannerShell() {
   return (
     <div className="flex min-h-[640px] flex-1 flex-col">
       <div className="flex-none px-4 pt-3">
-        <div className="inline-flex items-center gap-1 rounded-sm border border-white/[0.06] bg-[#0a0a0c] p-1">
+        <div className="inline-flex items-center gap-1 rounded-sm border border-white/[0.06] bg-[var(--oasis-panel)] p-1">
           {tab("table", "[ TABLE ]")}
           {tab("map", "[ MARKET MAP ]")}
           <Link

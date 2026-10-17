@@ -17,7 +17,7 @@ export const proxiesFor = (commodity: string) => COMMODITY_PROXY[commodity] ?? [
 
 function Mini({ sym, s, ts }: { sym: string; s: S; ts: number }) {
   if (!s) return (
-    <div className="flex h-[92px] flex-col justify-between rounded-sm border border-white/[0.06] bg-[#0a0a0c] p-2">
+    <div className="flex h-[92px] flex-col justify-between rounded-sm border border-white/[0.06] bg-[var(--oasis-panel)] p-2">
       <span className="text-[11px] font-bold text-zinc-300">{sym}</span>
       <span className="text-[10px] text-zinc-600">no price data</span>
     </div>
@@ -35,7 +35,7 @@ function Mini({ sym, s, ts }: { sym: string; s: S; ts: number }) {
   const up = since >= 0;
   const mx = Math.max(0, Math.min(W, x(ts)));
   return (
-    <Link href={`/etf/${sym}`} className="flex flex-col gap-1 rounded-sm border border-white/[0.06] bg-[#0a0a0c] p-2 transition-colors hover:border-white/[0.14]">
+    <Link href={`/etf/${sym}`} className="flex flex-col gap-1 rounded-sm border border-white/[0.06] bg-[var(--oasis-panel)] p-2 transition-colors hover:border-white/[0.14]">
       <span className="flex items-baseline justify-between gap-2 text-[11px] tabular-nums">
         <span className="font-bold text-zinc-100">{sym}</span>
         <span className="text-zinc-400">${last.toFixed(2)}</span>

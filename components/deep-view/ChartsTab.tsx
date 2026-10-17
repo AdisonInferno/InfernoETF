@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { FundData } from "./types";
 import { BREADTH, MONTHS } from "./mockData";
 
-const CARD = "rounded-[18px] border border-white/[0.06] bg-[#0a0a0c]";
+const CARD = "rounded-[18px] border border-white/[0.06] bg-[var(--oasis-panel)]";
 
 function heat(v: number | null, wide: boolean) {
   if (v == null) return { v: "·", bg: "transparent", fg: "#4B5563", fw: 400 };

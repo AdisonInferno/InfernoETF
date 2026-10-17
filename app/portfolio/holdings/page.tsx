@@ -41,7 +41,7 @@ function ChangeBadge({ v }: { v: number }) {
 
 function Card({ title, aside, children, className = "" }: { title: string; aside?: React.ReactNode; children: React.ReactNode; className?: string }) {
   return (
-    <section className={`flex min-w-0 flex-col gap-4 rounded-sm border border-white/[0.06] bg-[#0a0a0c] p-3 ${className}`}>
+    <section className={`flex min-w-0 flex-col gap-4 rounded-sm border border-white/[0.06] bg-[var(--oasis-panel)] p-3 ${className}`}>
       <div className="flex items-center justify-between">
         <span className="text-[11px] font-semibold tracking-[0.1em] text-zinc-500">{title}</span>
         {aside}
@@ -100,7 +100,7 @@ export default function HoldingsPage() {
   ];
 
   return (
-    <div className="flex flex-1 flex-col bg-[#030303] font-sans text-neutral-200">
+    <div className="flex flex-1 flex-col bg-[var(--oasis-bg)] font-sans text-neutral-200">
       <div className="mx-auto flex w-full max-w-[3200px] flex-1 flex-col gap-4 px-3 pb-6 pt-4">
         <div className="flex items-center justify-between font-mono text-[10px] tracking-[0.14em] text-zinc-600">
           <span>[ <Link href="/portfolio" className="hover:text-white">DASHBOARD</Link> / <span className="text-zinc-300">MY HOLDINGS</span> ]</span>
@@ -108,7 +108,7 @@ export default function HoldingsPage() {
         </div>
         <div className="grid grid-cols-[repeat(auto-fit,minmax(200px,1fr))] gap-4">
           {summary.map((s) => (
-            <div key={s.label} className="flex flex-col gap-2 rounded-sm border border-white/[0.06] bg-[#0a0a0c] p-3">
+            <div key={s.label} className="flex flex-col gap-2 rounded-sm border border-white/[0.06] bg-[var(--oasis-panel)] p-3">
               <span className="text-[11px] font-semibold tracking-[0.1em] text-zinc-500">{s.label}</span>
               <div className="flex items-center gap-2.5">
                 <span className="font-mono text-2xl font-semibold tabular-nums text-zinc-50">{s.value}</span>

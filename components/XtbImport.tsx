@@ -209,11 +209,11 @@ export default function XtbImport({ onImport, onClose }: { onImport: (r: ImportR
     onImport({ prompt: `${rows.map((r) => r.ticker).join(" ")} ${w.join("/")}`, lots, customs });
   };
 
-  const cell = "h-7 w-full min-w-0 rounded-sm border border-white/[0.06] bg-[#030303] px-1.5 text-right font-mono text-[11.5px] tabular-nums text-zinc-100 outline-none focus:border-white/[0.2]";
+  const cell = "h-7 w-full min-w-0 rounded-sm border border-white/[0.06] bg-[var(--oasis-bg)] px-1.5 text-right font-mono text-[11.5px] tabular-nums text-zinc-100 outline-none focus:border-white/[0.2]";
   const bad = "border-rose-500/60";
 
   return (
-    <div className="flex flex-col gap-4 rounded-sm border border-white/[0.06] bg-[#0a0a0c] p-3">
+    <div className="flex flex-col gap-4 rounded-sm border border-white/[0.06] bg-[var(--oasis-panel)] p-3">
       <div className="flex items-center justify-between gap-3">
         <span className="font-mono text-[10.5px] font-semibold tracking-[0.14em] text-zinc-300">[ IMPORT FROM XTB SCREENSHOT ]</span>
         <button type="button" onClick={onClose} className="font-mono text-[11px] text-zinc-500 hover:text-white">[ CLOSE ]</button>

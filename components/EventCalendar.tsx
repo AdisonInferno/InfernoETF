@@ -64,11 +64,11 @@ export default function EventCalendar() {
   const monthCount = Object.entries(byDay).filter(([k]) => k.startsWith(month)).reduce((n, [, l]) => n + l.length, 0);
 
   const shift = (d: number) => setYm(({ y, m }) => { const t = new Date(y, m + d, 1); return { y: t.getFullYear(), m: t.getMonth() }; });
-  const navBtn = "flex h-7 w-7 items-center justify-center rounded-sm border border-white/[0.06] bg-[#030303] text-[12px] text-zinc-400 transition-colors hover:border-red-500/40 hover:text-red-300";
+  const navBtn = "flex h-7 w-7 items-center justify-center rounded-sm border border-white/[0.06] bg-[var(--oasis-bg)] text-[12px] text-zinc-400 transition-colors hover:border-red-500/40 hover:text-red-300";
   const monthName = new Date(ym.y, ym.m, 1).toLocaleDateString("en-US", { month: "long", year: "numeric" }).toUpperCase();
 
   return (
-    <section className="flex min-h-[460px] min-w-0 flex-1 flex-col gap-2.5 rounded-sm border border-white/[0.06] bg-[#0a0a0c] p-4">
+    <section className="flex min-h-[460px] min-w-0 flex-1 flex-col gap-2.5 rounded-sm border border-white/[0.06] bg-[var(--oasis-panel)] p-4">
       {/* Header: title · month switcher */}
       <div className="flex items-center justify-between gap-2">
         <h2 className="m-0 flex items-baseline gap-2 font-mono text-[12px] font-bold tracking-[0.16em] text-zinc-200">
@@ -78,7 +78,7 @@ export default function EventCalendar() {
         <div className="flex items-center gap-1.5">
           <button type="button" onClick={() => shift(-1)} className={navBtn} aria-label="Previous month">‹</button>
           <button type="button" onClick={() => { setYm({ y: today.getFullYear(), m: today.getMonth() }); setPicked(null); }}
-            className="h-7 min-w-[124px] rounded-sm border border-white/[0.06] bg-[#030303] px-2 font-mono text-[10.5px] font-bold tracking-[0.12em] text-zinc-200 hover:text-white" title="Back to today">
+            className="h-7 min-w-[124px] rounded-sm border border-white/[0.06] bg-[var(--oasis-bg)] px-2 font-mono text-[10.5px] font-bold tracking-[0.12em] text-zinc-200 hover:text-white" title="Back to today">
             {monthName}
           </button>
           <button type="button" onClick={() => shift(1)} className={navBtn} aria-label="Next month">›</button>
@@ -106,7 +106,7 @@ export default function EventCalendar() {
               aria-pressed={isSel}
               aria-label={`${d.toDateString()}${evs.length ? `, ${evs.length} event${evs.length > 1 ? "s" : ""}` : ""}`}
               className={`relative flex min-h-[46px] min-w-0 flex-col items-stretch gap-0.5 overflow-hidden rounded-sm border px-1 pb-1 pl-1.5 pt-0.5 text-left transition-colors
-                ${top ? top.cell : weekend ? "bg-white/[0.01] hover:bg-white/[0.04]" : "bg-[#030303] hover:bg-white/[0.04]"}
+                ${top ? top.cell : weekend ? "bg-white/[0.01] hover:bg-white/[0.04]" : "bg-[var(--oasis-bg)] hover:bg-white/[0.04]"}
                 ${isToday ? "border-red-500/70" : isSel ? "border-white/[0.25]" : "border-white/[0.05]"}
                 ${isSel ? "shadow-[inset_0_0_0_1px_rgba(255,255,255,0.14)]" : ""}
                 ${inMonth ? "" : "opacity-35"}`}
@@ -137,7 +137,7 @@ export default function EventCalendar() {
       </div>
 
       {/* Selected day */}
-      <div className="flex flex-col gap-1.5 rounded-sm border border-white/[0.06] bg-[#030303] p-3">
+      <div className="flex flex-col gap-1.5 rounded-sm border border-white/[0.06] bg-[var(--oasis-bg)] p-3">
         <span className="font-mono text-[10px] font-bold tracking-[0.14em] text-zinc-400">
           {sel ? new Date(`${sel}T12:00:00`).toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric" }).toUpperCase() : "—"}
         </span>

@@ -71,7 +71,7 @@ function FilterDeck({ filters, setFilters, onReset }: { filters: Filters; setFil
   const toggle = (p: string) =>
     setFilters({ ...filters, providers: filters.providers.includes(p) ? filters.providers.filter((x) => x !== p) : [...filters.providers, p] });
   return (
-    <aside className="flex flex-col gap-6 self-start rounded-sm border border-white/[0.06] bg-[#0a0a0c] p-3">
+    <aside className="flex flex-col gap-6 self-start rounded-sm border border-white/[0.06] bg-[var(--oasis-panel)] p-3">
       <div className="flex items-center justify-between">
         <span className="text-base font-semibold tracking-tight text-zinc-50">Filters</span>
         <button type="button" onClick={onReset} className="text-xs text-zinc-500 transition-colors hover:text-white">Reset</button>
@@ -133,11 +133,11 @@ export default function ScreenerPage() {
   );
 
   return (
-    <div className="flex flex-1 flex-col bg-[#030303] font-sans text-neutral-200">
+    <div className="flex flex-1 flex-col bg-[var(--oasis-bg)] font-sans text-neutral-200">
       <div className="mx-auto grid w-full max-w-[3200px] flex-1 grid-cols-[260px_minmax(0,1fr)] gap-4 px-3 pb-6 pt-4 max-lg:grid-cols-1">
         <FilterDeck filters={filters} setFilters={setFilters} onReset={() => { setFilters(defaults); setCategory("All"); }} />
 
-        <section className="flex min-w-0 flex-col gap-4 rounded-sm border border-white/[0.06] bg-[#0a0a0c] p-3">
+        <section className="flex min-w-0 flex-col gap-4 rounded-sm border border-white/[0.06] bg-[var(--oasis-panel)] p-3">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex flex-wrap gap-1.5">
               {CATEGORIES.map((c) => <Pill key={c} active={category === c} onClick={() => setCategory(c)}>{c}</Pill>)}

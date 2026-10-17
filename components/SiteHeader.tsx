@@ -74,7 +74,7 @@ function SearchBox() {
       </div>
 
       {open && results.length > 0 && (
-        <div className="absolute inset-x-0 top-12 z-[60] overflow-hidden rounded-sm border border-white/[0.08] bg-[#0a0a0c] p-1">
+        <div className="absolute inset-x-0 top-12 z-[60] overflow-hidden rounded-sm border border-white/[0.08] bg-[var(--oasis-panel)] p-1">
           {results.map((r, i) => (
             <button
               key={r.ticker}

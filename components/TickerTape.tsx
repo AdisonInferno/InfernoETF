@@ -102,7 +102,7 @@ export default function TickerTape() {
     return s ? { ...it, value: fmtLive(s.price, it.unit), chg: it.unit === "%" ? undefined : s.chg1d } : it;
   });
   return (
-    <div className="ticker-mask group relative h-9 w-full overflow-hidden border-y border-white/[0.06] bg-[#0a0a0c]">
+    <div className="ticker-mask group relative h-9 w-full overflow-hidden border-y border-white/[0.06] bg-[var(--oasis-panel)]">
       {/* TV-style crawl: two identical halves slide left forever; -50% lands exactly on the copy.
           Each half repeats the list twice so it is wider than even ultra-wide screens. Hover pauses. */}
       <div className="animate-ticker flex h-full w-max items-center will-change-transform group-hover:[animation-play-state:paused]">

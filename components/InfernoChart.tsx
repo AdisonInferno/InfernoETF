@@ -104,7 +104,7 @@ export function SegRail<T extends string>({ items, value, pos, onChange, width =
       onPointerMove={(e) => { if (e.currentTarget.hasPointerCapture(e.pointerId)) pick(e.clientX); }}
       style={{ width }}
       className="relative flex h-[30px] max-w-full flex-none cursor-ew-resize touch-none select-none overflow-hidden rounded-[5px] border border-oasis/25 bg-[#060a0e] outline-none focus-visible:ring-1 focus-visible:ring-oasis/40">
-      <span className="pointer-events-none absolute inset-y-[2px] rounded-[4px] border border-oasis/80 bg-oasis/20 shadow-[0_0_14px_color-mix(in_srgb,var(--oasis-accent)_55%,transparent),inset_0_0_8px_color-mix(in_srgb,var(--oasis-accent)_25%,transparent)] transition-[left] duration-150 ease-out"
+      <span className="pointer-events-none absolute inset-y-[2px] rounded-[4px] border border-oasis/80 bg-oasis/20 shadow-[0_0_5px_color-mix(in_srgb,var(--oasis-accent)_25%,transparent)] transition-[left] duration-150 ease-out"
         style={{ left: `calc(${(p / n) * 100}% + 2px)`, width: `calc(${100 / n}% - 4px)` }} />
       {items.map((t, i) => (
         <span key={t} className={`relative z-[1] flex flex-1 items-center justify-center ${i ? "border-l border-oasis/10" : ""} ${MONO} text-[10.5px] font-bold tracking-[0.06em] ${i === idx ? "text-oasis" : "text-zinc-500"}`}>{t}</span>
@@ -203,7 +203,7 @@ export default function InfernoChart({ main, pinned: pinnedAll = [], picker = []
     if (!el) return;
     const chart = createChart(el, {
       autoSize: true,
-      layout: { background: { type: ColorType.Solid, color: "#030303" }, textColor: "#71717a", fontFamily: "'JetBrains Mono Variable','JetBrains Mono',monospace", fontSize: 10, attributionLogo: false },
+      layout: { background: { type: ColorType.Solid, color: "transparent" }, textColor: "#71717a", fontFamily: "'JetBrains Mono Variable','JetBrains Mono',monospace", fontSize: 10, attributionLogo: false },
       grid: { vertLines: { color: "rgba(255,255,255,0.025)" }, horzLines: { color: "rgba(255,255,255,0.035)" } },
       // tight vertical fit: autoscale to the visible window of the visible lines, small margins
       rightPriceScale: { borderColor: "rgba(255,255,255,0.05)", mode: PriceScaleMode.Percentage, autoScale: true, scaleMargins: { top: 0.06, bottom: 0.06 } },
@@ -341,13 +341,13 @@ export default function InfernoChart({ main, pinned: pinnedAll = [], picker = []
           className={`ml-0.5 flex h-5 w-5 items-center justify-center rounded-sm border text-[13px] leading-none transition-colors ${pickOpen ? "border-emerald-400/50 text-emerald-300" : "border-white/[0.12] text-zinc-400 hover:border-white/[0.3] hover:text-white"}`}>+</button>
         <span className="ml-auto flex items-center gap-2">
           {ready?.model && <span className="rounded-sm bg-amber-400/10 px-1.5 py-px text-[9.5px] font-bold tracking-[0.1em] text-amber-300" title="Live prices unavailable — synthetic data">MODEL DATA</span>}
-          <span className="flex rounded-sm border border-white/[0.06] bg-[#030303] p-0.5" title="Right axis: price / value, or % change from the first visible bar">
+          <span className="flex rounded-sm border border-white/[0.06] bg-[var(--oasis-bg)] p-0.5" title="Right axis: price / value, or % change from the first visible bar">
             {(["PRICE", "PCT"] as const).map((u) => (
               <button key={u} type="button" onClick={() => setUnit(u)} aria-pressed={unit === u}
                 className={`h-5 rounded-sm px-2 text-[9.5px] font-bold tracking-[0.08em] ${unit === u ? "oasis-on" : "text-zinc-500 hover:text-zinc-200"}`}>{u === "PRICE" ? (valueScale ? "$ VALUE" : unitLabel) : "%"}</button>
             ))}
           </span>
-          <span className="flex rounded-sm border border-white/[0.06] bg-[#030303] p-0.5">
+          <span className="flex rounded-sm border border-white/[0.06] bg-[var(--oasis-bg)] p-0.5">
             {(["LINE", "BARS"] as const).map((k) => (
               <button key={k} type="button" onClick={() => setKind(k)} aria-pressed={kind === k}
                 className={`h-5 rounded-sm px-2 text-[9.5px] font-bold tracking-[0.08em] ${kind === k ? "oasis-on" : "text-zinc-500 hover:text-zinc-200"}`}>{k}</button>
@@ -357,7 +357,7 @@ export default function InfernoChart({ main, pinned: pinnedAll = [], picker = []
       </div>
 
       {pickOpen && (
-        <div className={`${MONO} flex max-h-[220px] flex-none flex-col overflow-hidden rounded-sm border border-white/[0.08] bg-[#0a0a0c]`}>
+        <div className={`${MONO} flex max-h-[220px] flex-none flex-col overflow-hidden rounded-sm border border-white/[0.08] bg-[var(--oasis-panel)]`}>
           <input autoFocus value={q} onChange={(e) => setQ(e.target.value)} spellCheck={false} placeholder="SEARCH ANY ETF / TICKER — ENTER TO ADD"
             onKeyDown={(e) => { if (e.key === "Enter" && needle) { addExtra(found[0]?.sym ?? needle, found[0]?.label ?? needle); setQ(""); } if (e.key === "Escape") setPickOpen(false); }}
             className="h-8 flex-none border-b border-white/[0.06] bg-transparent px-3 text-[11px] text-zinc-100 outline-none placeholder:text-zinc-600" />

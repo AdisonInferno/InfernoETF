@@ -71,7 +71,7 @@ export default function PortfolioPerformance({ positions, chartHeight = 200, tf:
   };
 
   return (
-    <div className="flex flex-col gap-2.5 rounded-sm border border-white/[0.06] bg-[#030303]/60 p-3.5">
+    <div className="flex flex-col gap-2.5 rounded-sm border border-white/[0.06] bg-[var(--oasis-bg)]/60 p-3.5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-4">
           <span className={`${label} text-zinc-300`}>PERFORMANCE</span>
@@ -131,7 +131,7 @@ export default function PortfolioPerformance({ positions, chartHeight = 200, tf:
           <>
             <div className="pointer-events-none absolute bottom-0 top-0 w-px bg-white/20" style={{ left: `${(x(i) / 1000) * 100}%` }} />
             <div className="pointer-events-none absolute -ml-1 -mt-1 h-2 w-2 rounded-none bg-emerald-400" style={{ left: `${(x(i) / 1000) * 100}%`, top: `${(y(mine[i]) / 200) * 100}%` }} />
-            <div className="pointer-events-none absolute -ml-1 -mt-1 h-2 w-2 rounded-none border border-zinc-300 bg-[#030303]" style={{ left: `${(x(i) / 1000) * 100}%`, top: `${(y(bench[i]) / 200) * 100}%` }} />
+            <div className="pointer-events-none absolute -ml-1 -mt-1 h-2 w-2 rounded-none border border-zinc-300 bg-[var(--oasis-bg)]" style={{ left: `${(x(i) / 1000) * 100}%`, top: `${(y(bench[i]) / 200) * 100}%` }} />
           </>
         )}
       </div>

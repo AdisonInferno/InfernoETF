@@ -43,7 +43,7 @@ interface Data {
 
 const REGIONS: [Region, string][] = [["us", "USA"], ["eu", "EUROPE"], ["asia", "ASIA"]];
 const SECTORS: [SectorId, string][] = [["tech", "TECHNOLOGY"], ["defense", "DEFENSE"]];
-const card = "rounded-sm border border-white/[0.06] bg-[#0a0a0c]";
+const card = "rounded-sm border border-white/[0.06] bg-[var(--oasis-panel)]";
 const label = "font-mono text-[10px] font-bold tracking-[0.16em] text-zinc-500";
 
 /** "TODAY 14:30" · "TOMORROW 20:00" · "YESTERDAY" · "3D AGO" · "OCT 28 20:00" — viewer's time zone */
@@ -97,7 +97,7 @@ function SectorChip({ s }: { s?: string }) {
 /** Hover / focus popover */
 function Why({ title, cls, body, foot }: { title: string; cls: string; body: string; foot?: string }) {
   return (
-    <span role="tooltip" className="pointer-events-none absolute left-2 right-2 top-[calc(100%+6px)] z-30 hidden flex-col gap-1.5 rounded-sm border border-white/[0.1] bg-[#0a0a0c] p-3 group-hover:flex group-focus-visible:flex">
+    <span role="tooltip" className="pointer-events-none absolute left-2 right-2 top-[calc(100%+6px)] z-30 hidden flex-col gap-1.5 rounded-sm border border-white/[0.1] bg-[var(--oasis-panel)] p-3 group-hover:flex group-focus-visible:flex">
       <span className={`text-[10px] font-bold tracking-[0.16em] ${cls}`}>{title}</span>
       <span className="font-sans text-[12.5px] leading-snug text-zinc-200">{body}</span>
       {foot && <span className="text-[9.5px] tracking-[0.06em] text-zinc-600">{foot}</span>}
@@ -110,7 +110,7 @@ function PickBar({ options, value, onChange, placeholder, upper }: { options: st
   const [typing, setTyping] = useState(false);
   const [q, setQ] = useState("");
   const chip = (on: boolean) =>
-    `h-7 rounded-sm border px-2.5 text-[10.5px] font-bold tracking-[0.1em] transition-colors ${on ? "oasis-on" : "border-white/[0.06] bg-[#030303] text-zinc-500 hover:text-zinc-200"}`;
+    `h-7 rounded-sm border px-2.5 text-[10.5px] font-bold tracking-[0.1em] transition-colors ${on ? "oasis-on" : "border-white/[0.06] bg-[var(--oasis-bg)] text-zinc-500 hover:text-zinc-200"}`;
   const custom = value && !options.some((o) => o.toLowerCase() === value.toLowerCase()) ? value : null;
   const submit = () => {
     const v = q.trim();
@@ -143,7 +143,7 @@ function PickBar({ options, value, onChange, placeholder, upper }: { options: st
             onKeyDown={(e) => { if (e.key === "Escape") { setQ(""); setTyping(false); } }}
             placeholder={placeholder}
             maxLength={24}
-            className="h-7 w-28 rounded-sm border border-white/[0.2] bg-[#030303] px-2 text-[10.5px] font-bold tracking-[0.08em] text-white outline-none placeholder:font-normal placeholder:text-zinc-600"
+            className="h-7 w-28 rounded-sm border border-white/[0.2] bg-[var(--oasis-bg)] px-2 text-[10.5px] font-bold tracking-[0.08em] text-white outline-none placeholder:font-normal placeholder:text-zinc-600"
           />
         </form>
       ) : (
@@ -204,7 +204,7 @@ function FilingsPanel({ filings: sectorFilings, error: sectorError, loading: sec
     <section className={`${card} flex min-w-0 flex-col gap-3 p-4`}>
       <div className="flex items-center justify-between gap-2">
         <h2 className="m-0 font-mono text-[12px] font-bold tracking-[0.16em] text-zinc-200">[ SEC FILINGS ]</h2>
-        <div className="flex rounded-sm border border-white/[0.06] bg-[#030303] p-0.5">
+        <div className="flex rounded-sm border border-white/[0.06] bg-[var(--oasis-bg)] p-0.5">
           {(["weight", "time"] as const).map((k) => (
             <button key={k} type="button" onClick={() => setSort(k)} className={`h-6 rounded px-2 text-[9.5px] font-bold tracking-[0.12em] ${sort === k ? "oasis-on" : "text-zinc-500 hover:text-zinc-200"}`}>
               {k === "weight" ? "IMPORTANT" : "LATEST"}
@@ -219,7 +219,7 @@ function FilingsPanel({ filings: sectorFilings, error: sectorError, loading: sec
         const ins = insights[f.accession];
         const a = ARROW[ins?.direction ?? "neutral"];
         return (
-          <div key={f.accession} className="group relative flex flex-col gap-1.5 rounded-sm border border-white/[0.06] bg-[#030303] px-3.5 py-3 transition-colors hover:border-white/[0.12]">
+          <div key={f.accession} className="group relative flex flex-col gap-1.5 rounded-sm border border-white/[0.06] bg-[var(--oasis-bg)] px-3.5 py-3 transition-colors hover:border-white/[0.12]">
             <div className="flex items-center justify-between gap-2">
               <span className="flex min-w-0 items-center gap-2">
                 <span className="whitespace-nowrap rounded-sm bg-sky-400/10 px-2 py-0.5 text-[11.5px] font-bold text-sky-300">{f.ticker} · {f.form}</span>
@@ -266,7 +266,7 @@ function CommoditiesPanel({ items: sectorItems, loading: sectorLoading, ready, p
           {!loading && items.map((c) => {
             const all = c.tag.sectors.includes("all");
             return (
-              <div key={c.id} className="group relative flex flex-col gap-1.5 rounded-sm border border-white/[0.06] bg-[#030303] px-3.5 py-3 transition-colors hover:border-white/[0.12]">
+              <div key={c.id} className="group relative flex flex-col gap-1.5 rounded-sm border border-white/[0.06] bg-[var(--oasis-bg)] px-3.5 py-3 transition-colors hover:border-white/[0.12]">
                 <div className="flex items-center justify-between gap-2">
                   <span className="flex items-center gap-2">
                     <span className="rounded-sm bg-amber-400/10 px-2 py-0.5 text-[11px] font-bold text-amber-300">{c.commodity.toUpperCase()}</span>
@@ -333,7 +333,7 @@ export default function MarketIntel() {
       <div className="grid grid-cols-3 gap-2" role="tablist" aria-label="Region">
         {REGIONS.map(([id, l]) => (
           <button key={id} type="button" role="tab" aria-selected={region === id} onClick={() => setRegion(id)}
-            className={`h-10 rounded-sm border text-[12px] font-bold tracking-[0.18em] transition-colors ${region === id ? "border-emerald-400/40 bg-emerald-400/[0.07] text-emerald-300" : "border-white/[0.06] bg-[#0a0a0c] text-zinc-500 hover:text-zinc-200"}`}>
+            className={`h-10 rounded-sm border text-[12px] font-bold tracking-[0.18em] transition-colors ${region === id ? "border-emerald-400/40 bg-emerald-400/[0.07] text-emerald-300" : "border-white/[0.06] bg-[var(--oasis-panel)] text-zinc-500 hover:text-zinc-200"}`}>
             {l}
           </button>
         ))}
@@ -367,7 +367,7 @@ export default function MarketIntel() {
 
       {/* Sector switch */}
       <div className="flex items-center gap-3 border-y border-white/[0.06] py-2.5">
-        <div className="flex rounded-sm border border-white/[0.06] bg-[#0a0a0c] p-0.5" role="tablist" aria-label="News focus">
+        <div className="flex rounded-sm border border-white/[0.06] bg-[var(--oasis-panel)] p-0.5" role="tablist" aria-label="News focus">
           {SECTORS.map(([id, l]) => (
             <button key={id} type="button" role="tab" aria-selected={!mine && sector === id} onClick={() => { setSector(id); setMine(false); }}
               className={`h-8 rounded-sm px-4 text-[11px] font-bold tracking-[0.16em] ${!mine && sector === id ? "oasis-on" : "text-zinc-500 hover:text-zinc-200"}`}>
@@ -404,7 +404,7 @@ export default function MarketIntel() {
           </div>
           {loading && [0, 1, 2].map((i) => <div key={i} className="h-[58px] animate-pulse rounded-sm bg-white/[0.03]" />)}
           {!loading && d?.macro.calendar.events.slice(0, 5).map((e) => (
-            <div key={`${e.source}-${e.code}-${e.at}`} className="flex flex-col gap-1.5 rounded-sm border border-white/[0.06] bg-[#030303] px-3.5 py-3">
+            <div key={`${e.source}-${e.code}-${e.at}`} className="flex flex-col gap-1.5 rounded-sm border border-white/[0.06] bg-[var(--oasis-bg)] px-3.5 py-3">
               <div className="flex items-center justify-between gap-3">
                 <span className={`rounded-sm px-2 py-0.5 text-[11px] font-bold ${BADGE[e.source] ?? "bg-white/[0.06] text-zinc-300"}`}>{e.source} · {e.code}</span>
                 <span className="text-[10.5px] text-zinc-500">{when(e.at, e.allDay)}</span>

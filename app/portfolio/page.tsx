@@ -29,7 +29,7 @@ import {
 
 /* ───────────────────────────── Theme ───────────────────────────── */
 
-const card = "rounded-sm border border-white/[0.06] bg-[#0a0a0c]";
+const card = "rounded-sm border border-white/[0.06] bg-[var(--oasis-panel)]";
 const label = "font-mono text-[10px] font-semibold tracking-[0.14em] text-zinc-500";
 const fmtP = (v: number) => (v >= 0 ? "+" : "") + v.toFixed(2) + "%";
 
@@ -114,7 +114,7 @@ function AllocationBar({ positions }: { positions: Position[] }) {
             <div
               key={p.asset.ticker}
               title={`${p.asset.ticker} · ${p.weight}%`}
-              className="relative flex h-full min-w-0 items-center justify-center border-r border-[#0a0a0c] transition-[filter] duration-200 last:border-r-0 hover:brightness-125"
+              className="relative flex h-full min-w-0 items-center justify-center border-r border-[var(--oasis-panel)] transition-[filter] duration-200 last:border-r-0 hover:brightness-125"
               style={{ width: `${p.weight}%`, background: color }}
             >
               <span className="truncate px-1.5 font-mono text-[9px] font-bold leading-none text-black/80 opacity-0 transition-opacity delay-75 duration-200 group-hover/alloc:opacity-100">
@@ -399,7 +399,7 @@ export default function PortfolioPage() {
               className={`flex min-w-0 flex-col items-start gap-0.5 rounded-sm border px-2.5 py-1.5 text-left transition-colors ${
                 on
                   ? hot ? "border-red-500/50 bg-red-500/[0.08]" : "border-emerald-400/40 bg-emerald-400/[0.06]"
-                  : "border-white/[0.06] bg-[#030303]/60 hover:border-white/[0.12]"
+                  : "border-white/[0.06] bg-[var(--oasis-bg)]/60 hover:border-white/[0.12]"
               }`}
             >
               <span className={`font-mono text-[11px] font-bold tracking-[0.08em] ${on ? (hot ? "text-red-300" : "text-emerald-300") : "text-zinc-300"}`}>{b.name}</span>
@@ -425,7 +425,7 @@ export default function PortfolioPage() {
 
       {/* Performance teaser / comparison */}
       {comparing && mine ? (
-        <div className="flex flex-col rounded-sm border border-white/[0.06] bg-[#030303]/60">
+        <div className="flex flex-col rounded-sm border border-white/[0.06] bg-[var(--oasis-bg)]/60">
           <div className="grid grid-cols-[minmax(0,1fr)_72px_72px] gap-2 border-b border-white/[0.06] px-3 py-2 font-mono text-[9.5px] tracking-[0.12em] text-zinc-600">
             <span>METRIC</span><span className="text-right">{preset.name}</span><span className="text-right">MINE</span>
           </div>
@@ -448,7 +448,7 @@ export default function PortfolioPage() {
           })}
         </div>
       ) : (
-        <div className="flex flex-col gap-2.5 rounded-sm border border-white/[0.06] bg-[#030303]/60 p-3">
+        <div className="flex flex-col gap-2.5 rounded-sm border border-white/[0.06] bg-[var(--oasis-bg)]/60 p-3">
           <div className="flex items-baseline justify-between">
             <span className={label}>3Y ANNUALIZED RETURN</span>
             <span className="font-mono text-[20px] font-semibold tabular-nums text-emerald-400">+{preset.cagr.toFixed(1)}%<span className="ml-1 text-[11px] text-emerald-400/70">CAGR</span></span>
@@ -529,10 +529,10 @@ export default function PortfolioPage() {
   return (
     // flex-none: the page grows with its content (never squeezed to the viewport);
     // falling cards are clipped by <main> while its scroll is locked during the transition.
-    <div className="relative mx-auto flex min-h-full w-full max-w-[3200px] flex-none flex-col gap-3 overflow-x-clip bg-[#030303] px-3 min-[1800px]:px-6 pb-5 pt-3">
+    <div className="relative mx-auto flex min-h-full w-full max-w-[3200px] flex-none flex-col gap-3 overflow-x-clip bg-[var(--oasis-bg)] px-3 min-[1800px]:px-6 pb-5 pt-3">
       {/* XTB import over an existing portfolio: replaces positions after review */}
       {importing && showMine && (
-        <div className="fixed inset-0 z-[80] overflow-y-auto bg-[#030303]/85 p-4" onClick={() => setImporting(false)}>
+        <div className="fixed inset-0 z-[80] overflow-y-auto bg-[var(--oasis-bg)]/85 p-4" onClick={() => setImporting(false)}>
           <div className="mx-auto mt-10 max-w-[1500px]" onClick={(e) => e.stopPropagation()}>
             <XtbImport onImport={importXtb} onClose={() => setImporting(false)} />
           </div>
@@ -592,7 +592,7 @@ export default function PortfolioPage() {
                       className="grid grid-cols-2 gap-2 md:grid-cols-4"
                     >
                       {METRICS.map((m) => (
-                        <div key={m.k} className="min-w-[150px] rounded-sm border border-white/[0.06] bg-[#030303] px-3 py-1.5">
+                        <div key={m.k} className="min-w-[150px] rounded-sm border border-white/[0.06] bg-[var(--oasis-bg)] px-3 py-1.5">
                           <div className="font-mono text-[9px] font-semibold tracking-[0.14em] text-zinc-500">{m.k}</div>
                           <div className="flex items-baseline gap-1.5">
                             <span className={`font-mono text-[15px] font-semibold tabular-nums ${toneTxt(m.tone)}`}>{m.v}</span>
@@ -658,7 +658,7 @@ export default function PortfolioPage() {
                 {pfTab === "SEAS" && <ChartsTab fund={pfFund} />}
                 {pfTab === "NEWS" && <LookThroughFeed items={pItems} />}
                 {pfTab === "AN" && (
-                  <section className="flex flex-col gap-2 border border-white/[0.05] bg-[#030303] p-3">
+                  <section className="flex flex-col gap-2 border border-white/[0.05] bg-[var(--oasis-bg)] p-3">
                     <span className="font-mono text-[11px] font-bold tracking-[0.14em] text-zinc-200">[ CAPITAL FLOW &amp; SECTOR SHIFT ENGINE · {chartTf} ]</span>
                     <PortfolioFlows positions={livePos} tf={chartTf} rets={chartHist.rets} />
                   </section>
@@ -674,7 +674,7 @@ export default function PortfolioPage() {
                   initial={0.56}
                   height={{ initial: 520, min: 360, max: 1100 }}
                   left={() => (
-                    <div className="flex h-full min-h-[420px] flex-col gap-2 rounded-sm border border-white/[0.06] bg-[#030303] p-3">
+                    <div className="flex h-full min-h-[420px] flex-col gap-2 rounded-sm border border-white/[0.06] bg-[var(--oasis-bg)] p-3">
                       <span className="font-mono text-[10px] font-semibold tracking-[0.14em] text-zinc-300">PERFORMANCE</span>
                       <InfernoChart main={chartMain} pinned={chartPinned} picker={chartPicker} tf={chartTf} onTfChange={setChartTf} valueScale={usdVal.total ?? MODEL_BALANCE} />
                     </div>
@@ -690,7 +690,7 @@ export default function PortfolioPage() {
             /* Chart (left) · metrics + positions (right) — side by side on wide screens */
             <motion.div layout="position" className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1.45fr)_minmax(0,1fr)]">
               <div onClick={(e) => e.stopPropagation()} className="min-w-0">
-                <div className="flex h-[max(260px,calc(100dvh-735px))] flex-col rounded-sm border border-white/[0.06] bg-[#030303] p-3">
+                <div className="flex h-[max(260px,calc(100dvh-735px))] flex-col rounded-sm border border-white/[0.06] bg-[var(--oasis-bg)] p-3">
                   <InfernoChart main={chartMain} pinned={chartPinned} picker={chartPicker} tf={chartTf} onTfChange={setChartTf} valueScale={usdVal.total ?? MODEL_BALANCE} />
                 </div>
               </div>
@@ -702,7 +702,7 @@ export default function PortfolioPage() {
                 ) : (
                   <div className="grid grid-cols-2 gap-2 md:grid-cols-4 xl:grid-cols-2">
                     {METRICS.map((m) => (
-                      <div key={m.k} className="rounded-sm border border-white/[0.06] bg-[#030303]/60 px-3.5 py-2">
+                      <div key={m.k} className="rounded-sm border border-white/[0.06] bg-[var(--oasis-bg)]/60 px-3.5 py-2">
                         <div className={label}>{m.k}</div>
                         <div className="mt-0.5 flex flex-wrap items-baseline gap-x-2">
                           <span className={`font-mono text-[18px] font-semibold tabular-nums ${toneTxt(m.tone)}`}>{m.v}</span>
@@ -746,7 +746,7 @@ export default function PortfolioPage() {
                         <span className={`w-[22px] flex-none text-right font-mono text-[13px] text-zinc-500 group-hover:text-white`} title={isEtf ? "ETF deep view" : "Stock deep dive"}>→</span>
                       </>
                     );
-                    const cls = "group flex items-center gap-3.5 rounded-sm border border-white/[0.06] bg-[#030303] px-3.5 py-1.5 transition-colors";
+                    const cls = "group flex items-center gap-3.5 rounded-sm border border-white/[0.06] bg-[var(--oasis-bg)] px-3.5 py-1.5 transition-colors";
                     return (
                       <Link key={p.asset.ticker} href={isEtf ? `/etf/${p.asset.ticker}` : `/stock/${p.asset.ticker}${symOf[p.asset.ticker] && symOf[p.asset.ticker] !== p.asset.ticker ? `?y=${symOf[p.asset.ticker]}` : ""}`} className={`${cls} hover:border-white/[0.12] hover:bg-white/[0.03]`}>{body}</Link>
                     );
@@ -779,7 +779,7 @@ export default function PortfolioPage() {
               )}
             </div>
 
-            <form onSubmit={(e) => { e.preventDefault(); run(); }} className="flex items-center gap-3 rounded-sm border border-white/[0.06] bg-[#030303] py-2 pl-4 pr-2 focus-within:border-white/[0.14]">
+            <form onSubmit={(e) => { e.preventDefault(); run(); }} className="flex items-center gap-3 rounded-sm border border-white/[0.06] bg-[var(--oasis-bg)] py-2 pl-4 pr-2 focus-within:border-white/[0.14]">
               <span className="font-mono text-[12px] text-zinc-600">$</span>
               <input
                 ref={inputRef}
@@ -794,7 +794,7 @@ export default function PortfolioPage() {
                 disabled={!parsed.valid}
                 className="flex items-center gap-2 rounded-sm bg-red-500 px-3.5 py-1.5 text-[12px] font-semibold text-white transition-colors hover:bg-red-400 disabled:cursor-not-allowed disabled:bg-white/[0.06] disabled:text-zinc-600"
               >
-                {saved ? "Save" : "Run"} <span className="rounded bg-[#030303] px-1 font-mono text-[10px]">↵</span>
+                {saved ? "Save" : "Run"} <span className="rounded bg-[var(--oasis-bg)] px-1 font-mono text-[10px]">↵</span>
               </button>
             </form>
 
@@ -811,7 +811,7 @@ export default function PortfolioPage() {
               </div>
               <div className="flex flex-wrap gap-2">
                 {livePos.map((p, i) => (
-                  <span key={p.asset.ticker} className="flex items-center gap-1.5 rounded border border-white/[0.06] bg-[#030303] px-2 py-1 font-mono text-[10.5px] text-zinc-500">
+                  <span key={p.asset.ticker} className="flex items-center gap-1.5 rounded border border-white/[0.06] bg-[var(--oasis-bg)] px-2 py-1 font-mono text-[10.5px] text-zinc-500">
                     <span style={{ color: SEG_COLORS[i % SEG_COLORS.length] }}>■</span>[
                     <span className="font-bold text-zinc-100">{p.asset.ticker}</span>:
                     <span className="max-w-[180px] truncate">{p.asset.name}</span>· {p.weight}% ]

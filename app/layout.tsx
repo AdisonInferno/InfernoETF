@@ -25,7 +25,7 @@ export default function RootLayout({
   return (
     <html lang="pl">
       {/* Fixed-height app shell: header stays put, only <main> scrolls. */}
-      <body className="flex h-dvh flex-col overflow-hidden bg-[#030303] font-sans text-white antialiased">
+      <body className="flex h-dvh flex-col overflow-hidden bg-[var(--oasis-bg)] font-sans text-white antialiased">
         <SiteHeader />
         <main className="relative flex min-h-0 w-full flex-1 flex-col overflow-y-auto">{children}</main>
         <TickerContextMenu />

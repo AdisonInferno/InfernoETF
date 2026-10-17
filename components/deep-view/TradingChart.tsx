@@ -195,7 +195,7 @@ export default function TradingChart({ fund }: { fund: FundData }) {
     if (!el) return;
     const chart = createChart(el, {
       autoSize: true,
-      layout: { background: { type: ColorType.Solid, color: "#0a0a0c" }, textColor: "#71717a", fontFamily: MONO, fontSize: 10, attributionLogo: false },
+      layout: { background: { type: ColorType.Solid, color: "transparent" }, textColor: "#71717a", fontFamily: MONO, fontSize: 10, attributionLogo: false },
       grid: { vertLines: { color: "rgba(255,255,255,0.025)" }, horzLines: { color: "rgba(255,255,255,0.035)" } },
       rightPriceScale: { borderColor: "rgba(255,255,255,0.05)", scaleMargins: { top: 0.08, bottom: 0.22 } },
       timeScale: { borderColor: "rgba(255,255,255,0.05)", rightOffset: 4, barSpacing: 6, minBarSpacing: 0.5 },
@@ -345,9 +345,9 @@ export default function TradingChart({ fund }: { fund: FundData }) {
   const drawing = tool === "hline" || tool === "range";
 
   return (
-    <div className="flex h-[560px] flex-none overflow-hidden rounded-sm border border-white/[0.06] bg-[#0a0a0c] font-mono">
+    <div className="flex h-[560px] flex-none overflow-hidden rounded-sm border border-white/[0.06] bg-[var(--oasis-panel)] font-mono">
       {/* ── Left drawing toolbar ── */}
-      <div className="flex w-12 flex-none flex-col items-center gap-1 border-r border-white/[0.06] bg-[#0a0a0c] py-3">
+      <div className="flex w-12 flex-none flex-col items-center gap-1 border-r border-white/[0.06] bg-[var(--oasis-panel)] py-3">
         {(Object.keys(ICONS) as Tool[]).map((t) => {
           const on = t === "crosshair" ? crossOn : tool === t;
           return (
@@ -379,7 +379,7 @@ export default function TradingChart({ fund }: { fund: FundData }) {
       <div className="flex min-w-0 flex-1 flex-col">
         {/* ── Header ── */}
         <div className="flex flex-none flex-wrap items-center gap-x-4 gap-y-2 border-b border-white/[0.06] px-3 py-2.5">
-          <div role="tablist" aria-label="Range" className="flex items-center rounded-sm border border-white/[0.06] bg-[#030303] p-0.5">
+          <div role="tablist" aria-label="Range" className="flex items-center rounded-sm border border-white/[0.06] bg-[var(--oasis-bg)] p-0.5">
             {RANGES.map((r) => (
               <button
                 key={r}
@@ -400,7 +400,7 @@ export default function TradingChart({ fund }: { fund: FundData }) {
           </span>
 
           <div className="ml-auto flex items-center gap-2">
-            <div className="flex items-center rounded-sm border border-white/[0.06] bg-[#030303] p-0.5">
+            <div className="flex items-center rounded-sm border border-white/[0.06] bg-[var(--oasis-bg)] p-0.5">
               {(["line", "candles"] as const).map((c) => (
                 <button
                   key={c}
@@ -427,7 +427,7 @@ export default function TradingChart({ fund }: { fund: FundData }) {
                 [ + ADD INDICATOR ]{ind.size > 0 && <span className="rounded bg-white/[0.08] px-1 text-[9.5px] text-zinc-400">{ind.size}</span>}
               </button>
               {menu && (
-                <div className="absolute right-0 top-[calc(100%+6px)] z-20 w-52 overflow-hidden rounded-sm border border-white/[0.08] bg-[#0a0a0c] py-1 ">
+                <div className="absolute right-0 top-[calc(100%+6px)] z-20 w-52 overflow-hidden rounded-sm border border-white/[0.08] bg-[var(--oasis-panel)] py-1 ">
                   {INDICATORS.map((d) => {
                     const on = ind.has(d.id);
                     return (
@@ -490,7 +490,7 @@ export default function TradingChart({ fund }: { fund: FundData }) {
 
           {/* Tool hint */}
           {drawing && (
-            <div className="pointer-events-none absolute bottom-10 left-1/2 z-10 -translate-x-1/2 rounded-sm border border-white/[0.08] bg-[#030303]/90 px-2.5 py-1 text-[10px] tracking-[0.1em] text-zinc-400">
+            <div className="pointer-events-none absolute bottom-10 left-1/2 z-10 -translate-x-1/2 rounded-sm border border-white/[0.08] bg-[var(--oasis-bg)]/90 px-2.5 py-1 text-[10px] tracking-[0.1em] text-zinc-400">
               {tool === "hline" ? "CLICK TO PLACE A SUPPORT / RESISTANCE LINE · ESC TO EXIT" : pending ? "CLICK THE END POINT" : "CLICK THE START POINT · ESC TO EXIT"}
             </div>
           )}

@@ -31,7 +31,7 @@ export default function DeepView({ fund, onBack, onSelectAlt }: Props) {
   const up = dayPct >= 0;
 
   return (
-    <div key={fund.tic} className="animate-inf-take flex min-h-full min-w-0 flex-col bg-[#030303] font-display text-[#e6e6e6]">
+    <div key={fund.tic} className="animate-inf-take flex min-h-full min-w-0 flex-col bg-[var(--oasis-bg)] font-display text-[#e6e6e6]">
       <header className="flex flex-col gap-3.5 border-b border-white/[0.06] px-5 pt-3.5">
         <div className="flex items-center justify-between gap-3">
           <button type="button" onClick={back} className="font-mono text-[11px] font-semibold tracking-[0.14em] text-gray-500 hover:text-white">[ ← BACK TO SCANNER ]</button>
@@ -51,7 +51,7 @@ export default function DeepView({ fund, onBack, onSelectAlt }: Props) {
 
         <div className="flex flex-wrap gap-2 py-0.5">
           {fund.meta.map(([k, v]) => (
-            <div key={k} className="flex h-7 items-center gap-2 whitespace-nowrap rounded-sm border border-white/[0.03] bg-[#030303] px-3">
+            <div key={k} className="flex h-7 items-center gap-2 whitespace-nowrap rounded-sm border border-white/[0.03] bg-[var(--oasis-bg)] px-3">
               <span className="font-display text-[10.5px] font-semibold tracking-[0.12em] text-gray-400">{k}:</span>
               <span className="font-mono text-xs font-semibold text-neutral-100">{v}</span>
             </div>

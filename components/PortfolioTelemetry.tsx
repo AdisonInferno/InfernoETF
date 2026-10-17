@@ -39,7 +39,7 @@ export function riskStats(series: Record<string, Series> | null | undefined, wei
 
 export function RiskTelemetry({ stats, model }: { stats: ReturnType<typeof riskStats>; model?: boolean }) {
   const tag = (k: string, v: string, c = "text-zinc-100", hint?: string) => (
-    <span key={k} title={hint} className={`${MONO} flex h-6 items-center gap-1.5 border ${B} bg-[#030303] px-2 text-[10.5px] font-bold tracking-[0.08em]`}>
+    <span key={k} title={hint} className={`${MONO} flex h-6 items-center gap-1.5 border ${B} bg-[var(--oasis-bg)] px-2 text-[10.5px] font-bold tracking-[0.08em]`}>
       <span className="text-zinc-500">[ {k}:</span><span className={`tabular-nums ${c}`}>{v}</span><span className="text-zinc-500">]</span>
     </span>
   );
@@ -77,7 +77,7 @@ export function PnlAttribution({ rows }: { rows: { ticker: string; name: string;
     </div>
   );
   return (
-    <section className={`${MONO} flex flex-col border ${B} bg-[#030303]`}>
+    <section className={`${MONO} flex flex-col border ${B} bg-[var(--oasis-bg)]`}>
       <header className={`flex items-center justify-between border-b ${B} px-3 py-2`}>
         <span className="text-[10.5px] font-bold tracking-[0.14em] text-zinc-200">[ PNL ATTRIBUTION · 1D ]</span>
         <span className="text-[10px] tabular-nums text-zinc-500">PORTFOLIO <span className={`font-bold ${tone(total)}`}>{sgn(total)}%</span> · CONTRIB = WEIGHT × 1D MOVE</span>
@@ -156,7 +156,7 @@ export function LookThroughFeed({ items }: { items: PItem[] }) {
 
   const btn = (on: boolean) => `h-7 border px-2.5 text-[10.5px] font-bold tracking-[0.08em] transition-colors ${on ? "oasis-on" : `${B} text-zinc-500 hover:text-zinc-200`}`;
   return (
-    <section className={`${MONO} flex flex-col border ${B} bg-[#030303]`}>
+    <section className={`${MONO} flex flex-col border ${B} bg-[var(--oasis-bg)]`}>
       <header className={`flex flex-wrap items-center gap-2 border-b ${B} px-3 py-2`}>
         <span className="mr-2 text-[11px] font-bold tracking-[0.14em] text-zinc-200">[ LOOK-THROUGH FEED ]</span>
         <button type="button" onClick={() => setSort("NEWEST")} aria-pressed={sort === "NEWEST"} className={btn(sort === "NEWEST")}>[ SORT: NEWEST ]</button>
@@ -192,7 +192,7 @@ export function LookThroughFeed({ items }: { items: PItem[] }) {
 /* ── Skeleton for modules not built yet ── */
 export function ToolSkeleton({ title, lines }: { title: string; lines: string[] }) {
   return (
-    <section className={`${MONO} flex flex-col border ${B} bg-[#030303]`}>
+    <section className={`${MONO} flex flex-col border ${B} bg-[var(--oasis-bg)]`}>
       <header className={`flex items-center justify-between border-b ${B} px-3 py-2`}>
         <span className="text-[11px] font-bold tracking-[0.14em] text-zinc-200">[ {title} ]</span>
         <span className="text-[9.5px] tracking-[0.14em] text-amber-400/80">SYSTEM PENDING</span>

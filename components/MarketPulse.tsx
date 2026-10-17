@@ -92,7 +92,7 @@ function NewsRow({ n, onInsight, mine }: { n: News; onInsight: (id: string, i: I
         <span className="truncate text-[13px] leading-snug text-zinc-200" title={n.headline}>{n.headline}</span>
       </a>
       {hover && (
-        <div className="pointer-events-none fixed z-[100] w-[340px] rounded-sm border border-white/[0.1] bg-[#0a0a0c] p-3 font-mono" style={{ left: Math.max(8, hover.x - 348), top: hover.y }}>
+        <div className="pointer-events-none fixed z-[100] w-[340px] rounded-sm border border-white/[0.1] bg-[var(--oasis-panel)] p-3 font-mono" style={{ left: Math.max(8, hover.x - 348), top: hover.y }}>
           <div className="mb-1.5 text-[9.5px] font-bold tracking-[0.14em] text-zinc-500">[ AI OVERSIGHT ]</div>
           {n.insight ? (
             <>
@@ -140,7 +140,7 @@ export default function MarketPulse({ rows, all = ETFS }: { rows: EtfRow[]; /** 
   const setInsight = (id: string, i: Insight) => setNews((l) => l?.map((n) => (n.id === id ? { ...n, insight: i } : n)) ?? l);
 
   return (
-    <aside className="flex min-h-0 flex-col overflow-hidden rounded-sm border border-white/[0.06] bg-[#0a0a0c]">
+    <aside className="flex min-h-0 flex-col overflow-hidden rounded-sm border border-white/[0.06] bg-[var(--oasis-panel)]">
       <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
         {/* Most active — bar length = $ volume, colour = today's move */}
         <H t="MOST ACTIVE" />

@@ -367,9 +367,9 @@ export default function InfernoEtfScanner() {
   const tipColor = tip ? trendColor(tip.etf.perf[tf]) : "#34D399";
 
   return (
-    <div className="absolute inset-0 grid grid-cols-[260px_minmax(0,1fr)] grid-rows-[minmax(0,1fr)] gap-4 overflow-hidden bg-[#030303] p-4 font-sans text-[#E5E5E5]">
+    <div className="absolute inset-0 grid grid-cols-[260px_minmax(0,1fr)] grid-rows-[minmax(0,1fr)] gap-4 overflow-hidden bg-[var(--oasis-bg)] p-4 font-sans text-[#E5E5E5]">
       {/* ── Sidebar ── */}
-      <aside className="flex min-h-0 flex-col gap-5 self-stretch overflow-y-auto rounded-sm border border-white/[0.06] bg-[#0a0a0c] p-3">
+      <aside className="flex min-h-0 flex-col gap-5 self-stretch overflow-y-auto rounded-sm border border-white/[0.06] bg-[var(--oasis-panel)] p-3">
         <div className="flex flex-col gap-1">
           <span className={`${MONO} text-[13px] font-semibold tracking-[0.12em] text-[#FAFAFA]`}>[ ETF MARKET MAP ]</span>
         </div>
@@ -463,14 +463,14 @@ export default function InfernoEtfScanner() {
         </nav>
 
         {/* Treemap */}
-        <div ref={mapRef} className="relative min-h-[420px] flex-auto overflow-hidden bg-[#030303]">
+        <div ref={mapRef} className="relative min-h-[420px] flex-auto overflow-hidden bg-[var(--oasis-bg)]">
           {sectors.map((s) => (
             <div
               key={s.title}
               onContextMenu={(e) => { e.preventDefault(); compare(s.title); }}
               onMouseEnter={() => setHoverSector(s.title)}
               onMouseLeave={() => setHoverSector(null)}
-              className={`absolute box-border overflow-hidden rounded-sm border bg-[#0a0a0c] ${focus.includes(s.title) ? "border-oasis/60" : s.title === "MY PORTFOLIO" ? "border-emerald-400/40 shadow-[inset_0_0_18px_rgba(52,211,153,0.08)]" : "border-white/[0.06]"}`}
+              className={`absolute box-border overflow-hidden rounded-sm border bg-[var(--oasis-panel)] ${focus.includes(s.title) ? "border-oasis/60" : s.title === "MY PORTFOLIO" ? "border-emerald-400/40 shadow-[inset_0_0_18px_rgba(52,211,153,0.08)]" : "border-white/[0.06]"}`}
               style={{ left: s.x, top: s.y, width: s.w, height: s.h, zIndex: hoverSector === s.title ? 5 : 1 }}
             >
               <div className="absolute inset-x-0 top-0 flex h-[34px] items-center justify-between gap-2 overflow-hidden px-3.5">
@@ -530,7 +530,7 @@ export default function InfernoEtfScanner() {
         </div>
 
         {/* Macro baseline */}
-        <div className="mt-1 box-border w-full flex-none rounded-sm border border-white/[0.06] bg-[#0a0a0c] p-2">
+        <div className="mt-1 box-border w-full flex-none rounded-sm border border-white/[0.06] bg-[var(--oasis-panel)] p-2">
           <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
             {macro.map((m) => {
               const up = m.perf[tf] >= 0;
@@ -561,7 +561,7 @@ export default function InfernoEtfScanner() {
       {/* ── Tooltip ── */}
       {tip && spark && (
         <div
-          className="pointer-events-none fixed z-[100] box-border flex w-72 flex-col gap-3 rounded-sm border border-white/[0.08] bg-[#0a0a0c] p-4"
+          className="pointer-events-none fixed z-[100] box-border flex w-72 flex-col gap-3 rounded-sm border border-white/[0.08] bg-[var(--oasis-panel)] p-4"
           style={{ left: Math.min(tip.x + 18, vw - 304), top: Math.max(8, Math.min(tip.y + 18, vh - 340)) }}
         >
           <div className="flex flex-col gap-0.5">

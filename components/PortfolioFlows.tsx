@@ -23,11 +23,11 @@ interface Row { key: string; from: number; to: number; delta: number; color?: st
 function Bars({ title, info, rows }: { title: string; info: string; rows: Row[] }) {
   const max = Math.max(...rows.map((r) => Math.abs(r.delta)), 0.01);
   return (
-    <div className="flex min-w-0 flex-col gap-2.5 rounded-sm border border-white/[0.06] bg-[#030303] p-3">
+    <div className="flex min-w-0 flex-col gap-2.5 rounded-sm border border-white/[0.06] bg-[var(--oasis-bg)] p-3">
       <span className={`${label} group/i relative flex items-center gap-1.5 text-zinc-300`}>
         {title}
         <span tabIndex={0} className="cursor-help rounded-full border border-white/[0.15] px-[5px] text-[8.5px] leading-[13px] text-zinc-500 outline-none hover:text-white focus:text-white">?</span>
-        <span className="pointer-events-none absolute left-0 top-5 z-20 hidden w-[300px] rounded-sm border border-white/[0.1] bg-[#0a0a0c] p-2.5 font-sans text-[11.5px] font-normal normal-case leading-snug tracking-normal text-zinc-300 group-focus-within/i:block group-hover/i:block">{info}</span>
+        <span className="pointer-events-none absolute left-0 top-5 z-20 hidden w-[300px] rounded-sm border border-white/[0.1] bg-[var(--oasis-panel)] p-2.5 font-sans text-[11.5px] font-normal normal-case leading-snug tracking-normal text-zinc-300 group-focus-within/i:block group-hover/i:block">{info}</span>
       </span>
       {/* Direction key, aligned with the bar track */}
       <div className="grid grid-cols-[minmax(0,92px)_minmax(0,1fr)_52px] gap-2 font-mono text-[9.5px] font-bold tracking-[0.14em]">

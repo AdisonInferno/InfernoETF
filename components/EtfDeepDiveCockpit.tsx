@@ -30,7 +30,7 @@ const tone = (v: number) => (v > 0 ? "text-emerald-400" : v < 0 ? "text-rose-400
 
 function Widget({ title, right, className = "", children }: { title: string; right?: React.ReactNode; className?: string; children: React.ReactNode }) {
   return (
-    <section className={`flex min-h-0 min-w-0 flex-col rounded-sm border border-white/[0.05] bg-[#0a0a0c] ${className}`}>
+    <section className={`flex min-h-0 min-w-0 flex-col rounded-sm border border-white/[0.05] bg-[var(--oasis-panel)] ${className}`}>
       <header className="flex flex-none items-center justify-between gap-2 border-b border-white/[0.05] px-3 py-1.5">
         <span className={`${MONO} text-[10.5px] font-bold tracking-[0.14em] text-zinc-300`}>[ {title} ]</span>
         {right}
@@ -217,7 +217,7 @@ export default function EtfDeepDiveCockpit({ etf, fund }: { etf: EtfRow; fund: F
           [ SYSTEM PENDING: MACRO CORRELATION MATRIX ]
         </div>
       </div>
-      {expanded && <div className="fixed inset-0 z-[89] bg-[#030303]/90" onClick={() => setExpanded(false)} />}
+      {expanded && <div className="fixed inset-0 z-[89] bg-[var(--oasis-bg)]/90" onClick={() => setExpanded(false)} />}
     </div>
   );
 }

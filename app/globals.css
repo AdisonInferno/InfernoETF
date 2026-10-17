@@ -13,6 +13,9 @@
 :root {
   --oasis-accent: #38bdf8;
   --oasis-accent-muted: rgba(56, 189, 248, 0.15);
+  /* background (page) + panel (tables, cards) — panel derives from the background, tuned in the same scrubber */
+  --oasis-bg: #030303;
+  --oasis-panel: color-mix(in srgb, var(--oasis-bg) 96%, #9090a8);
 }
 /* Tailwind 4: utilities text-oasis / border-oasis / bg-oasis/20 / bg-oasis-muted … resolve to the live variables */
 @theme inline {
@@ -27,13 +30,13 @@
   background-color: color-mix(in srgb, var(--oasis-accent) 13%, transparent) !important;
   color: color-mix(in srgb, var(--oasis-accent) 55%, white) !important;
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--oasis-accent) 45%, transparent),
-              0 0 12px color-mix(in srgb, var(--oasis-accent) 28%, transparent) !important;
+              0 0 4px color-mix(in srgb, var(--oasis-accent) 15%, transparent) !important;
 }
 /* Selected tab (underline style) */
 .oasis-tab {
   border-color: var(--oasis-accent) !important;
   color: #fff !important;
-  box-shadow: 0 6px 10px -8px var(--oasis-accent);
+  box-shadow: 0 4px 6px -6px color-mix(in srgb, var(--oasis-accent) 60%, transparent);
 }
 
 @theme {
@@ -60,3 +63,5 @@
 /* Deep View entrance animation */
 @keyframes inf-take { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
 .animate-inf-take { animation: inf-take 0.28s ease-out; }
+
+html, body { background-color: var(--oasis-bg); }

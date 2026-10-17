@@ -71,7 +71,7 @@ export default function InfernoChat() {
 
   return (
     <div className="mx-auto flex min-h-[480px] w-full max-w-[1100px] flex-1 flex-col gap-4 px-3 py-3">
-      <section className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-sm border border-white/[0.06] bg-[#0a0a0c]">
+      <section className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-sm border border-white/[0.06] bg-[var(--oasis-panel)]">
         <div className="flex items-center justify-between border-b border-white/[0.06] px-5 py-4">
           <span className="font-mono text-[11px] font-bold tracking-[0.16em] text-zinc-300">[ QUERY TERMINAL ]</span>
           {messages.length > 0 && (
@@ -96,7 +96,7 @@ export default function InfernoChat() {
                     key={s}
                     type="button"
                     onClick={() => send(s)}
-                    className="rounded-sm border border-white/[0.06] bg-[#030303] px-2.5 py-1 font-mono text-[11px] text-zinc-400 transition-colors hover:text-white"
+                    className="rounded-sm border border-white/[0.06] bg-[var(--oasis-bg)] px-2.5 py-1 font-mono text-[11px] text-zinc-400 transition-colors hover:text-white"
                   >
                     {s}
                   </button>
@@ -125,7 +125,7 @@ export default function InfernoChat() {
 
         <form
           onSubmit={(e) => { e.preventDefault(); send(input); }}
-          className="flex items-end gap-2 border-t border-white/[0.06] bg-[#0a0a0c] p-3"
+          className="flex items-end gap-2 border-t border-white/[0.06] bg-[var(--oasis-panel)] p-3"
         >
           <textarea
             value={input}
@@ -135,7 +135,7 @@ export default function InfernoChat() {
             }}
             rows={1}
             placeholder="> query…   [ENTER] run · [SHIFT+ENTER] newline"
-            className="max-h-40 min-h-[42px] flex-1 resize-none rounded-sm border border-white/[0.06] bg-[#030303] px-3 py-2.5 font-mono text-[13px] text-zinc-100 outline-none placeholder:text-zinc-600 focus:border-white/[0.15]"
+            className="max-h-40 min-h-[42px] flex-1 resize-none rounded-sm border border-white/[0.06] bg-[var(--oasis-bg)] px-3 py-2.5 font-mono text-[13px] text-zinc-100 outline-none placeholder:text-zinc-600 focus:border-white/[0.15]"
           />
           <button
             type="submit"

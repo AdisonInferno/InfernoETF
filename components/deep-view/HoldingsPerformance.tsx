@@ -89,7 +89,7 @@ function ChartTip({ active, label, payload, etfTic }: { active?: boolean; label?
   if (!active || !payload?.length) return null;
   const rows = [...payload].sort((a, b) => Number(b.value) - Number(a.value));
   return (
-    <div className="min-w-[180px] rounded-sm border border-white/[0.08] bg-[#030303]/95 px-3 py-2.5 font-mono text-[11px] tabular-nums">
+    <div className="min-w-[180px] rounded-sm border border-white/[0.08] bg-[var(--oasis-bg)]/95 px-3 py-2.5 font-mono text-[11px] tabular-nums">
       <div className="mb-1.5 text-[9.5px] tracking-[0.14em] text-zinc-500">{String(label)}</div>
       {rows.map((p) => {
         const key = String(p.dataKey), v = Number(p.value), isEtf = key === ETF_KEY;
@@ -196,7 +196,7 @@ export function ExplorerTable({ x }: { x: Explorer }) {
     <div className="flex h-full min-h-0 flex-col gap-2 px-3 pb-2.5 pt-2 font-mono tabular-nums">
       {/* Toolbar + alerts — one wrapping row */}
       <div className="flex flex-none flex-wrap items-center gap-2">
-        <label className="flex h-7 min-w-[180px] flex-[0_1_280px] items-center gap-2 rounded-sm border border-white/[0.06] bg-[#030303] px-2.5 focus-within:border-zinc-700">
+        <label className="flex h-7 min-w-[180px] flex-[0_1_280px] items-center gap-2 rounded-sm border border-white/[0.06] bg-[var(--oasis-bg)] px-2.5 focus-within:border-zinc-700">
           <span className="text-[11px] font-bold text-zinc-500">Q</span>
           <input type="text" value={x.q} onChange={(e) => x.setQ(e.target.value)} placeholder={`Search ${x.all.length} holdings...`} className="min-w-0 flex-1 border-0 bg-transparent font-mono text-[11.5px] text-neutral-200 outline-none" />
         </label>
@@ -209,7 +209,7 @@ export function ExplorerTable({ x }: { x: Explorer }) {
           <span key={c} className="flex h-7 items-center whitespace-nowrap border border-amber-500/60 bg-amber-500/[0.07] px-2.5 text-[10.5px] font-bold tracking-[0.08em] text-amber-500">⚠ {c}</span>
         ))}
         <span className="ml-auto flex items-center gap-2">
-          <label className="relative flex h-7 items-center whitespace-nowrap rounded-sm border border-white/[0.06] bg-[#030303] pl-2.5 pr-7 text-[10.5px] font-bold tracking-[0.08em] text-zinc-300 hover:border-zinc-700">
+          <label className="relative flex h-7 items-center whitespace-nowrap rounded-sm border border-white/[0.06] bg-[var(--oasis-bg)] pl-2.5 pr-7 text-[10.5px] font-bold tracking-[0.08em] text-zinc-300 hover:border-zinc-700">
             <span>[ FILTER: {x.filter === "ALL" ? "ALL SECTORS" : x.filter.toUpperCase()} ]</span>
             <span className="absolute right-2.5 text-zinc-500">▾</span>
             <select value={x.filter} onChange={(e) => x.setFilter(e.target.value)} className="absolute inset-0 h-full w-full cursor-pointer opacity-0">
@@ -222,9 +222,9 @@ export function ExplorerTable({ x }: { x: Explorer }) {
       </div>
 
       {/* Table — inner scroll */}
-      <div className="min-h-0 flex-1 overflow-auto overscroll-contain rounded-sm border border-white/[0.06] bg-[#030303]/40 [scrollbar-color:#27272a_transparent] [scrollbar-width:thin]">
+      <div className="min-h-0 flex-1 overflow-auto overscroll-contain rounded-sm border border-white/[0.06] bg-[var(--oasis-bg)]/40 [scrollbar-color:#27272a_transparent] [scrollbar-width:thin]">
         <div className="min-w-[860px]">
-          <div className={`sticky top-0 z-[2] h-8 border-b border-white/[0.06] bg-[#0a0a0c] text-[9.5px] font-bold tracking-[0.14em] text-zinc-500 ${GRID}`}>
+          <div className={`sticky top-0 z-[2] h-8 border-b border-white/[0.06] bg-[var(--oasis-panel)] text-[9.5px] font-bold tracking-[0.14em] text-zinc-500 ${GRID}`}>
             <span className="text-center" title="Plot on chart">◫</span>
             {HEAD.map(([l, k, al]) => (
               <button key={k} type="button" onClick={() => x.sortBy(k)} className={`whitespace-nowrap hover:text-white ${al === "right" ? "text-right" : "text-left"} ${x.sortKey === k ? "text-emerald-400" : ""}`}>

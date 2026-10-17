@@ -35,7 +35,7 @@ export default function AwaitedEvents() {
   }, []);
 
   return (
-    <section className="flex min-w-0 flex-col gap-2 rounded-sm border border-white/[0.06] bg-[#0a0a0c] p-4 font-mono">
+    <section className="flex min-w-0 flex-col gap-2 rounded-sm border border-white/[0.06] bg-[var(--oasis-panel)] p-4 font-mono">
       <div className="flex items-baseline justify-between gap-2">
         <h2 className="m-0 text-[12px] font-bold tracking-[0.16em] text-zinc-200">[ MARKET IS WAITING FOR ]</h2>
         <span className="text-[9.5px] tracking-[0.12em] text-zinc-600">NEXT 21D · BY IMPACT</span>

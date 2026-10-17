@@ -10,7 +10,7 @@ import { drillDown, loadLots, lookThrough, saveLots, sectorExposure, type Lot, t
 import { TABLE_TFS, type Live, type PTf } from "@/lib/portfolio-live";
 
 export const SEG_COLORS = ["#4ade80", "#60a5fa", "#94a3b8", "#f59e0b", "#f472b6", "#22d3ee", "#f87171", "#a3e635"];
-const panel = "rounded-sm border border-white/[0.06] bg-[#030303] p-3";
+const panel = "rounded-sm border border-white/[0.06] bg-[var(--oasis-bg)] p-3";
 const label = "font-mono text-[10px] font-semibold tracking-[0.14em] text-zinc-500";
 const pct = (v: number, d = 1) => (v >= 0 ? "+" : "") + v.toFixed(d) + "%";
 
@@ -59,7 +59,7 @@ export function SectorOverlap({ positions, onClose }: { positions: Position[]; o
               <span className="truncate text-[12.5px] text-zinc-300">{r.sector}</span>
               <div className="flex h-2.5 overflow-hidden rounded-sm bg-white/[0.04]" style={{ width: `${(r.total / max) * 100}%` }}>
                 {Object.entries(r.by).sort((a, b) => b[1] - a[1]).map(([t, v]) => (
-                  <div key={t} title={`${t}: ${v.toFixed(1)}%`} style={{ width: `${(v / r.total) * 100}%`, background: colorOf(t) }} className="h-full border-r border-[#0a0a0c] last:border-r-0" />
+                  <div key={t} title={`${t}: ${v.toFixed(1)}%`} style={{ width: `${(v / r.total) * 100}%`, background: colorOf(t) }} className="h-full border-r border-[var(--oasis-panel)] last:border-r-0" />
                 ))}
               </div>
               <span className="text-right font-mono text-[12px] font-semibold text-zinc-100">{r.total.toFixed(1)}%</span>
@@ -117,7 +117,7 @@ function LotEditor({ lot, custom, ccy, onSave }: { lot: Lot; custom: boolean; cc
   const [avg, setAvg] = useState(String(lot.avg));
   const q = Number(qty.replace(",", ".")), a = Number(avg.replace(",", "."));
   const ok = q > 0 && a > 0;
-  const input = "h-8 w-28 rounded-sm border border-white/[0.08] bg-[#030303] px-2 font-mono text-[12px] text-zinc-100 outline-none focus:border-white/[0.2]";
+  const input = "h-8 w-28 rounded-sm border border-white/[0.08] bg-[var(--oasis-bg)] px-2 font-mono text-[12px] text-zinc-100 outline-none focus:border-white/[0.2]";
   return (
     <div className="flex flex-wrap items-end gap-3 px-4 pb-3 pt-3">
       <label className="flex flex-col gap-1"><span className={label}>SHARES</span><input value={qty} onChange={(e) => setQty(e.target.value)} inputMode="decimal" className={input} /></label>
@@ -278,7 +278,7 @@ export function OpenPositions({ positions, lots, saveLot, live, fx, tf, onTfChan
 
       <div className="grid grid-cols-2 gap-2 md:grid-cols-5">
         {stats.map(([k, v, c, sub]) => (
-          <div key={k} className="rounded-sm border border-white/[0.06] bg-[#0a0a0c] px-3 py-2">
+          <div key={k} className="rounded-sm border border-white/[0.06] bg-[var(--oasis-panel)] px-3 py-2">
             <div className={label}>{k}</div>
             <div className={`mt-1 font-mono text-[15px] font-semibold tabular-nums ${c}`}>{v}</div>
             {sub && <div className={`font-mono text-[10px] tabular-nums ${k === "FEES / YEAR" ? "text-zinc-600" : c}`}>{sub}</div>}
@@ -289,7 +289,7 @@ export function OpenPositions({ positions, lots, saveLot, live, fx, tf, onTfChan
       {/* Filters + timeframe */}
       <div className="flex flex-wrap items-center gap-2">
         <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="SEARCH…" spellCheck={false}
-          className="h-7 w-[140px] rounded-sm border border-white/[0.08] bg-[#0a0a0c] px-2 font-mono text-[11px] text-zinc-100 outline-none placeholder:text-zinc-600 focus:border-white/[0.2]" />
+          className="h-7 w-[140px] rounded-sm border border-white/[0.08] bg-[var(--oasis-panel)] px-2 font-mono text-[11px] text-zinc-100 outline-none placeholder:text-zinc-600 focus:border-white/[0.2]" />
         {(["ALL", "ETF", "STOCK", "UP", "DOWN"] as KindFilter[]).map((k) => (
           <button key={k} type="button" onClick={() => setKind(k)} className={chip(kind === k)}>{k === "UP" ? "IN PROFIT" : k === "DOWN" ? "AT LOSS" : k}</button>
         ))}
@@ -320,7 +320,7 @@ export function OpenPositions({ positions, lots, saveLot, live, fx, tf, onTfChan
               const isOpen = open === p.asset.ticker;
               const look = lookRows(p, 12);
               return (
-                <div key={p.asset.ticker} className={`overflow-hidden rounded-sm border transition-colors ${isOpen ? "border-white/[0.1] bg-white/[0.015]" : "border-white/[0.06] bg-[#0a0a0c]"}`}>
+                <div key={p.asset.ticker} className={`overflow-hidden rounded-sm border transition-colors ${isOpen ? "border-white/[0.1] bg-white/[0.015]" : "border-white/[0.06] bg-[var(--oasis-panel)]"}`}>
                   <button
                     type="button"
                     onClick={() => setOpen(isOpen ? null : p.asset.ticker)}
@@ -358,7 +358,7 @@ export function OpenPositions({ positions, lots, saveLot, live, fx, tf, onTfChan
                         animate={{ height: "auto", opacity: 1 }}
                         exit={{ height: 0, opacity: 0 }}
                         transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
-                        className="border-t border-white/[0.06] bg-[#030303]"
+                        className="border-t border-white/[0.06] bg-[var(--oasis-bg)]"
                       >
                         <LotEditor key={`${r.lot.qty}-${r.lot.avg}`} lot={r.lot} custom={r.custom} ccy={r.ccy === "?" ? "BROKER CCY" : r.ccy} onSave={(l) => saveLot(p.asset.ticker, l)} />
 
@@ -429,7 +429,7 @@ function AddRail({ id, onAdd }: { id: PaneId; onAdd: () => void }) {
       animate={{ opacity: 1, x: 0 }}
       exit={{ opacity: 0, x: 12 }}
       title={`Show ${PANE_TITLE[id]}`}
-      className="group flex w-12 flex-none flex-col items-center justify-center gap-3 rounded-sm border border-dashed border-white/[0.08] bg-[#030303] text-zinc-500 transition-colors hover:border-red-500/40 hover:text-white"
+      className="group flex w-12 flex-none flex-col items-center justify-center gap-3 rounded-sm border border-dashed border-white/[0.08] bg-[var(--oasis-bg)] text-zinc-500 transition-colors hover:border-red-500/40 hover:text-white"
     >
       <span className="flex h-7 w-7 items-center justify-center rounded-sm bg-white/[0.05] text-[16px] leading-none group-hover:bg-red-500/20 group-hover:text-red-300">+</span>
       <span className="font-mono text-[10px] font-bold tracking-[0.14em] [writing-mode:vertical-rl]">{PANE_TITLE[id].toUpperCase()}</span>

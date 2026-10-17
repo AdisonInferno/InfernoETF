@@ -115,7 +115,7 @@ function Spark({ pts, w = 72, h = 22 }: { pts: number[]; w?: number; h?: number 
   );
 }
 
-const card = "rounded-sm border border-white/[0.06] bg-[#0a0a0c]";
+const card = "rounded-sm border border-white/[0.06] bg-[var(--oasis-panel)]";
 
 type Mode = "price" | "charts";
 /** Which half of the Charts view is tucked away */
@@ -269,7 +269,7 @@ export default function EtfTableScanner() {
                 <col key={i} style={{ width: `calc(${w}px + (100% - 818px) / 6)` }} />
               ))}
             </colgroup>
-            <thead className="sticky top-0 z-10 bg-[#0a0a0c]">
+            <thead className="sticky top-0 z-10 bg-[var(--oasis-panel)]">
               <tr className="text-left">
                 <th className={`${th} pl-2`}>FUND</th>
                 <th className={`${th} ${gapFirst} text-right`}>SECTOR</th>
@@ -431,7 +431,7 @@ export default function EtfTableScanner() {
       {/* ── Table card ── */}
       <section className={`flex min-h-0 min-w-0 flex-col overflow-hidden ${card}`}>
         <div className="flex flex-none flex-wrap items-center gap-2 px-4 pb-2.5 pt-3 [contain:inline-size]">
-          <div role="tablist" aria-label="View" className="flex flex-none items-center rounded-sm border border-white/[0.06] bg-[#030303] p-0.5">
+          <div role="tablist" aria-label="View" className="flex flex-none items-center rounded-sm border border-white/[0.06] bg-[var(--oasis-bg)] p-0.5">
             {(["price", "charts"] as const).map((m) => (
               <button
                 key={m}
@@ -474,7 +474,7 @@ export default function EtfTableScanner() {
                 }`}
               >
                 {c.label}
-                <span className={`text-[10px] font-medium ${active ? "text-red-400/70" : "text-zinc-600"}`}>{count}</span>
+                <span className={`text-[10px] font-medium ${active ? "text-white" : "text-zinc-600"}`}>{count}</span>
               </button>
             );
           })}
@@ -497,7 +497,7 @@ export default function EtfTableScanner() {
                   }`}
                 >
                   {sc.label}
-                  <span className={`text-[9.5px] font-medium ${on ? "text-red-400/80" : "text-zinc-600"}`}>{count}</span>
+                  <span className={`text-[9.5px] font-medium ${on ? "text-white" : "text-zinc-600"}`}>{count}</span>
                 </button>
               );
             })}

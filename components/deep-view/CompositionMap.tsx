@@ -58,7 +58,7 @@ function HoldingsMap({ fund, tf }: { fund: FundData; tf: MapTf }) {
           <div
             key={it.tic}
             title={`${it.name} · ${it.w.toFixed(2)}% weight · ${fp(it.v)}`}
-            className="absolute box-border cursor-default overflow-hidden border border-[#0a0a0c] text-white transition-[filter] duration-200 hover:z-[2] hover:brightness-[1.18]"
+            className="absolute box-border cursor-default overflow-hidden border border-[var(--oasis-panel)] text-white transition-[filter] duration-200 hover:z-[2] hover:brightness-[1.18]"
             style={{ left: x, top: y, width: w, height: h, background: tileColor(it.v, sc), padding: `${big ? 6 : 3}px ${big ? 9 : 5}px` }}
           >
             <div className="whitespace-nowrap font-display font-semibold leading-[1.05]" style={{ fontSize: fs, opacity: w < 26 || h < 14 ? 0 : 1 }}>{it.tic}</div>
@@ -96,7 +96,7 @@ function Panel({ title, meta, tools, expanded, onToggle, weight, axis = "y", chi
       animate={{ flexGrow: expanded ? weight : 0 }}
       transition={{ duration: reduce ? 0 : 0.42, ease }}
       style={horiz ? { flexShrink: 1, flexBasis: HEADER_H, minWidth: HEADER_H } : { flexShrink: 1, flexBasis: HEADER_H, minHeight: HEADER_H }}
-      className="flex flex-col overflow-hidden rounded-sm border border-white/[0.06] bg-[#0a0a0c]"
+      className="flex flex-col overflow-hidden rounded-sm border border-white/[0.06] bg-[var(--oasis-panel)]"
     >
       {expanded ? (
         <header className="flex h-10 flex-none items-center gap-3 border-b border-white/[0.06] pl-4 pr-1.5">

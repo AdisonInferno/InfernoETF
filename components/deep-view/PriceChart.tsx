@@ -14,7 +14,7 @@ import { sg } from "./utils";
    ───────────────────────────────────────────────────────────── */
 
 
-const SURFACE = "rounded-sm border border-white/[0.06] bg-[#0a0a0c]";
+const SURFACE = "rounded-sm border border-white/[0.06] bg-[var(--oasis-panel)]";
 const pct2 = (v: number) => v.toFixed(2) + "%";
 /** 450.2 → "$450.2B", 0.84 → "$840M" */
 const aumFmt = (b: number) => (b >= 1 ? "$" + b.toFixed(1) + "B" : "$" + Math.round(b * 1000) + "M");
@@ -90,7 +90,7 @@ function MetricsGrid({ stats }: { stats: FundStats }) {
 export default function PriceChart({ fund }: { fund: FundData }) {
   return (
     <div className="flex flex-none flex-col gap-3">
-      <section className="flex h-[520px] flex-col rounded-sm border border-white/[0.06] bg-[#030303] p-3">
+      <section className="flex h-[520px] flex-col rounded-sm border border-white/[0.06] bg-[var(--oasis-bg)] p-3">
         <InfernoChart key={fund.tic}
           main={{ id: fund.tic, label: fund.tic, sym: fund.tic, color: "#f87171" }}
           pinned={[{ id: "SPY", label: "S&P 500", sym: "SPY", color: "#a1a1aa", dashed: true },

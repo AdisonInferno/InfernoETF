@@ -17,7 +17,7 @@ interface Payload {
 }
 
 const label = "font-mono text-[10px] font-bold tracking-[0.16em] text-zinc-500";
-const card = "rounded-sm border border-white/[0.06] bg-[#0a0a0c]";
+const card = "rounded-sm border border-white/[0.06] bg-[var(--oasis-panel)]";
 const fmtDate = (ts: number | null) => (ts ? new Date(ts * 1000).toISOString().slice(0, 10) : "—");
 const fmtTime = (ts: number | null) => (ts ? new Date(ts * 1000).toLocaleTimeString("pl-PL", { hour: "2-digit", minute: "2-digit" }) : "—");
 const ago = (ts: number) => {
@@ -133,7 +133,7 @@ export default function NewsArchivePanel() {
               <button type="button" disabled={job?.running || !data?.finnhub} onClick={() => post("/api/news-archive/backfill", { days })} className="h-8 border border-zinc-400/70 px-3 text-[10.5px] font-bold tracking-[0.12em] text-zinc-300 hover:bg-zinc-400 hover:text-black disabled:pointer-events-none disabled:opacity-40">
                 [ BACKFILL ]
               </button>
-              <select value={days} onChange={(e) => setDays(Number(e.target.value))} className="h-8 rounded-sm border border-white/[0.06] bg-[#030303] px-2 text-[10.5px] text-zinc-300">
+              <select value={days} onChange={(e) => setDays(Number(e.target.value))} className="h-8 rounded-sm border border-white/[0.06] bg-[var(--oasis-bg)] px-2 text-[10.5px] text-zinc-300">
                 {[30, 90, 180, 365].map((d) => <option key={d} value={d}>{d} D</option>)}
               </select>
             </span>
@@ -150,7 +150,7 @@ export default function NewsArchivePanel() {
               </div>
             </div>
           )}
-          <pre className="m-0 h-28 overflow-auto rounded-sm border border-white/[0.06] bg-[#030303] p-2 text-[10px] leading-relaxed text-zinc-500">
+          <pre className="m-0 h-28 overflow-auto rounded-sm border border-white/[0.06] bg-[var(--oasis-bg)] p-2 text-[10px] leading-relaxed text-zinc-500">
             {(job?.log ?? []).slice().reverse().join("\n") || "—"}
           </pre>
         </section>
@@ -169,10 +169,10 @@ export default function NewsArchivePanel() {
                 if (e.key === "Escape") setEtfQuery("");
               }}
               placeholder="Search ETF… (ticker or name)"
-              className="h-8 w-full rounded-sm border border-white/[0.06] bg-[#030303] px-2.5 text-[11.5px] text-zinc-100 outline-none focus:border-zinc-600"
+              className="h-8 w-full rounded-sm border border-white/[0.06] bg-[var(--oasis-bg)] px-2.5 text-[11.5px] text-zinc-100 outline-none focus:border-zinc-600"
             />
             {etfMatches.length > 0 && (
-              <ul className="absolute left-0 right-0 top-[calc(100%+4px)] z-20 m-0 list-none overflow-hidden rounded-sm border border-white/[0.08] bg-[#0a0a0c] p-0 ">
+              <ul className="absolute left-0 right-0 top-[calc(100%+4px)] z-20 m-0 list-none overflow-hidden rounded-sm border border-white/[0.08] bg-[var(--oasis-panel)] p-0 ">
                 {etfMatches.map((e) => (
                   <li key={e.ticker}>
                     <button type="button" onClick={() => { setEtf(e.ticker); setEtfQuery(""); }} className="flex w-full items-baseline gap-3 px-3 py-2 text-left hover:bg-white/[0.05]">
@@ -196,8 +196,8 @@ export default function NewsArchivePanel() {
       <section className={`${card} flex flex-col`}>
         <div className="flex flex-wrap items-center gap-2 border-b border-white/[0.06] px-4 py-3">
           <span className={`${label} mr-2 text-zinc-300`}>BROWSE</span>
-          <input value={ticker} onChange={(e) => setTicker(e.target.value.toUpperCase())} placeholder="TICKER" className="h-8 w-28 rounded-sm border border-white/[0.06] bg-[#030303] px-2.5 text-[11.5px] text-zinc-100 outline-none focus:border-zinc-600" />
-          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search headlines…" className="h-8 min-w-0 flex-1 rounded-sm border border-white/[0.06] bg-[#030303] px-2.5 text-[11.5px] text-zinc-100 outline-none focus:border-zinc-600" />
+          <input value={ticker} onChange={(e) => setTicker(e.target.value.toUpperCase())} placeholder="TICKER" className="h-8 w-28 rounded-sm border border-white/[0.06] bg-[var(--oasis-bg)] px-2.5 text-[11.5px] text-zinc-100 outline-none focus:border-zinc-600" />
+          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search headlines…" className="h-8 min-w-0 flex-1 rounded-sm border border-white/[0.06] bg-[var(--oasis-bg)] px-2.5 text-[11.5px] text-zinc-100 outline-none focus:border-zinc-600" />
           <button
             type="button"
             onClick={() => setShowLow((v) => !v)}

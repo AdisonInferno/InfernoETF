@@ -35,7 +35,7 @@ function Seg<T extends string | number>({ label, items, value, onChange, fmt }: 
   return (
     <div className="flex items-center gap-2">
       <span className="text-[9.5px] font-semibold tracking-[0.14em] text-zinc-600">{label}</span>
-      <div role="radiogroup" aria-label={label} className="flex items-center rounded-sm border border-white/[0.06] bg-[#030303] p-0.5">
+      <div role="radiogroup" aria-label={label} className="flex items-center rounded-sm border border-white/[0.06] bg-[var(--oasis-bg)] p-0.5">
         {items.map((it) => (
           <button
             key={String(it)}
@@ -271,7 +271,7 @@ export default function MacroNexus() {
   return (
     <div className="grid h-[calc(100vh-170px)] min-h-[600px] grid-cols-[minmax(0,1fr)_320px] gap-3 font-mono max-lg:h-auto max-lg:grid-cols-1">
       {/* ── Graph ── */}
-      <section className="flex min-h-0 min-w-0 flex-col rounded-sm border border-white/[0.06] bg-[#0a0a0c] max-lg:h-[640px]">
+      <section className="flex min-h-0 min-w-0 flex-col rounded-sm border border-white/[0.06] bg-[var(--oasis-panel)] max-lg:h-[640px]">
         <header className="flex flex-none flex-wrap items-center gap-x-5 gap-y-2 border-b border-white/[0.06] px-3 py-2">
           <span className="flex items-center gap-2 text-[12px] font-bold tracking-[0.14em] text-zinc-100">
             <span className="h-2 w-2 bg-red-500" />[ MACRO NEXUS ]
@@ -302,7 +302,7 @@ export default function MacroNexus() {
           </button>
         </header>
 
-        <div ref={boxRef} className="relative min-h-0 flex-1 overflow-hidden bg-[#030303]">
+        <div ref={boxRef} className="relative min-h-0 flex-1 overflow-hidden bg-[var(--oasis-bg)]">
           {size.w > 0 && (
             <svg
               ref={svgRef}
@@ -396,7 +396,7 @@ export default function MacroNexus() {
       </section>
 
       {/* ── Data panel ── */}
-      <aside className="flex min-h-0 flex-col overflow-hidden rounded-sm border border-white/[0.06] bg-[#0a0a0c]">
+      <aside className="flex min-h-0 flex-col overflow-hidden rounded-sm border border-white/[0.06] bg-[var(--oasis-panel)]">
         <div className="grid flex-none grid-cols-4 border-b border-white/[0.06]">
           {[
             ["NODES", String(NODES.length)],

@@ -65,7 +65,7 @@ export default function TickerContextMenu() {
   const isEtf = ETF_SET.has(menu.t);
   const item = "flex w-full items-center justify-between gap-4 px-3 py-2 text-left text-[11px] font-bold tracking-[0.08em] transition-colors hover:bg-white/[0.07]";
   return (
-    <div role="menu" className="fixed z-[200] w-[210px] overflow-hidden rounded-sm border border-white/[0.1] bg-[#0a0a0c] font-mono shadow-[0_8px_30px_rgba(0,0,0,0.6)]" style={{ left: menu.x, top: menu.y }} onClick={(e) => e.stopPropagation()}>
+    <div role="menu" className="fixed z-[200] w-[210px] overflow-hidden rounded-sm border border-white/[0.1] bg-[var(--oasis-panel)] font-mono shadow-[0_8px_30px_rgba(0,0,0,0.6)]" style={{ left: menu.x, top: menu.y }} onClick={(e) => e.stopPropagation()}>
       <div className="flex items-baseline justify-between border-b border-white/[0.06] px-3 py-1.5">
         <span className="text-[12px] font-bold text-white">{menu.t}</span>
         <span className="text-[9.5px] tracking-[0.12em] text-zinc-500">{isEtf ? "ETF" : "STOCK"}</span>
