@@ -13,7 +13,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import InfernoChart from "@/components/InfernoChart";
 import EtfNewsPanel from "@/components/EtfNewsPanel";
 import { ETFS } from "@/lib/etfs";
@@ -126,22 +126,49 @@ function Overview({ d, held, sym }: { d: StockData; held: { etf: string; name: s
 /* ═════════════ FINANCIALS ═════════════ */
 const RANGES = [4, 8, 12, 20] as const;
 
+/** Quarterly bar chart + the Quant Ruler: hold Ctrl (⌘ on Mac) and drag from one bar to another → Δ value and Δ % between them. */
 function Bars({ title, qs, k, sel, onSel, cf }: { title: string; qs: Quarter[]; k: keyof Quarter; sel: string; onSel: (e: string) => void; cf?: boolean }) {
   const vals = qs.map((q) => q[k] as number | null);
   const extra = cf ? qs.map((q) => q.fcf) : [];
   const hi = Math.max(0, ...[...vals, ...extra].map((v) => v ?? 0));
   const lo = Math.min(0, ...[...vals, ...extra].map((v) => v ?? 0));
-  const H = 130, span = hi - lo || 1;
+  const H = 130, PAD = 16, span = hi - lo || 1;
   const y = (v: number) => ((hi - v) / span) * H; // px from the top of the plot
   const zero = y(0);
+
+  /* ── ruler ── */
+  const boxRef = useRef<HTMLDivElement>(null);
+  const [ruler, setRuler] = useState<{ a: number; b: number; live: boolean; w: number } | null>(null);
+  const idxAt = (clientX: number) => {
+    const r = boxRef.current!.getBoundingClientRect();
+    return Math.min(qs.length - 1, Math.max(0, Math.floor(((clientX - r.left) / r.width) * qs.length)));
+  };
+  const onDown = (e: React.PointerEvent) => {
+    if (!(e.ctrlKey || e.metaKey) || e.button !== 0) { if (ruler && !ruler.live) setRuler(null); return; }
+    e.preventDefault();
+    e.currentTarget.setPointerCapture(e.pointerId);
+    const i = idxAt(e.clientX);
+    setRuler({ a: i, b: i, live: true, w: boxRef.current!.clientWidth });
+  };
+  const onMove = (e: React.PointerEvent) => { if (ruler?.live) setRuler({ ...ruler, b: idxAt(e.clientX) }); };
+  const onUp = () => { if (ruler?.live) setRuler({ ...ruler, live: false }); };
+  const W = ruler?.w ?? 0;
+  const cx = (i: number) => ((i + 0.5) / qs.length) * W;
+  const va = ruler ? vals[ruler.a] : null, vb = ruler ? vals[ruler.b] : null;
+  const delta = va != null && vb != null ? vb - va : null;
+  const dPct = va != null && vb != null && va !== 0 ? ((vb - va) / Math.abs(va)) * 100 : null;
+  const yv = (v: number | null) => PAD + (v == null ? zero : y(v));
+
   return (
     <div className="flex flex-col gap-1.5">
       <div className="flex items-baseline justify-between">
         <span className={LABEL}>{title}</span>
         {cf && <span className="flex items-center gap-1.5 font-mono text-[10px] text-zinc-500"><span className="h-[2px] w-3 bg-sky-300" />FREE CASH FLOW = OPERATING CF − CAPEX</span>}
       </div>
-      <div className="relative flex gap-[3px] pt-4" style={{ height: H + 46 }}>
-        <span className="pointer-events-none absolute inset-x-0 h-px bg-white/[0.12]" style={{ top: 16 + zero }} />
+      <div ref={boxRef} onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp}
+        onClickCapture={(e) => { if (e.ctrlKey || e.metaKey) { e.stopPropagation(); e.preventDefault(); } }}
+        className={`relative flex select-none gap-[3px] pt-4 ${ruler?.live ? "cursor-crosshair" : ""}`} style={{ height: H + 46 }}>
+        <span className="pointer-events-none absolute inset-x-0 h-px bg-white/[0.12]" style={{ top: PAD + zero }} />
         {qs.map((q) => {
           const v = q[k] as number | null;
           const on = q.end === sel, neg = v != null && v < 0;
@@ -155,6 +182,28 @@ function Bars({ title, qs, k, sel, onSel, cf }: { title: string; qs: Quarter[]; 
             </button>
           );
         })}
+
+        {/* ── ruler overlay ── */}
+        {ruler && W > 0 && (() => {
+          const x1 = Math.min(cx(ruler.a), cx(ruler.b)), x2 = Math.max(cx(ruler.a), cx(ruler.b));
+          const half = W / qs.length / 2;
+          const up = (delta ?? 0) >= 0;
+          const col = up ? "56,189,248" : "251,113,133";
+          return (
+            <>
+              <span className="pointer-events-none absolute border-x" style={{ left: x1 - half, width: x2 - x1 + 2 * half, top: PAD, height: H, background: `rgba(${col},0.08)`, borderColor: `rgba(${col},0.5)` }} />
+              <svg className="pointer-events-none absolute inset-0 overflow-visible" width={W} height={H + 46}>
+                <line x1={cx(ruler.a)} y1={yv(va)} x2={cx(ruler.b)} y2={yv(vb)} stroke={`rgb(${col})`} strokeWidth={1.5} strokeDasharray="4 3" />
+                <circle cx={cx(ruler.a)} cy={yv(va)} r={3} fill={`rgb(${col})`} />
+                <circle cx={cx(ruler.b)} cy={yv(vb)} r={3} fill={`rgb(${col})`} />
+              </svg>
+              <span className="pointer-events-none absolute z-10 -translate-x-1/2 whitespace-nowrap border bg-[#030303] px-2 py-0.5 font-mono text-[10.5px] font-bold tabular-nums"
+                style={{ left: Math.min(W - 90, Math.max(90, (x1 + x2) / 2)), top: 0, borderColor: `rgba(${col},0.6)`, color: `rgb(${col})` }}>
+                {qs[ruler.a].label} → {qs[ruler.b].label} · Δ {delta == null ? "—" : `${delta >= 0 ? "+" : "−"}${big(Math.abs(delta))}`} | {dPct == null ? "—" : `${dPct >= 0 ? "+" : "−"}${Math.abs(dPct).toFixed(1)}%`}
+              </span>
+            </>
+          );
+        })()}
       </div>
     </div>
   );
@@ -221,16 +270,19 @@ function Financials({ d }: { d: StockData }) {
         <section className={`${CARD} flex flex-col gap-5 p-4`}>
           <div className="flex items-center gap-2">
             <span className={`${LABEL} text-zinc-300`}>[ QUARTERLY RESULTS ]</span>
-            <span className="ml-auto flex gap-1">
-              {RANGES.map((r) => (
-                <button key={r} type="button" onClick={() => setRange(r)} className={`h-6 border px-2 font-mono text-[10px] font-bold ${range === r ? "border-emerald-500/50 bg-emerald-500/10 text-emerald-300" : `${B} text-zinc-500 hover:text-zinc-200`}`}>{r === 20 ? "5Y" : `${r}Q`}</button>
-              ))}
-            </span>
+            <span className="ml-auto font-mono text-[9.5px] tracking-[0.1em] text-zinc-600">CLICK = QUARTER · <span className="text-sky-300/80">CTRL + DRAG = MEASURE</span></span>
           </div>
           <Bars title="REVENUE" qs={qs} k="revenue" sel={cur.end} onSel={setSel} />
           <Bars title="NET INCOME · PROFIT / LOSS" qs={qs} k="netIncome" sel={cur.end} onSel={setSel} />
           <Bars title="OPERATING CASH FLOW" qs={qs} k="ocf" sel={cur.end} onSel={setSel} cf />
-          <span className="font-mono text-[9.5px] tracking-[0.06em] text-zinc-600">SRC: SEC 10-Q / 10-K (XBRL) · Q4 AND CASH-FLOW QUARTERS DERIVED FROM YEAR-TO-DATE TOTALS · CLICK A BAR</span>
+          <div className={`mt-auto flex flex-wrap items-center gap-3 border-t ${B} pt-3`}>
+            <span className="flex gap-1">
+              {RANGES.map((r) => (
+                <button key={r} type="button" onClick={() => setRange(r)} className={`h-6 border px-2 font-mono text-[10px] font-bold ${range === r ? "border-emerald-500/50 bg-emerald-500/10 text-emerald-300" : `${B} text-zinc-500 hover:text-zinc-200`}`}>[ {r === 20 ? "5Y" : `${r}Q`} ]</button>
+              ))}
+            </span>
+            <span className="ml-auto font-mono text-[9.5px] tracking-[0.06em] text-zinc-600">SRC: SEC 10-Q / 10-K (XBRL) · Q4 &amp; CASH-FLOW QUARTERS DERIVED FROM YTD TOTALS</span>
+          </div>
         </section>
 
         {/* right: the selected quarter, explained */}
@@ -254,14 +306,48 @@ function Financials({ d }: { d: StockData }) {
               ))}
             </tbody>
           </table>
-          {er && (
-            <div className={`flex flex-wrap items-center gap-x-4 gap-y-1 border ${B} bg-[#030303] px-3 py-2 font-mono text-[11.5px] tabular-nums`}>
-              <span className="text-[10px] tracking-[0.12em] text-zinc-500">EPS VS EXPECTATIONS</span>
-              <span className="text-zinc-400">EST <span className="text-zinc-100">{er.estimate != null ? `$${er.estimate.toFixed(2)}` : "—"}</span></span>
-              <span className="text-zinc-400">ACTUAL <span className="text-zinc-100">{er.actual != null ? `$${er.actual.toFixed(2)}` : "—"}</span></span>
-              <span className={`font-bold ${tone(er.surprisePct)}`}>{er.surprisePct != null ? `${er.surprisePct >= 0 ? "BEAT" : "MISS"} ${pct(er.surprisePct)}` : ""}</span>
-            </div>
-          )}
+          {/* earnings brief — terminal note */}
+          {(() => {
+            const e = er ?? d.earnings[0] ?? null;
+            const sorted = [...d.earnings].sort((x, y) => y.period.localeCompare(x.period)).slice(0, 4);
+            const verdict = (r: EarningsRow) => (r.surprisePct == null ? "" : `${r.surprisePct >= 0 ? "Beat" : "Miss"} ${pct(r.surprisePct)}`);
+            const revY = chgOf(cur.revenue, yago?.revenue ?? null);
+            const gm = cur.grossProfit != null && cur.revenue ? (cur.grossProfit / cur.revenue) * 100 : null;
+            const gmY = yago?.grossProfit != null && yago.revenue ? (yago.grossProfit / yago.revenue) * 100 : null;
+            const note = [
+              revY != null ? `revenue ${revY >= 0 ? "+" : "−"}${Math.abs(revY).toFixed(0)}% y/y` : null,
+              gm != null && gmY != null ? `${gm >= gmY ? "margins expanding" : "margins under pressure"} (${gm.toFixed(1)}% gross)` : null,
+              cur.netIncome != null ? (cur.netIncome >= 0 ? "profitable quarter" : "loss-making quarter") : null,
+            ].filter(Boolean).join(", ");
+            return (
+              <div className={`flex flex-col gap-1 border ${B} bg-[#030303] px-3 py-2.5 font-mono text-[11.5px] leading-relaxed tabular-nums`}>
+                <span className="text-[10px] font-bold tracking-[0.14em] text-zinc-300">[ {er ? "EARNINGS BRIEF · " + cur.label : "LATEST EARNINGS BRIEF"} ]</span>
+                {e ? (
+                  <>
+                    <span className="text-zinc-200">EPS: <span className="font-bold text-white">{e.actual != null ? `$${e.actual.toFixed(2)}` : "—"}</span>
+                      {e.surprisePct != null && <span className={`font-bold ${tone(e.surprisePct)}`}> ({verdict(e)})</span>}
+                      <span className="text-zinc-500"> | EST: </span>{e.estimate != null ? `$${e.estimate.toFixed(2)}` : "—"}
+                      <span className="text-zinc-600"> · {e.quarter ? `Q${e.quarter} ${e.year}` : e.period}</span></span>
+                    {note && <span className="text-zinc-400">NOTE: <span className="text-zinc-300">{note.charAt(0).toUpperCase() + note.slice(1)}.</span></span>}
+                    {sorted.length > 1 && (
+                      <span className="mt-1 flex flex-col text-[10.5px] text-zinc-500">
+                        {sorted.map((r) => (
+                          <span key={r.period} className="grid grid-cols-[70px_90px_90px_1fr] gap-2">
+                            <span>{r.quarter ? `Q${r.quarter} ${r.year}` : r.period}</span>
+                            <span>EST {r.estimate != null ? `$${r.estimate.toFixed(2)}` : "—"}</span>
+                            <span>ACT {r.actual != null ? `$${r.actual.toFixed(2)}` : "—"}</span>
+                            <span className={tone(r.surprisePct)}>{verdict(r).toUpperCase()}</span>
+                          </span>
+                        ))}
+                      </span>
+                    )}
+                  </>
+                ) : (
+                  <span className="text-zinc-600">EPS estimates need FINNHUB_API_KEY in .env.local (free key at finnhub.io).</span>
+                )}
+              </div>
+            );
+          })()}
           <div className="flex flex-col gap-1.5">
             <span className={LABEL}>[ WHY ]</span>
             {whyLines(cur, prev, yago).map((l, k) => (
@@ -272,33 +358,6 @@ function Financials({ d }: { d: StockData }) {
         </section>
       </div>
 
-      {/* expectations vs reality */}
-      <section className={`${CARD} flex flex-col gap-3 p-4`}>
-        <span className={`${LABEL} text-zinc-300`}>[ EARNINGS · EXPECTATIONS VS REALITY ]</span>
-        {d.earnings.length ? (
-          <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-            {[...d.earnings].reverse().map((e) => {
-              const beat = e.actual != null && e.estimate != null ? e.actual >= e.estimate : null;
-              const m = Math.max(Math.abs(e.actual ?? 0), Math.abs(e.estimate ?? 0), 0.01);
-              return (
-                <div key={e.period} className={`flex flex-col gap-2 border ${B} bg-[#030303] p-3 font-mono tabular-nums`}>
-                  <div className="flex items-baseline justify-between"><span className="text-[11px] font-bold text-zinc-200">{e.quarter ? `Q${e.quarter} ${e.year}` : e.period}</span>
-                    <span className={`text-[10px] font-bold ${beat == null ? "text-zinc-500" : beat ? "text-emerald-400" : "text-rose-400"}`}>{beat == null ? "—" : beat ? "BEAT" : "MISS"} {pct(e.surprisePct)}</span></div>
-                  {([["EST", e.estimate, "bg-zinc-500/60"], ["ACT", e.actual, beat === false ? "bg-rose-400" : "bg-emerald-400"]] as const).map(([k, v, c]) => (
-                    <div key={k} className="grid grid-cols-[30px_minmax(0,1fr)_56px] items-center gap-2 text-[11px]">
-                      <span className="text-zinc-500">{k}</span>
-                      <span className="h-2 bg-white/[0.04]"><span className={`block h-full ${c}`} style={{ width: `${(Math.abs(v ?? 0) / m) * 100}%` }} /></span>
-                      <span className="text-right text-zinc-100">{v != null ? `$${v.toFixed(2)}` : "—"}</span>
-                    </div>
-                  ))}
-                </div>
-              );
-            })}
-          </div>
-        ) : (
-          <p className="m-0 font-mono text-[11px] text-zinc-600">Analyst EPS estimates need FINNHUB_API_KEY in .env.local (free key at finnhub.io).</p>
-        )}
-      </section>
     </div>
   );
 }
