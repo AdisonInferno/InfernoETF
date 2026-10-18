@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 // OASIS type: Manrope (text + headings) · Geist Mono (numbers, labels, tables) — soft, calm, elegant
 import "@fontsource-variable/manrope";
 import "@fontsource-variable/geist-mono";
-// Syncopate = wide display font of the OASIS logotype
-import "@fontsource/syncopate/700.css";
+// Cormorant Garamond = calm, elegant serif of the OASIS logotype
+import "@fontsource-variable/cormorant-garamond";
 import SiteHeader from "@/components/SiteHeader";
 import TickerContextMenu from "@/components/TickerContextMenu";
 import OasisColorScrubber from "@/components/OasisColorScrubber";

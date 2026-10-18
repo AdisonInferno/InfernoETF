@@ -109,12 +109,12 @@ function IconButton({ label, children, onClick }: { label: string; children: Rea
   );
 }
 
-/** Wide sci-fi logotype (Syncopate 700) + Geist Mono sub-label */
+/** Calm, elegant logotype: Cormorant Garamond caps, airy spacing + a quiet Manrope sub-label */
 function OasisLogo() {
   return (
     <span className="flex items-baseline gap-3 leading-none">
-      <span className="font-[Syncopate] text-[30px] font-bold uppercase tracking-[0.25em] text-white [text-shadow:0_0_12px_rgba(255,255,255,0.12)]">OASIS</span>
-      <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.45em] text-zinc-500">Terminal</span>
+      <span className="font-['Cormorant_Garamond_Variable',serif] text-[34px] font-medium uppercase tracking-[0.32em] text-white">OASIS</span>
+      <span className="font-sans text-[10.5px] font-normal uppercase tracking-[0.38em] text-zinc-500">Terminal</span>
     </span>
   );
 }
