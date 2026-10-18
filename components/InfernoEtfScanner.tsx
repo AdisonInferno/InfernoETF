@@ -49,11 +49,12 @@ interface Rect {
 
 /* ─────────────────────────── Timeframes ─────────────────────────── */
 
-const TFS = ["1D", "1W", "2W", "1M", "3M", "6M", "1Y"] as const;
+/** standard timeframe array (MAX is left out: "since inception" returns are not comparable across instruments) */
+const TFS = ["1D", "1W", "1M", "3M", "6M", "YTD", "1Y", "3Y", "5Y"] as const;
 type TfKey = (typeof TFS)[number];
 /** Colour-scale stretch per timeframe (≈ √time): a ±1.5% day is as "loud" as a ±22% year.
  *  Every tile, label, tooltip, sector average and sort reads ONE value per ticker: retOf(etf) for the selected tf. */
-const TF_SCALE: Record<TfKey, number> = { "1D": 1, "1W": 2.2, "2W": 3.1, "1M": 4.5, "3M": 7.5, "6M": 10.5, "1Y": 15 };
+const TF_SCALE: Record<TfKey, number> = { "1D": 1, "1W": 2.2, "1M": 4.5, "3M": 7.5, "6M": 10.5, YTD: 13, "1Y": 15, "3Y": 26, "5Y": 34 };
 /* ───────────────────────────── Mock data ───────────────────────────── */
 
 /** Map sectors built from the full ETF database (lib/etfs). Order = default tile order. */
@@ -203,7 +204,7 @@ function sparkline(bars: { c: number[] } | null) {
 /** Tile colour for a missing return (no price history for this symbol / window) */
 const NA_TILE = "repeating-linear-gradient(135deg, #1f1f23 0 6px, #18181b 6px 12px)";
 /** map timeframes the ETF deep-view chart can open on directly */
-const CHART_TF = new Set(["1D", "1W", "1M", "3M", "1Y"]);
+const CHART_TF = new Set(["1D", "1W", "1M", "3M", "6M", "YTD", "1Y", "3Y", "5Y"]);
 
 /** Tooltip sparkline: the bars of the selected window for one symbol (shared price cache). */
 function TipSpark({ sym, tf, color }: { sym: string; tf: TfKey; color: string }) {
@@ -526,7 +527,7 @@ export default function InfernoEtfScanner() {
 
         {/* Timeframe rail (same as the charts) · colour scale — under the map, above the macro baseline */}
         <div className="flex flex-none flex-wrap items-center gap-x-6 gap-y-2 px-1">
-          <SegRail items={TFS} value={tf} onChange={setTf} width={420} />
+          <SegRail items={TFS} value={tf} onChange={setTf} width={TFS.length * 44} />
           <div className="flex min-w-[260px] flex-1 items-center gap-3">
             <SectionLabel>COLOR SCALE</SectionLabel>
             <span className={`${MONO} text-[11px] text-zinc-500`}>−{(1.5 * TF_SCALE[tf]).toFixed(1).replace(/\.0$/, "")}%</span>

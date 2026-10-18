@@ -37,6 +37,10 @@ export interface StockData {
   grossMargin: number | null; netMargin: number | null; dividendYield: number | null; beta: number | null;
   hi52: number | null; lo52: number | null;
   quarters: Quarter[];
+  /** "quarter" = 10-Q/10-K quarters; "annual" = full years only (foreign filers: 20-F / 40-F, e.g. SPOT) */
+  finPeriod: "quarter" | "annual";
+  /** reporting currency of the filings (IFRS filers often report in EUR) */
+  finCurrency: string;
   earnings: EarningsRow[];
   earningsDates: string[]; // 8-K item 2.02 acceptance dates (results releases), newest first
   peers: string[];
@@ -51,8 +55,9 @@ export interface StockData {
 }
 
 type Fact = { start?: string; end: string; val: number; form?: string; fy?: number; fp?: string; filed?: string };
-const g = globalThis as typeof globalThis & { __infernoStock?: Map<string, { at: number; d: StockData }> };
-const cache = (g.__infernoStock ??= new Map());
+// V2: StockData gained finPeriod / finCurrency — a new key so cached old-shape entries are never served
+const g = globalThis as typeof globalThis & { __infernoStockV2?: Map<string, { at: number; d: StockData }> };
+const cache = (g.__infernoStockV2 ??= new Map());
 
 const days = (a: string, b: string) => (Date.parse(b) - Date.parse(a)) / 864e5;
 
@@ -98,7 +103,57 @@ function pick(facts: Record<string, { units: Record<string, Fact[]> }>, names: s
   return out;
 }
 
-async function secFinancials(cik: number): Promise<{ quarters: Quarter[]; name: string | null }> {
+type Facts = Record<string, { units: Record<string, Fact[]> }>;
+
+/** Full-year values (period end → value) from annual reports (20-F / 40-F / 10-K), latest filing per year. */
+function annual(facts: Fact[]): Map<string, number> {
+  const best = new Map<string, Fact>();
+  for (const f of facts) {
+    if (!f.start || !/^(20-F|40-F|10-K)/.test(f.form ?? "")) continue;
+    const d = days(f.start, f.end);
+    if (d < 350 || d > 380) continue;
+    const cur = best.get(f.end);
+    if (!cur || (f.filed ?? "") > (cur.filed ?? "")) best.set(f.end, f);
+  }
+  return new Map([...best].map(([e, f]) => [e, f.val]));
+}
+
+/** Foreign private issuers (20-F) only tag ANNUAL figures in XBRL — their quarterly 6-K reports are not tagged.
+ *  IFRS (ifrs-full) or US-GAAP, in whatever currency the filer reports. */
+function annualFinancials(j: { facts?: Record<string, Facts> }): { quarters: Quarter[]; currency: string } | null {
+  const ifrs = j?.facts?.["ifrs-full"], gaap = j?.facts?.["us-gaap"];
+  const F = ifrs ?? gaap;
+  if (!F) return null;
+  const T = ifrs ? {
+    rev: ["Revenue", "RevenueFromContractsWithCustomers"], gp: ["GrossProfit"], op: ["ProfitLossFromOperatingActivities"],
+    ni: ["ProfitLoss", "ProfitLossAttributableToOwnersOfParent"], eps: ["DilutedEarningsLossPerShare", "BasicEarningsLossPerShare"],
+    ocf: ["CashFlowsFromUsedInOperatingActivities"], capex: ["PurchaseOfPropertyPlantAndEquipmentClassifiedAsInvestingActivities", "PurchaseOfPropertyPlantAndEquipment"],
+  } : {
+    rev: ["Revenues", "RevenueFromContractWithCustomerExcludingAssessedTax"], gp: ["GrossProfit"], op: ["OperatingIncomeLoss"],
+    ni: ["NetIncomeLoss", "ProfitLoss"], eps: ["EarningsPerShareDiluted", "EarningsPerShareBasic"],
+    ocf: ["NetCashProvidedByUsedInOperatingActivities"], capex: ["PaymentsToAcquirePropertyPlantAndEquipment"],
+  };
+  // reporting currency = the unit the revenue line is tagged in (EUR for Spotify)
+  const units = T.rev.flatMap((n) => Object.keys(F[n]?.units ?? {})).filter((u) => /^[A-Z]{3}$/.test(u));
+  const ccy = units[0];
+  if (!ccy) return null;
+  const rev = annual(pick(F, T.rev, ccy)), gp = annual(pick(F, T.gp, ccy)), op = annual(pick(F, T.op, ccy)), ni = annual(pick(F, T.ni, ccy));
+  const eps = annual(pick(F, T.eps, `${ccy}/shares`)), ocf = annual(pick(F, T.ocf, ccy)), capex = annual(pick(F, T.capex, ccy));
+  const ends = [...new Set([...rev.keys(), ...ni.keys()])].sort();
+  const quarters = ends.map((end) => {
+    const v = (m: Map<string, number>) => m.get(end) ?? null;
+    const o = v(ocf), c = v(capex);
+    const fy = new Date(end).getUTCFullYear();
+    return {
+      end, label: `FY${fy}`, fy, fp: "FY",
+      revenue: v(rev), grossProfit: v(gp), operatingIncome: v(op), netIncome: v(ni), eps: v(eps) != null ? Math.round(v(eps)! * 100) / 100 : null, ocf: o, capex: c,
+      fcf: o != null && c != null ? o - c : null,
+    } as Quarter;
+  }).filter((q) => q.revenue != null || q.netIncome != null).slice(-12);
+  return quarters.length ? { quarters, currency: ccy } : null;
+}
+
+async function secFinancials(cik: number): Promise<{ quarters: Quarter[]; name: string | null; period: "quarter" | "annual"; currency: string }> {
   const j = await sec(`${DATA}/api/xbrl/companyfacts/CIK${String(cik).padStart(10, "0")}.json`);
   const F = j?.facts?.["us-gaap"] ?? {};
   const rev = quarterly(pick(F, ["Revenues", "RevenueFromContractWithCustomerExcludingAssessedTax", "SalesRevenueNet", "RevenueFromContractWithCustomerIncludingAssessedTax"]));
@@ -131,7 +186,11 @@ async function secFinancials(cik: number): Promise<{ quarters: Quarter[]; name: 
       fcf: o != null && c != null ? o - c : null,
     } as Quarter;
   }).filter((q) => q.revenue != null || q.netIncome != null).slice(-20);
-  return { quarters, name: j?.entityName ?? null };
+  if (!quarters.length) {
+    const a = annualFinancials(j);
+    if (a) return { quarters: a.quarters, name: j?.entityName ?? null, period: "annual", currency: a.currency };
+  }
+  return { quarters, name: j?.entityName ?? null, period: "quarter", currency: "USD" };
 }
 
 async function secProfile(cik: number) {
@@ -207,9 +266,18 @@ export async function stockData(raw: string, yahooSym?: string): Promise<StockDa
   if (y) sources.push("Yahoo profile");
 
   const qs = fin?.quarters ?? [];
+  const annualFin = fin?.period === "annual";
+  const finCcy = fin?.currency ?? "USD";
   const last4 = qs.slice(-4);
-  const sum = (k: keyof Quarter) => (last4.length === 4 && last4.every((q) => q[k] != null) ? last4.reduce((a, q) => a + (q[k] as number), 0) : null);
-  const revenueTTM = sum("revenue"), netIncomeTTM = sum("netIncome"), epsTTM = sum("eps"), gpTTM = sum("grossProfit");
+  /* TTM: sum of the last 4 quarters — or, for annual filers, the latest full year.
+     Money TTM values are only kept when the filings use the listing's currency (EUR filings vs a USD price would mislead);
+     margins are ratios, so they always work. */
+  const sameCcy = finCcy === (px?.currency ?? "USD");
+  const sum = (k: keyof Quarter) => annualFin
+    ? ((qs.at(-1)?.[k] as number | null | undefined) ?? null)
+    : (last4.length === 4 && last4.every((q) => q[k] != null) ? last4.reduce((a, q) => a + (q[k] as number), 0) : null);
+  const gpTTM = sum("grossProfit"), revAny = sum("revenue"), niAny = sum("netIncome");
+  const revenueTTM = sameCcy ? revAny : null, netIncomeTTM = sameCcy ? niAny : null, epsTTM = sameCcy ? sum("eps") : null;
   const price = px?.price ?? px?.c.at(-1) ?? null;
   const chg1d = px && px.c.length > 1 ? (px.c.at(-1)! / px.c.at(-2)! - 1) * 100 : null;
 
@@ -238,12 +306,12 @@ export async function stockData(raw: string, yahooSym?: string): Promise<StockDa
     marketCap: pos(marketCap ?? y?.marketCap),
     pe: pos(price && epsTTM && epsTTM > 0 ? price / epsTTM : (y?.pe ?? met.peTTM ?? met.peBasicExclExtraTTM ?? null)),
     epsTTM: epsTTM ?? y?.eps ?? null, revenueTTM, netIncomeTTM,
-    grossMargin: gpTTM != null && revenueTTM ? (gpTTM / revenueTTM) * 100 : (met.grossMarginTTM ?? null),
-    netMargin: netIncomeTTM != null && revenueTTM ? (netIncomeTTM / revenueTTM) * 100 : (met.netProfitMarginTTM ?? null),
+    grossMargin: gpTTM != null && revAny ? (gpTTM / revAny) * 100 : (met.grossMarginTTM ?? null),
+    netMargin: niAny != null && revAny ? (niAny / revAny) * 100 : (met.netProfitMarginTTM ?? null),
     dividendYield: y?.dividendYield ?? met.dividendYieldIndicatedAnnual ?? null,
     beta: finite(beta ?? y?.beta ?? met.beta),
     hi52: px ? Math.max(...px.c) : (met["52WeekHigh"] ?? null), lo52: px ? Math.min(...px.c) : (met["52WeekLow"] ?? null),
-    quarters: qs,
+    quarters: qs, finPeriod: annualFin ? "annual" : "quarter", finCurrency: finCcy,
     earnings: (fEarn ?? []).map((e) => ({ period: e.period, quarter: e.quarter, year: e.year, actual: e.actual, estimate: e.estimate, surprise: e.surprise, surprisePct: e.surprisePercent })),
     earningsDates: prof?.earningsDates ?? [],
     peers: (fPeers ?? []).filter((p) => p !== ticker).slice(0, 6),

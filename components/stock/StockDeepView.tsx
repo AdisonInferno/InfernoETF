@@ -11,6 +11,7 @@
    [ IN ETFS ]    which ETFs hold it and how much · your exposure (direct + through your ETFs)
    ───────────────────────────────────────────────────────────── */
 
+import { useCtrlMeasure } from "@/lib/useCtrlMeasure";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -143,7 +144,7 @@ function Overview({ d, held, sym }: { d: StockData; held: { etf: string; name: s
 const RANGES = [4, 8, 12, 20] as const;
 
 /** Quarterly bar chart + the Quant Ruler: hold Ctrl (⌘ on Mac) and drag from one bar to another → Δ value and Δ % between them. */
-function Bars({ title, qs, k, sel, onSel, cf }: { title: string; qs: Quarter[]; k: keyof Quarter; sel: string; onSel: (e: string) => void; cf?: boolean }) {
+function Bars({ title, qs, k, sel, onSel, cf, ccy = "USD" }: { title: string; qs: Quarter[]; k: keyof Quarter; sel: string; onSel: (e: string) => void; cf?: boolean; /** filing currency */ ccy?: string }) {
   const vals = qs.map((q) => q[k] as number | null);
   const extra = cf ? qs.map((q) => q.fcf) : [];
   const hi = Math.max(0, ...[...vals, ...extra].map((v) => v ?? 0));
@@ -152,23 +153,21 @@ function Bars({ title, qs, k, sel, onSel, cf }: { title: string; qs: Quarter[]; 
   const y = (v: number) => ((hi - v) / span) * H; // px from the top of the plot
   const zero = y(0);
 
-  /* ── ruler ── */
+  /* ── ruler (shared Ctrl + drag measurement hook; T = bar index) ── */
   const boxRef = useRef<HTMLDivElement>(null);
-  const [ruler, setRuler] = useState<{ a: number; b: number; live: boolean; w: number } | null>(null);
-  const idxAt = (clientX: number) => {
-    const r = boxRef.current!.getBoundingClientRect();
-    return Math.min(qs.length - 1, Math.max(0, Math.floor(((clientX - r.left) / r.width) * qs.length)));
-  };
-  const onDown = (e: React.PointerEvent) => {
-    if (!(e.ctrlKey || e.metaKey) || e.button !== 0) { if (ruler && !ruler.live) setRuler(null); return; }
-    e.preventDefault();
-    e.currentTarget.setPointerCapture(e.pointerId);
-    const i = idxAt(e.clientX);
-    setRuler({ a: i, b: i, live: true, w: boxRef.current!.clientWidth });
-  };
-  const onMove = (e: React.PointerEvent) => { if (ruler?.live) setRuler({ ...ruler, b: idxAt(e.clientX) }); };
-  const onUp = () => { if (ruler?.live) setRuler({ ...ruler, live: false }); };
-  const W = ruler?.w ?? 0;
+  const { span: ruler, handlers } = useCtrlMeasure<number>((e) => {
+    const r = e.currentTarget.getBoundingClientRect(); // handlers sit on the bar box itself
+    return Math.min(qs.length - 1, Math.max(0, Math.floor(((e.clientX - r.left) / r.width) * qs.length)));
+  });
+  const [boxW, setBoxW] = useState(0);
+  useEffect(() => {
+    const el = boxRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(([en]) => setBoxW(en.contentRect.width));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  const W = ruler ? boxW : 0;
   const cx = (i: number) => ((i + 0.5) / qs.length) * W;
   const va = ruler ? vals[ruler.a] : null, vb = ruler ? vals[ruler.b] : null;
   const delta = va != null && vb != null ? vb - va : null;
@@ -181,8 +180,7 @@ function Bars({ title, qs, k, sel, onSel, cf }: { title: string; qs: Quarter[]; 
         <span className={LABEL}>{title}</span>
         {cf && <span className="flex items-center gap-1.5 font-mono text-[10px] text-zinc-500"><span className="h-[2px] w-3 bg-oasis" />FREE CASH FLOW = OPERATING CF − CAPEX</span>}
       </div>
-      <div ref={boxRef} onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp}
-        onClickCapture={(e) => { if (e.ctrlKey || e.metaKey) { e.stopPropagation(); e.preventDefault(); } }}
+      <div ref={boxRef} {...handlers}
         className={`relative flex select-none gap-[3px] pt-4 ${ruler?.live ? "cursor-crosshair" : ""}`} style={{ height: H + 46 }}>
         <span className="pointer-events-none absolute inset-x-0 h-px bg-white/[0.12]" style={{ top: PAD + zero }} />
         {qs.map((q) => {
@@ -190,10 +188,10 @@ function Bars({ title, qs, k, sel, onSel, cf }: { title: string; qs: Quarter[]; 
           const on = q.end === sel, neg = v != null && v < 0;
           const top = v == null ? zero : Math.min(y(v), zero), h = v == null ? 0 : Math.max(1, Math.abs(y(v) - zero));
           return (
-            <button key={q.end} type="button" onClick={() => onSel(q.end)} title={`${q.label}: ${big(v)}`} className="group relative min-w-0 flex-1" style={{ height: H + 30 }}>
+            <button key={q.end} type="button" onClick={() => onSel(q.end)} title={`${q.label}: ${big(v, ccy)}`} className="group relative min-w-0 flex-1" style={{ height: H + 30 }}>
               <span className={`absolute inset-x-0 ${neg ? (on ? "bg-rose-400" : "bg-rose-500/55 group-hover:bg-rose-400/80") : on ? "bg-emerald-400" : "bg-emerald-500/45 group-hover:bg-emerald-400/70"}`} style={{ top, height: h }} />
-              {cf && q.fcf != null && <span className="absolute left-[15%] right-[15%] h-[2px] bg-oasis" style={{ top: y(q.fcf) - 1 }} title={`FCF ${big(q.fcf)}`} />}
-              <span className={`absolute inset-x-0 text-center font-mono text-[9px] tabular-nums ${on ? "text-white" : neg ? "text-rose-300/80" : "text-zinc-500"}`} style={{ top: neg ? top + h + 1 : top - 13 }}>{v == null ? "—" : big(v).replace("$", "")}</span>
+              {cf && q.fcf != null && <span className="absolute left-[15%] right-[15%] h-[2px] bg-oasis" style={{ top: y(q.fcf) - 1 }} title={`FCF ${big(q.fcf, ccy)}`} />}
+              <span className={`absolute inset-x-0 text-center font-mono text-[9px] tabular-nums ${on ? "text-white" : neg ? "text-rose-300/80" : "text-zinc-500"}`} style={{ top: neg ? top + h + 1 : top - 13 }}>{v == null ? "—" : big(v, ccy).replace("$", "").replace(` ${ccy}`, "")}</span>
               <span className={`absolute inset-x-0 -bottom-0 truncate text-center font-mono text-[8.5px] tracking-[0.04em] ${on ? "text-emerald-300" : "text-zinc-600"}`} style={{ top: H + 17 }}>{q.label}</span>
             </button>
           );
@@ -216,7 +214,7 @@ function Bars({ title, qs, k, sel, onSel, cf }: { title: string; qs: Quarter[]; 
               </svg>
               <span className="pointer-events-none absolute z-10 -translate-x-1/2 whitespace-nowrap border bg-[var(--oasis-bg)] px-2 py-0.5 font-mono text-[10.5px] font-bold tabular-nums"
                 style={{ left: Math.min(W - 90, Math.max(90, (x1 + x2) / 2)), top: 0, borderColor: tint(0.6), color: accent }}>
-                {qs[ruler.a].label} → {qs[ruler.b].label} · Δ {delta == null ? "—" : `${delta >= 0 ? "+" : "−"}${big(Math.abs(delta))}`} | {dPct == null ? "—" : `${dPct >= 0 ? "+" : "−"}${Math.abs(dPct).toFixed(1)}%`}
+                {qs[ruler.a].label} → {qs[ruler.b].label} · Δ {delta == null ? "—" : `${delta >= 0 ? "+" : "−"}${big(Math.abs(delta), ccy)}`} | {dPct == null ? "—" : `${dPct >= 0 ? "+" : "−"}${Math.abs(dPct).toFixed(1)}%`}
               </span>
             </>
           );
@@ -227,10 +225,12 @@ function Bars({ title, qs, k, sel, onSel, cf }: { title: string; qs: Quarter[]; 
 }
 
 /** Plain-language reasons for the quarter's numbers (from the figures themselves — no guessing) */
-function whyLines(q: Quarter, prev: Quarter | undefined, yago: Quarter | undefined): string[] {
+function whyLines(q: Quarter, prev: Quarter | undefined, yago: Quarter | undefined, ccy = "USD", annualFin = false): string[] {
+  const big = (v: number | null | undefined) => formatMarketValue(v, ccy, { compact: true, digits: 0 });
+  const per = annualFin ? "year" : "quarter";
   const out: string[] = [];
   const revY = chgOf(q.revenue, yago?.revenue ?? null), revQ = chgOf(q.revenue, prev?.revenue ?? null);
-  if (revY != null) out.push(`Revenue ${revY >= 0 ? "grew" : "fell"} ${Math.abs(revY).toFixed(1)}% vs the same quarter last year (${big((q.revenue ?? 0) - (yago?.revenue ?? 0))})${revQ != null ? ` and ${revQ >= 0 ? "rose" : "dropped"} ${Math.abs(revQ).toFixed(1)}% vs the previous quarter` : ""}.`);
+  if (revY != null) out.push(`Revenue ${revY >= 0 ? "grew" : "fell"} ${Math.abs(revY).toFixed(1)}% vs the ${annualFin ? "prior year" : "same quarter last year"} (${big((q.revenue ?? 0) - (yago?.revenue ?? 0))})${revQ != null && !annualFin ? ` and ${revQ >= 0 ? "rose" : "dropped"} ${Math.abs(revQ).toFixed(1)}% vs the previous quarter` : ""}.`);
   const gm = q.grossProfit != null && q.revenue ? (q.grossProfit / q.revenue) * 100 : null;
   const gmY = yago?.grossProfit != null && yago.revenue ? (yago.grossProfit / yago.revenue) * 100 : null;
   if (gm != null && gmY != null) out.push(`Gross margin ${gm >= gmY ? "widened" : "narrowed"} from ${gmY.toFixed(1)}% to ${gm.toFixed(1)}% (${gm - gmY >= 0 ? "+" : "−"}${Math.abs(gm - gmY).toFixed(1)} pp) — ${gm >= gmY ? "each dollar of sales keeps more profit (pricing / mix / lower costs)" : "costs of producing sales grew faster than revenue"}.`);
@@ -242,7 +242,7 @@ function whyLines(q: Quarter, prev: Quarter | undefined, yago: Quarter | undefin
     const gap = q.netIncome - q.operatingIncome;
     if (Math.abs(gap) > Math.abs(q.operatingIncome) * 0.15) out.push(`Net result is ${big(Math.abs(gap))} ${gap > 0 ? "above" : "below"} operating profit — ${gap > 0 ? "interest / investment gains or a tax benefit added to it" : "taxes, interest costs or one-off charges took a bite"}.`);
   }
-  if (q.netIncome != null && q.netIncome < 0) out.push(`The quarter ended with a LOSS of ${big(-q.netIncome)}${q.operatingIncome != null && q.operatingIncome < 0 ? " — the core business itself lost money (operating loss)" : " even though the core business was profitable"}.`);
+  if (q.netIncome != null && q.netIncome < 0) out.push(`The ${per} ended with a LOSS of ${big(-q.netIncome)}${q.operatingIncome != null && q.operatingIncome < 0 ? " — the core business itself lost money (operating loss)" : " even though the core business was profitable"}.`);
   const niY = chgOf(q.netIncome, yago?.netIncome ?? null);
   if (niY != null && q.netIncome != null && q.netIncome > 0 && (yago?.netIncome ?? 0) > 0) out.push(`Net profit ${niY >= 0 ? "up" : "down"} ${Math.abs(niY).toFixed(1)}% y/y.`);
   if (q.ocf != null && q.netIncome != null && q.netIncome > 0) {
@@ -264,10 +264,12 @@ function Financials({ d }: { d: StockData }) {
   const [sel, setSel] = useState<string | null>(null);
   const cur = qs.find((q) => q.end === sel) ?? qs[qs.length - 1];
   if (!d.quarters.length) {
-    return <p className={`${CARD} m-5 p-5 font-mono text-[12px] text-zinc-500`}>No quarterly filings found for {d.ticker} — SEC financial data covers US-listed companies that file 10-Q / 10-K reports.{d.missing.length ? ` (missing: ${d.missing.join(", ")})` : ""}</p>;
+    return <p className={`${CARD} m-5 p-5 font-mono text-[12px] text-zinc-500`}>No XBRL financial statements found for {d.ticker} — SEC data covers companies filing 10-Q / 10-K (US) or 20-F / 40-F (foreign issuers, annual only). Warsaw / non-SEC listings are not covered yet.{d.missing.length ? ` (missing: ${d.missing.join(", ")})` : ""}</p>;
   }
+  const annualFin = d.finPeriod === "annual", fc = d.finCurrency;
   const i = d.quarters.findIndex((q) => q.end === cur.end);
-  const prev = d.quarters[i - 1], yago = d.quarters[i - 4];
+  // annual filers: every row is a year, so "y/y" is the previous row
+  const prev = d.quarters[i - 1], yago = annualFin ? d.quarters[i - 1] : d.quarters[i - 4];
   const er = matchEarnings(cur, d.earnings);
   const rows: [string, number | null, number | null, number | null, boolean?][] = [
     ["REVENUE", cur.revenue, prev?.revenue ?? null, yago?.revenue ?? null],
@@ -286,19 +288,20 @@ function Financials({ d }: { d: StockData }) {
         {/* left: the series */}
         <section className={`${CARD} flex flex-col gap-5 p-4`}>
           <div className="flex items-center gap-2">
-            <span className={`${LABEL} text-zinc-300`}>[ QUARTERLY RESULTS ]</span>
-            <span className="ml-auto font-mono text-[9.5px] tracking-[0.1em] text-zinc-600">CLICK = QUARTER · <span className="text-oasis">CTRL + DRAG = MEASURE</span></span>
+            <span className={`${LABEL} text-zinc-300`}>[ {annualFin ? "ANNUAL" : "QUARTERLY"} RESULTS ]</span>
+            {(annualFin || fc !== "USD") && <span className="border border-oasis/40 px-1.5 font-mono text-[9.5px] font-bold tracking-[0.1em] text-oasis" title="Currency the company reports its financial statements in">[ REPORTED IN {fc} ]</span>}
+            <span className="ml-auto font-mono text-[9.5px] tracking-[0.1em] text-zinc-600">CLICK = {annualFin ? "YEAR" : "QUARTER"} · <span className="text-oasis">CTRL + DRAG = MEASURE</span></span>
           </div>
-          <Bars title="REVENUE" qs={qs} k="revenue" sel={cur.end} onSel={setSel} />
-          <Bars title="NET INCOME · PROFIT / LOSS" qs={qs} k="netIncome" sel={cur.end} onSel={setSel} />
-          <Bars title="OPERATING CASH FLOW" qs={qs} k="ocf" sel={cur.end} onSel={setSel} cf />
+          <Bars ccy={fc} title="REVENUE" qs={qs} k="revenue" sel={cur.end} onSel={setSel} />
+          <Bars ccy={fc} title="NET INCOME · PROFIT / LOSS" qs={qs} k="netIncome" sel={cur.end} onSel={setSel} />
+          <Bars ccy={fc} title="OPERATING CASH FLOW" qs={qs} k="ocf" sel={cur.end} onSel={setSel} cf />
           <div className={`mt-auto flex flex-wrap items-center gap-3 border-t ${B} pt-3`}>
             <span className="flex gap-1">
               {RANGES.map((r) => (
-                <button key={r} type="button" onClick={() => setRange(r)} className={`h-6 border px-2 font-mono text-[10px] font-bold ${range === r ? "oasis-on" : `${B} text-zinc-500 hover:text-zinc-200`}`}>[ {r === 20 ? "5Y" : `${r}Q`} ]</button>
+                <button key={r} type="button" onClick={() => setRange(r)} className={`h-6 border px-2 font-mono text-[10px] font-bold ${range === r ? "oasis-on" : `${B} text-zinc-500 hover:text-zinc-200`}`}>[ {annualFin ? `${r}Y` : r === 20 ? "5Y" : `${r}Q`} ]</button>
               ))}
             </span>
-            <span className="ml-auto font-mono text-[9.5px] tracking-[0.06em] text-zinc-600">SRC: SEC 10-Q / 10-K (XBRL) · Q4 &amp; CASH-FLOW QUARTERS DERIVED FROM YTD TOTALS</span>
+            <span className="ml-auto font-mono text-[9.5px] tracking-[0.06em] text-zinc-600">{annualFin ? "SRC: SEC 20-F (XBRL) · FOREIGN FILER — QUARTERLY 6-K REPORTS ARE NOT XBRL-TAGGED" : "SRC: SEC 10-Q / 10-K (XBRL) · Q4 & CASH-FLOW QUARTERS DERIVED FROM YTD TOTALS"}</span>
           </div>
         </section>
 
@@ -310,14 +313,14 @@ function Financials({ d }: { d: StockData }) {
             {cur.netIncome != null && <span className={`ml-auto border px-2 py-0.5 font-mono text-[10px] font-bold tracking-[0.1em] ${cur.netIncome >= 0 ? "border-emerald-500/40 text-emerald-300" : "border-rose-500/40 text-rose-300"}`}>{cur.netIncome >= 0 ? "PROFIT" : "LOSS"}</span>}
           </div>
           <table className="w-full border-collapse font-mono text-[12px] tabular-nums">
-            <thead><tr className={`border-b ${B} text-[9.5px] tracking-[0.12em] text-zinc-600`}><th className="py-1.5 text-left font-semibold">LINE</th><th className="py-1.5 text-right font-semibold">VALUE</th><th className="py-1.5 text-right font-semibold">MARGIN</th><th className="py-1.5 text-right font-semibold">Q/Q</th><th className="py-1.5 text-right font-semibold">Y/Y</th></tr></thead>
+            <thead><tr className={`border-b ${B} text-[9.5px] tracking-[0.12em] text-zinc-600`}><th className="py-1.5 text-left font-semibold">LINE</th><th className="py-1.5 text-right font-semibold">VALUE</th><th className="py-1.5 text-right font-semibold">MARGIN</th>{!annualFin && <th className="py-1.5 text-right font-semibold">Q/Q</th>}<th className="py-1.5 text-right font-semibold">Y/Y</th></tr></thead>
             <tbody>
               {rows.map(([k, v, p, y, isEps]) => (
                 <tr key={k} className={`border-b ${B}`}>
                   <td className="py-1.5 text-[10.5px] tracking-[0.06em] text-zinc-400">{k}</td>
-                  <td className={`py-1.5 text-right font-semibold ${v != null && v < 0 ? "text-rose-400" : "text-zinc-100"}`}>{isEps ? (v != null ? `${v < 0 ? "−" : ""}$${Math.abs(v).toFixed(2)}` : "—") : big(v)}</td>
+                  <td className={`py-1.5 text-right font-semibold ${v != null && v < 0 ? "text-rose-400" : "text-zinc-100"}`}>{isEps ? formatMarketValue(v, fc) : big(v, fc)}</td>
                   <td className="py-1.5 text-right text-zinc-500">{isEps || k === "REVENUE" ? "" : margin(v)}</td>
-                  <td className={`py-1.5 text-right ${tone(chgOf(v, p))}`}>{pct(chgOf(v, p))}</td>
+                  {!annualFin && <td className={`py-1.5 text-right ${tone(chgOf(v, p))}`}>{pct(chgOf(v, p))}</td>}
                   <td className={`py-1.5 text-right ${tone(chgOf(v, y))}`}>{pct(chgOf(v, y))}</td>
                 </tr>
               ))}
@@ -367,7 +370,7 @@ function Financials({ d }: { d: StockData }) {
           })()}
           <div className="flex flex-col gap-1.5">
             <span className={LABEL}>[ WHY ]</span>
-            {whyLines(cur, prev, yago).map((l, k) => (
+            {whyLines(cur, prev, yago, fc, annualFin).map((l, k) => (
               <p key={k} className="m-0 flex gap-2 font-sans text-[13px] leading-snug text-zinc-200"><span className="font-mono text-emerald-400">›</span>{l}</p>
             ))}
             <span className="font-mono text-[9.5px] tracking-[0.06em] text-zinc-600">COMPUTED FROM THE REPORTED FIGURES · NOT ADVICE</span>
@@ -479,6 +482,12 @@ function InEtfs({ d, held }: { d: StockData; held: { etf: string; name: string; 
     <div className="grid grid-cols-1 gap-4 px-5 pb-12 pt-5 xl:grid-cols-12">
       <section className={`${CARD} flex flex-col p-4 xl:col-span-8`}>
         <span className={`${LABEL} mb-2 text-zinc-300`}>[ ETFS HOLDING {d.ticker} · {held.length} ]</span>
+        {held.length === 0 && (
+          <p className="m-0 py-3 font-mono text-[11.5px] leading-relaxed text-zinc-500">
+            None of the {ETFS.length} ETFs in the OASIS database lists {d.ticker} among its tracked holdings. Fund profiles cover each ETF&apos;s largest positions,
+            so funds that hold {d.ticker} as a small weight (e.g. broad communication-services or total-market ETFs outside the database) are not shown.
+          </p>
+        )}
         {held.map((h) => (
           <Link key={h.etf} href={`/etf/${h.etf}`} className={`grid grid-cols-[64px_minmax(0,1fr)_minmax(0,1.2fr)_64px] items-center gap-3 border-b ${B} py-2 font-mono text-[12px] tabular-nums hover:bg-white/[0.03]`}>
             <span className="font-bold text-zinc-100">{h.etf}</span>

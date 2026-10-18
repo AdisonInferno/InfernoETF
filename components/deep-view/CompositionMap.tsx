@@ -276,14 +276,14 @@ function SelectionBar({ x, onShowChart }: { x: Explorer; onShowChart: () => void
   const r = x.selectedRow;
   if (!r) {
     return (
-      <div className="flex h-9 items-center px-1 font-mono text-[10.5px] tracking-[0.06em] text-zinc-600">
+      <div className="flex h-7 flex-none items-center px-1 font-mono text-[10.5px] tracking-[0.06em] text-zinc-600">
         Click a tile or a table row to select a holding · click a sector name to filter
       </div>
     );
   }
   const plotted = x.plotted.has(r.tic);
   return (
-    <div className="flex min-h-9 flex-wrap items-center gap-x-4 gap-y-1 rounded-sm border border-oasis/30 bg-oasis-muted px-3 py-1.5 font-mono text-[11px] tabular-nums">
+    <div className="flex min-h-7 flex-none flex-wrap items-center gap-x-4 gap-y-1 rounded-sm border border-oasis/30 bg-oasis-muted px-3 py-1 font-mono text-[11px] tabular-nums">
       <span className="text-[13px] font-bold text-white">{r.tic}</span>
       <span className="min-w-0 max-w-[260px] truncate font-display text-zinc-300">{r.name}</span>
       <span className="text-zinc-400"><span className="text-zinc-600">SECTOR </span>{r.parent} › {r.sub}</span>
@@ -305,7 +305,8 @@ function SelectionBar({ x, onShowChart }: { x: Explorer; onShowChart: () => void
 /* ── Workspace ─────────────────────────────────────────────── */
 
 /** `main` = the line the holdings are compared against (default: the ETF itself; the portfolio passes its basket) */
-export default function CompositionMap({ fund, main }: { fund: FundData; main?: MainDef }) {
+/** `fill`: fit the parent's height with no scrolling (ETF deep view); without it the workspace uses fixed heights (portfolio page) */
+export default function CompositionMap({ fund, main, fill = false }: { fund: FundData; main?: MainDef; fill?: boolean }) {
   const [mode, setMode] = useState<Mode>("COMPOSITION");
   const [period, setPeriod] = useState<CompPeriod>("1Y");
   const tickers = useMemo(() => fund.holdings.filter((h) => h.w > 0).map((h) => h.tic), [fund.holdings]);
@@ -317,9 +318,9 @@ export default function CompositionMap({ fund, main }: { fund: FundData; main?: 
   const showChart = () => setOpen((o) => ({ ...o, chart: true }));
 
   return (
-    <div className="flex min-w-0 flex-none flex-col gap-2.5 px-3 pb-6 pt-4">
+    <div className={`flex min-w-0 flex-col px-3 ${fill ? "gap-2 pb-6 pt-3 lg:h-full lg:min-h-0 lg:overflow-hidden lg:pb-3" : "flex-none gap-2.5 pb-6 pt-4"}`}>
       {/* Toolbar: mode · period · coverage */}
-      <div className="oasis-glass flex flex-wrap items-center gap-x-4 gap-y-2 border border-white/[0.06] bg-[var(--oasis-panel)] px-3 py-2">
+      <div className="oasis-glass flex flex-none flex-wrap items-center gap-x-4 gap-y-1.5 border border-white/[0.05] bg-[var(--oasis-panel)] px-3 py-1.5">
         <div role="tablist" aria-label="Map mode" className="flex flex-none rounded-sm border border-white/[0.06] bg-[var(--oasis-bg)] p-0.5">
           {(["COMPOSITION", "PERFORMANCE"] as const).map((m) => (
             <button key={m} type="button" role="tab" aria-selected={mode === m} onClick={() => setMode(m)}
@@ -337,7 +338,7 @@ export default function CompositionMap({ fund, main }: { fund: FundData; main?: 
 
       <SelectionBar x={x} onShowChart={showChart} />
       {x.filter !== "ALL" && (
-        <div className="flex items-center gap-2 font-mono text-[10.5px]">
+        <div className="flex flex-none items-center gap-2 font-mono text-[10.5px]">
           <span className="text-zinc-500">FILTERED TO</span>
           <button type="button" onClick={() => x.setFilter("ALL")} className="oasis-on rounded-sm border px-2 py-0.5 font-bold tracking-[0.06em]">{x.filterLabel} ×</button>
           <button type="button" onClick={() => x.setFilter("ALL")} className="text-zinc-500 underline-offset-2 hover:text-white hover:underline">show full composition</button>
@@ -345,7 +346,7 @@ export default function CompositionMap({ fund, main }: { fund: FundData; main?: 
       )}
 
       {/* Map (primary) | holdings table */}
-      <div className="flex h-[calc(100dvh-360px)] min-h-[520px] flex-none gap-3 max-lg:h-auto max-lg:flex-col">
+      <div className={`flex gap-3 max-lg:h-auto max-lg:flex-col ${fill ? "min-h-[520px] lg:min-h-0 lg:flex-1" : "h-[calc(100dvh-360px)] min-h-[520px] flex-none"}`}>
         <div className="flex min-w-0 max-lg:h-[460px]" style={{ flex: open.map ? "1.4 1 0px" : "0 0 40px" }}>
           <Panel title="MAP" meta={mode === "COMPOSITION" ? "BY SECTOR" : `${period} RETURN`} weight={1} axis="x" expanded={open.map} onToggle={() => flip("map")}>
             <div className="h-full p-2"><HoldingsMap x={x} mode={mode} /></div>
@@ -366,7 +367,8 @@ export default function CompositionMap({ fund, main }: { fund: FundData; main?: 
       </div>
 
       {/* Relative performance: contextual — collapsed until asked for (or a holding is sent to it) */}
-      <div className="flex flex-col" style={{ height: open.chart ? 480 : HEADER_H }}>
+      {/* fill: the open chart takes ~45% of the height and the map / table shrink — still no scrolling */}
+      <div className="flex flex-none flex-col" style={{ height: open.chart ? (fill ? "45%" : 480) : HEADER_H }}>
         <Panel
           title={`RELATIVE PERFORMANCE · ${period}`}
           meta={`${main?.label ?? fund.tic} vs ${x.shown.length ? x.shown.map((h) => h.tic).join(", ") : "no holdings plotted"} · % FROM START OF WINDOW`}

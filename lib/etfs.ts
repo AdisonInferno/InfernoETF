@@ -39,7 +39,7 @@ export interface EtfRow {
 }
 
 export const CATEGORIES: { id: CategoryId | "all" | "trending"; label: string; icon: string }[] = [
-  { id: "all", label: "ETFS", icon: "∑" },
+  { id: "all", label: "ALL", icon: "∑" },
   { id: "trending", label: "TRENDING", icon: "🔥" },
   { id: "indexes", label: "INDEXES", icon: "📊" },
   { id: "ai-tech", label: "AI & TECH", icon: "🤖" },

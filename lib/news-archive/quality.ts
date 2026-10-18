@@ -35,6 +35,7 @@ const MANUAL: Record<string, string[]> = {
   AMD: ["amd", "advanced micro"], BRK: ["berkshire"], "BRK.B": ["berkshire"], MSFT: ["microsoft"], AAPL: ["apple"],
   AMZN: ["amazon", "aws"], TSLA: ["tesla"], LLY: ["eli lilly", "lilly"], XOM: ["exxon"], CVX: ["chevron"],
   UNH: ["unitedhealth"], MA: ["mastercard"], V: ["visa"], PLTR: ["palantir"], MU: ["micron"], ORCL: ["oracle"],
+  SPOT: ["spotify"],
 };
 
 const aliases: Record<string, string[]> = (() => {
@@ -54,6 +55,21 @@ const aliases: Record<string, string[]> = (() => {
   for (const [t, a] of Object.entries(MANUAL)) out[t] ??= a;
   return out;
 })();
+
+/** Aliases for a ticker outside the ETF holdings (a stock the user opened). Returns true when something new was added
+ *  — the caller must then drop the cleaned-article cache so relevance is recomputed. */
+export function registerAliases(ticker: string, name: string): boolean {
+  const t = ticker.toUpperCase();
+  const clean = name.replace(STRIP, " ").replace(/[.,]/g, " ").replace(/\s+/g, " ").trim().toLowerCase();
+  const first = clean.split(" ")[0];
+  const next = new Set(aliases[t] ?? []);
+  const before = next.size;
+  if (clean.length >= 4 && clean !== t.toLowerCase()) next.add(clean);
+  if (first.length >= 4 && !GENERIC_FIRST.has(first)) next.add(first);
+  if (next.size === before) return false;
+  aliases[t] = [...next];
+  return true;
+}
 
 const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 

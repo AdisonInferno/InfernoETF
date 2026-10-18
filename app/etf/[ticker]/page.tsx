@@ -7,7 +7,7 @@ import { buildFund, DEEP_VIEW_TICKERS } from "@/components/deep-view/buildFund";
 type Params = { params: Promise<{ ticker: string }> };
 /** ?tf= — opened from the market map on this timeframe */
 type PageArgs = Params & { searchParams: Promise<{ tf?: string | string[] }> };
-const OPEN_TFS = new Set(["1D", "1W", "1M", "3M", "YTD", "1Y", "3Y", "5Y", "MAX"]);
+const OPEN_TFS = new Set(["1D", "1W", "1M", "3M", "6M", "YTD", "1Y", "3Y", "5Y", "MAX"]);
 
 // Pre-render a Deep View page for every ETF in the scanner.
 export function generateStaticParams() {

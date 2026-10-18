@@ -58,7 +58,7 @@ function SectorBreakdown({ fund }: { fund: FundData }) {
         <span className={H_LABEL}>SECTOR &amp; SUB-SECTOR BREAKDOWN</span>
         <span className="whitespace-nowrap text-[9.5px] text-gray-600">AUM {aumFmt(fund.aumB)} · {nSecs} SECTORS · {fund.sectors.length} SUB-SECTORS</span>
       </div>
-      <div ref={ref} onMouseLeave={() => setTip(null)} className="relative min-h-[260px] flex-1 overflow-hidden rounded-sm border border-white/[0.03] bg-[var(--oasis-bg)]">
+      <div ref={ref} onMouseLeave={() => setTip(null)} className="relative min-h-[200px] flex-1 overflow-hidden rounded-sm border border-white/[0.03] bg-[var(--oasis-bg)] lg:min-h-0">
         {tiles.map((sc) => (
           <div key={sc.name} className="absolute box-border overflow-hidden border" style={{ left: sc.x, top: sc.y, width: sc.w, height: sc.h, borderColor: sc.bc, background: sc.bg }}>
             {sc.lbl && <span className="pointer-events-none absolute left-2 top-1 z-[1] whitespace-nowrap text-[9.5px] font-bold tracking-[0.16em]" style={{ color: sc.lc }}>{sc.name} · {sc.pct}</span>}
@@ -100,8 +100,8 @@ function TopHoldings({ fund }: { fund: FundData }) {
   const maxW = fund.holdings[0].w;
   const top10 = fund.holdings.slice(0, 10).reduce((a, h) => a + h.w, 0);
   return (
-    <div className={`flex h-full min-w-0 flex-col justify-between ${CARD}`}>
-      <div className="flex flex-col gap-2.5 p-3 font-mono tabular-nums">
+    <div className={`flex min-h-0 min-w-0 flex-col ${CARD}`}>
+      <div className="flex min-h-0 flex-col gap-2 p-3 font-mono tabular-nums">
         <div className="flex items-baseline justify-between gap-2">
           <span className={H_LABEL}>TOP 10 HOLDINGS</span>
           <span className="whitespace-nowrap text-[9.5px] text-gray-600">{fund.positions} POS · TOP10 {top10.toFixed(1)}% · AS OF 09-25</span>
@@ -109,9 +109,10 @@ function TopHoldings({ fund }: { fund: FundData }) {
         <div className="grid grid-cols-[20px_52px_minmax(0,1fr)_48px] gap-2.5 border-b border-gray-900 pb-[5px] text-[9px] font-bold tracking-[0.16em] text-gray-600">
           <span>#</span><span>TICKER</span><span /><span className="text-right">WT %</span>
         </div>
-        <div className="-mt-1 flex flex-col">
+        {/* expanded list scrolls inside the card; the default top 10 fits without scrolling */}
+        <div className={`-mt-1 flex flex-col ${exp ? "max-h-[40vh] overflow-y-auto" : ""}`}>
           {rows.map((h, i) => (
-            <div key={h.tic} title={h.name} className="grid h-5 flex-none grid-cols-[20px_52px_minmax(0,1fr)_48px] items-center gap-2.5 hover:bg-[var(--oasis-bg)]">
+            <div key={h.tic} title={h.name} className="grid h-[19px] flex-none grid-cols-[20px_52px_minmax(0,1fr)_48px] items-center gap-2.5 hover:bg-[var(--oasis-bg)]">
               <span className="text-[9.5px] text-gray-600">{String(i + 1).padStart(2, "0")}</span>
               <Link href={`/stock/${h.tic}`} className="text-[11px] font-bold text-neutral-200 hover:text-emerald-300">{h.tic}</Link>
               <div className="h-[3px] bg-gray-900"><div className="h-full bg-neutral-300 opacity-75" style={{ width: ((h.w / maxW) * 100).toFixed(1) + "%" }} /></div>
@@ -182,18 +183,35 @@ function CatalystMatrix({ note, ticker }: { note: string; ticker: string }) {
   );
 }
 
+type SideTab = "SECTORS" | "REGIONS" | "NOTE";
+
+/** Zero-scroll Overview (lg+): chart + metric strip fill the left; the right column holds the top holdings and,
+ *  under a compact tab switch, the sector map / regions / desk note — every panel is still there, one at a time. */
 export default function Overview({ fund, initialTf }: { fund: FundData; onUpgrade?: () => void; initialTf?: ChartTf }) {
+  const [side, setSide] = useState<SideTab>("SECTORS");
   return (
-    <div className="flex flex-none flex-col gap-4 px-5 pb-10 pt-4">
-      <PriceChart fund={fund} initialTf={initialTf} />
-      <div className="grid grid-cols-1 items-stretch gap-4 lg:grid-cols-12">
-        <div className="min-w-0 lg:col-span-8"><SectorBreakdown fund={fund} /></div>
-        <div className="min-w-0 lg:col-span-4"><TopHoldings fund={fund} /></div>
+    <div className="flex flex-col gap-3 px-4 pb-6 pt-3 lg:h-full lg:min-h-0 lg:flex-row lg:pb-3">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+        <PriceChart fund={fund} initialTf={initialTf} fill />
       </div>
-      <div className="grid grid-cols-1 items-stretch gap-4 lg:grid-cols-12">
-        <div className="min-w-0 lg:col-span-8"><GeoAllocation fund={fund} /></div>
-        <div className="min-w-0 lg:col-span-4"><CatalystMatrix note={fund.aiNote} ticker={fund.tic} /></div>
-      </div>
+      <aside className="flex min-h-0 min-w-0 flex-col gap-3 lg:w-[400px] lg:flex-none xl:w-[460px]">
+        <TopHoldings fund={fund} />
+        <div className="flex min-h-[320px] flex-1 flex-col gap-1.5 lg:min-h-0">
+          <div role="tablist" aria-label="Fund breakdown" className="flex flex-none rounded-sm border border-white/[0.05] bg-[var(--oasis-panel)] p-0.5 font-mono">
+            {(["SECTORS", "REGIONS", "NOTE"] as const).map((k) => (
+              <button key={k} type="button" role="tab" aria-selected={side === k} onClick={() => setSide(k)}
+                className={`h-6 flex-1 rounded-sm text-[10px] font-bold tracking-[0.12em] ${side === k ? "bg-oasis-muted text-oasis" : "text-zinc-500 hover:text-zinc-200"}`}>
+                {k === "NOTE" ? "DESK NOTE" : k}
+              </button>
+            ))}
+          </div>
+          <div className="flex min-h-0 flex-1 flex-col">
+            {side === "SECTORS" && <SectorBreakdown fund={fund} />}
+            {side === "REGIONS" && <GeoAllocation fund={fund} />}
+            {side === "NOTE" && <CatalystMatrix note={fund.aiNote} ticker={fund.tic} />}
+          </div>
+        </div>
+      </aside>
     </div>
   );
 }

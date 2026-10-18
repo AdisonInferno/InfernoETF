@@ -12,8 +12,8 @@ import { snapLoaded, useSnapshot } from "@/lib/market-snapshot";
 
 export type RetPeriod = "1D" | "1W" | "2W" | "1M" | "3M" | "6M" | "YTD" | "1Y" | "3Y" | "5Y";
 /** Composition Map periods (all of them are also terminal-chart timeframes) */
-export type CompPeriod = Exclude<RetPeriod, "1W" | "2W">;
-export const RET_PERIODS: CompPeriod[] = ["1D", "1M", "3M", "6M", "YTD", "1Y", "3Y", "5Y"];
+export type CompPeriod = Exclude<RetPeriod, "2W">;
+export const RET_PERIODS: CompPeriod[] = ["1D", "1W", "1M", "3M", "6M", "YTD", "1Y", "3Y", "5Y"];
 /** colour-scale half-width (± % that reaches full colour) per period */
 export const RET_SCALE: Record<RetPeriod, number> = { "1D": 3, "1W": 6, "2W": 8, "1M": 10, "3M": 20, "6M": 30, YTD: 35, "1Y": 50, "3Y": 100, "5Y": 150 };
 export const PERIOD_LABEL: Record<RetPeriod, string> = { "1D": "1-day", "1W": "1-week", "2W": "2-week", "1M": "1-month", "3M": "3-month", "6M": "6-month", YTD: "year-to-date", "1Y": "1-year", "3Y": "3-year (cumulative)", "5Y": "5-year (cumulative)" };

@@ -67,7 +67,7 @@ const ModelBadge = ({ why }: { why: string }) => (
 
 /* ── PERFORMANCE ───────────────────────────────────────────── */
 
-function Performance({ fund, main }: { fund: FundData; main: MainDef }) {
+function Performance({ fund, main, fill }: { fund: FundData; main: MainDef; fill: boolean }) {
   const ccy = fund.meta.find(([k]) => k === "CURRENCY")?.[1];
   const pinned = useMemo(() => [
     { id: "SPY", label: "S&P 500 (SPY)", sym: "SPY", color: "#a1a1aa", dashed: true },
@@ -75,15 +75,15 @@ function Performance({ fund, main }: { fund: FundData; main: MainDef }) {
   ].filter((l) => l.sym !== main.sym), [fund.alts, main.sym]);
   const picker = useMemo(() => fund.holdings.slice(0, 30).map((h) => ({ sym: h.tic, label: h.tic, sub: `${h.w.toFixed(2)}% · ${h.name}` })), [fund.holdings]);
   return (
-    <div className={`flex flex-col gap-2 p-3 ${CARD}`}>
-      <div className="flex flex-wrap items-baseline justify-between gap-2 font-mono">
+    <div className={`flex flex-col gap-2 p-3 ${CARD} ${fill ? "min-h-[560px] lg:h-full lg:min-h-0" : ""}`}>
+      <div className="flex flex-none flex-wrap items-baseline justify-between gap-2 font-mono">
         <span className={H_LABEL}>{main.label} VS BENCHMARK</span>
         <span className="flex flex-wrap items-center gap-2 text-[9.5px] tracking-[0.08em] text-zinc-500">
           <span title="In % mode every line starts at 0% on the first visible bar, so lines are directly comparable">% MODE = REBASED TO THE FIRST VISIBLE BAR · PRICE RETURN</span>
           {ccy && ccy !== "USD" && <span className="rounded-sm bg-amber-400/10 px-1.5 py-px font-bold text-amber-300" title={`${main.label} trades in ${ccy}; the S&P 500 line is in USD — the gap includes currency moves`}>{ccy} VS USD</span>}
         </span>
       </div>
-      <div className="h-[560px]">
+      <div className={fill ? "min-h-0 flex-1" : "h-[560px]"}>
         <InfernoChart key={main.id} main={main} pinned={pinned} picker={picker} groupLabel="LOWER-TER PEERS" initialTf="5Y" initialUnit="PCT" stats />
       </div>
     </div>
@@ -416,27 +416,35 @@ function BreadthChart() {
 
 /* ── Tab ───────────────────────────────────────────────────── */
 
-/** `main` = the analysed line (default: the ETF itself; the portfolio passes its basket). */
-export default function ChartsTab({ fund, main: mainProp }: { fund: FundData; main?: MainDef }) {
+/** `main` = the analysed line (default: the ETF itself; the portfolio passes its basket).
+ *  `fill` = fit the parent's height (ETF deep view): vertical analysis rail on the left, the chart takes the rest. */
+export default function ChartsTab({ fund, main: mainProp, fill = false }: { fund: FundData; main?: MainDef; fill?: boolean }) {
   const [group, setGroup] = usePersisted<Group>("oasis.charts.group.v1", DEFAULT_GROUP);
   const main = useMemo<MainDef>(() => mainProp ?? { id: fund.tic, label: fund.tic, sym: fund.tic, color: "#f87171" }, [mainProp, fund.tic]);
   const g = GROUPS.find(([k]) => k === group) ?? GROUPS[0];
   return (
-    <div className="flex min-w-0 flex-none flex-col gap-3 px-3 pb-8 pt-4">
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-        <div role="tablist" aria-label="Analysis" className="flex flex-wrap rounded-sm border border-white/[0.06] bg-[var(--oasis-panel)] p-0.5">
-          {GROUPS.map(([k, l, hint]) => (
-            <button key={k} type="button" role="tab" aria-selected={group === k} title={hint} onClick={() => setGroup(k)}
-              className={`h-7 rounded-sm px-3 font-mono text-[11px] font-bold tracking-[0.1em] ${group === k ? "oasis-on" : "text-zinc-500 hover:text-zinc-200"}`}>{l}</button>
-          ))}
-        </div>
-        <span className="font-mono text-[10.5px] text-zinc-500">{g[2]}</span>
+    <div className={`flex min-w-0 max-md:flex-col ${fill ? "lg:h-full lg:min-h-0 lg:overflow-hidden" : "flex-none"}`}>
+      {/* analysis rail */}
+      <nav role="tablist" aria-label="Analysis" aria-orientation="vertical"
+        className="flex flex-none gap-1 border-white/10 p-2 font-mono max-md:flex-wrap max-md:border-b md:w-44 md:flex-col md:border-r xl:w-48">
+        {GROUPS.map(([k, l, hint]) => (
+          <button key={k} type="button" role="tab" aria-selected={group === k} title={hint} onClick={() => setGroup(k)}
+            className={group === k
+              ? "border-l-2 border-oasis bg-oasis/5 px-2 py-1.5 text-left text-xs font-semibold text-oasis"
+              : "border-l-2 border-transparent px-2 py-1.5 text-left text-xs text-zinc-500 transition-colors hover:text-zinc-300"}>
+            {l}
+          </button>
+        ))}
+        <p className="m-0 mt-2 hidden px-2 text-[10px] leading-snug text-zinc-600 md:block">{g[2]}</p>
+      </nav>
+      {/* analysis canvas */}
+      <div className={`flex min-w-0 flex-1 flex-col gap-3 p-3 ${fill ? `lg:h-full lg:min-h-0 ${g[0] === "PERF" ? "lg:overflow-hidden" : "lg:overflow-y-auto"}` : "pb-8"}`}>
+        {g[0] === "PERF" && <Performance fund={fund} main={main} fill={fill} />}
+        {g[0] === "RISK" && <RiskDrawdown fund={fund} main={main} />}
+        {g[0] === "ANNUAL" && <AnnualMonthly fund={fund} main={main} />}
+        {g[0] === "INCOME" && <Income fund={fund} />}
+        {g[0] === "MARKET" && <BreadthChart />}
       </div>
-      {g[0] === "PERF" && <Performance fund={fund} main={main} />}
-      {g[0] === "RISK" && <RiskDrawdown fund={fund} main={main} />}
-      {g[0] === "ANNUAL" && <AnnualMonthly fund={fund} main={main} />}
-      {g[0] === "INCOME" && <Income fund={fund} />}
-      {g[0] === "MARKET" && <BreadthChart />}
     </div>
   );
 }

@@ -43,6 +43,8 @@ let known: Map<string, ArchivedArticle> | null = null;
 let loading: Promise<Map<string, ArchivedArticle>> | null = null;
 /** Cleaned view (deduped, relevance-checked, quality-flagged); rebuilt after new saves. */
 let cleaned: CleanArticle[] | null = null;
+/** recompute relevance on the next query (e.g. after new company aliases were registered) */
+export const invalidateCleaned = () => { cleaned = null; };
 async function cleanView(): Promise<CleanArticle[]> {
   cleaned ??= cleanArticles((await loadIndex()).values());
   return cleaned;

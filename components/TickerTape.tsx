@@ -47,8 +47,8 @@ const INDICATORS: Indicator[] = [
 ];
 
 /** Long-term investor default: broad equity, rates, then a few macro gauges. */
-const DEFAULT_IDS = ["spx", "world", "ndx", "sx5e", "us10y", "us30y", "vix", "usd", "gold"];
-const PREF_KEY = "oasis.markets.v1";
+const DEFAULT_IDS = ["spx", "world", "ndx", "sx5e", "nikkei", "us10y", "us30y", "vix", "usd", "oil", "gold", "silver"];
+const PREF_KEY = "oasis.markets.v2"; // v2: new defaults (Nikkei, crude oil, silver)
 const DEFAULT_PREF: { ids: string[]; collapsed: boolean } = { ids: DEFAULT_IDS, collapsed: false };
 
 /* Inline SVG flags — Windows does not render flag emoji. */
