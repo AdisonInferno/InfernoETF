@@ -2,6 +2,13 @@
 
 _Generowany automatycznie z historii git. Zmiany oddalone o mniej niż godzinę = jedna sesja._
 
+## poniedziałek, 19 października 2026
+
+### Sesja #20 · 00:38–01:05 · 2 zmian · AdisonInferno
+
+- `01:05` Charts: measure tool, candles, standard timeframes, compare asset; zero-scroll deep view; SPOT data
+- `00:38` Dziennik zmian
+
 ## niedziela, 18 października 2026
 
 ### Sesja #19 · 22:51–23:37 · 4 zmian · AdisonInferno
