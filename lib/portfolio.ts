@@ -179,6 +179,23 @@ function holdingsOf(a: Asset): Record<string, number> {
   return out;
 }
 
+export interface EtfOverlap { a: string; b: string; shared: number; pct: number; top: string[] }
+
+/** Every pair of ETFs in the portfolio that hold the same stocks: number of shared names and the
+ *  weight overlap (sum of the smaller weight of each shared name, % of fund). Sorted by overlap. */
+export function etfOverlaps(positions: Position[]): EtfOverlap[] {
+  const etfs = positions.filter((p) => p.asset.kind === "etf" && PROFILE_OF[p.asset.ticker]);
+  const out: EtfOverlap[] = [];
+  for (let i = 0; i < etfs.length; i++) for (let j = i + 1; j < etfs.length; j++) {
+    const ha = holdingsOf(etfs[i].asset), hb = holdingsOf(etfs[j].asset);
+    const common = Object.keys(ha).filter((k) => hb[k]).sort((x, y) => Math.min(hb[y], ha[y]) - Math.min(hb[x], ha[x]));
+    if (!common.length) continue;
+    const pct = common.reduce((t, k) => t + Math.min(ha[k], hb[k]), 0);
+    out.push({ a: etfs[i].asset.ticker, b: etfs[j].asset.ticker, shared: common.length, pct, top: common.slice(0, 4) });
+  }
+  return out.sort((x, y) => y.pct - x.pct);
+}
+
 export interface Roast {
   score: number;
   tier: string;

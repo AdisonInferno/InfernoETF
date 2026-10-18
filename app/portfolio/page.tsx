@@ -1,5 +1,6 @@
 "use client";
 
+import { OverlapNotice } from "@/components/RiskNotice";
 import { currencyOf, formatMarketValue } from "@/lib/format";
 import Link from "next/link";
 import { AnimatePresence, LayoutGroup, motion, useReducedMotion, type Variants } from "framer-motion";
@@ -649,6 +650,9 @@ export default function PortfolioPage() {
               </motion.div>
             )}
 
+            {/* ETF overlap note (dismissible) — overview and deep view; clicks on it don't open the deep view */}
+            {(!isDeep || pfTab === "OV") && <div onClick={(e) => e.stopPropagation()} className="flex flex-none flex-col"><OverlapNotice positions={livePos} /></div>}
+
             {/* Deep view tabs — same as an ETF's deep view */}
             {isExpanded && (
               <nav className="-mt-1 flex flex-wrap gap-x-8 border-b border-white/[0.06]" onClick={(e) => e.stopPropagation()}>
@@ -663,7 +667,7 @@ export default function PortfolioPage() {
 
             {isExpanded && pfTab !== "OV" ? (
               <div onClick={(e) => e.stopPropagation()} className="flex min-w-0 flex-col gap-3">
-                {pfTab === "MAP" && <><SectorOverlap positions={livePos} /><CompositionMap fund={pfFund} main={chartMain} /></>}
+                {pfTab === "MAP" && <><OverlapNotice positions={livePos} /><SectorOverlap positions={livePos} /><CompositionMap fund={pfFund} main={chartMain} /></>}
                 {pfTab === "SEAS" && <ChartsTab fund={pfFund} main={chartMain} />}
                 {pfTab === "NEWS" && <LookThroughFeed items={pItems} />}
                 {pfTab === "AN" && (

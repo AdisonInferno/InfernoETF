@@ -306,7 +306,7 @@ function SelectionBar({ x, onShowChart }: { x: Explorer; onShowChart: () => void
 
 /** `main` = the line the holdings are compared against (default: the ETF itself; the portfolio passes its basket) */
 /** `fill`: fit the parent's height with no scrolling (ETF deep view); without it the workspace uses fixed heights (portfolio page) */
-export default function CompositionMap({ fund, main, fill = false }: { fund: FundData; main?: MainDef; fill?: boolean }) {
+export default function CompositionMap({ fund, main, fill = false, notice }: { fund: FundData; main?: MainDef; fill?: boolean; /** risk note shown under the toolbar */ notice?: ReactNode }) {
   const [mode, setMode] = useState<Mode>("COMPOSITION");
   const [period, setPeriod] = useState<CompPeriod>("1Y");
   const tickers = useMemo(() => fund.holdings.filter((h) => h.w > 0).map((h) => h.tic), [fund.holdings]);
@@ -336,6 +336,7 @@ export default function CompositionMap({ fund, main, fill = false }: { fund: Fun
         <div className="w-full border-t border-white/[0.05] pt-1.5"><Legend x={x} mode={mode} /></div>
       </div>
 
+      {notice}
       <SelectionBar x={x} onShowChart={showChart} />
       {x.filter !== "ALL" && (
         <div className="flex flex-none items-center gap-2 font-mono text-[10.5px]">

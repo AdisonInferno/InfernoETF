@@ -1,5 +1,6 @@
 "use client";
 
+import { ConcentrationNotice } from "@/components/RiskNotice";
 import Link from "next/link";
 import { useMemo, useRef, useState } from "react";
 import type { CSSProperties } from "react";
@@ -191,7 +192,8 @@ export default function Overview({ fund, initialTf }: { fund: FundData; onUpgrad
   const [side, setSide] = useState<SideTab>("SECTORS");
   return (
     <div className="flex flex-col gap-3 px-4 pb-6 pt-3 lg:h-full lg:min-h-0 lg:flex-row lg:pb-3">
-      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-2">
+        <ConcentrationNotice fund={fund} />
         <PriceChart fund={fund} initialTf={initialTf} fill />
       </div>
       <aside className="flex min-h-0 min-w-0 flex-col gap-3 lg:w-[400px] lg:flex-none xl:w-[460px]">
