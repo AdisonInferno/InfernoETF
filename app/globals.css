@@ -1,12 +1,18 @@
 @import "tailwindcss";
 
 /* Fonts are self-hosted via @fontsource (imported in app/layout.tsx). */
+/* OASIS typography — calm and elegant: Manrope for text & headings, Geist Mono for numbers & labels.
+   Weights are a touch lighter than Tailwind's defaults so bold labels feel soft, not shouty. */
 @theme {
-  --font-sans: "Space Grotesk Variable", ui-sans-serif, system-ui, sans-serif;
-  --font-mono: "JetBrains Mono Variable", ui-monospace, monospace;
-  /* Deep View design fonts */
-  --font-display: "Chakra Petch", system-ui, sans-serif;
-  --font-geist: "Geist Mono Variable", "JetBrains Mono Variable", ui-monospace, monospace;
+  --font-sans: "Manrope Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "Geist Mono Variable", ui-monospace, "SF Mono", monospace;
+  --font-display: "Manrope Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-geist: "Geist Mono Variable", ui-monospace, monospace;
+
+  --font-weight-medium: 500;
+  --font-weight-semibold: 580;
+  --font-weight-bold: 640;
+  --font-weight-extrabold: 720;
 }
 
 /* ── OASIS corner scale — soft but not bubbly. One place for the whole site:
@@ -93,3 +99,11 @@
 .animate-inf-take { animation: inf-take 0.28s ease-out; }
 
 html, body { background-color: var(--oasis-bg); }
+
+/* Smooth, quiet rendering everywhere */
+html {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+body { font-family: var(--font-sans); letter-spacing: 0.005em; }

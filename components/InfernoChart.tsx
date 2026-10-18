@@ -204,7 +204,7 @@ export default function InfernoChart({ main, pinned: pinnedAll = [], picker = []
     if (!el) return;
     const chart = createChart(el, {
       autoSize: true,
-      layout: { background: { type: ColorType.Solid, color: "transparent" }, textColor: "#71717a", fontFamily: "'JetBrains Mono Variable','JetBrains Mono',monospace", fontSize: 10, attributionLogo: false },
+      layout: { background: { type: ColorType.Solid, color: "transparent" }, textColor: "#71717a", fontFamily: "'Geist Mono Variable', ui-monospace, monospace", fontSize: 10, attributionLogo: false },
       grid: { vertLines: { color: "rgba(255,255,255,0.025)" }, horzLines: { color: "rgba(255,255,255,0.035)" } },
       // tight vertical fit: autoscale to the visible window of the visible lines, small margins
       rightPriceScale: { borderColor: "rgba(255,255,255,0.05)", mode: PriceScaleMode.Percentage, autoScale: true, scaleMargins: { top: 0.06, bottom: 0.06 } },

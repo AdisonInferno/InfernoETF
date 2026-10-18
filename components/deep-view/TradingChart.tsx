@@ -47,7 +47,7 @@ const INDICATORS: { id: IndicatorId; label: string; color: string }[] = [
 
 const UP = "#34d399", DOWN = "#f87171";
 const UP_VOL = "rgba(52,211,153,0.35)", DOWN_VOL = "rgba(248,113,113,0.35)";
-const MONO = "'JetBrains Mono Variable', 'JetBrains Mono', ui-monospace, monospace";
+const MONO = "'Geist Mono Variable', ui-monospace, monospace";
 /** Last bar: Fri 2 Oct 2026. Fixed so server + client agree. */
 const END = Date.UTC(2026, 9, 2);
 const YEARS = 6;

@@ -109,7 +109,7 @@ function IconButton({ label, children, onClick }: { label: string; children: Rea
   );
 }
 
-/** Wide sci-fi logotype (Syncopate 700) + technical JetBrains Mono sub-label */
+/** Wide sci-fi logotype (Syncopate 700) + Geist Mono sub-label */
 function OasisLogo() {
   return (
     <span className="flex items-baseline gap-3 leading-none">

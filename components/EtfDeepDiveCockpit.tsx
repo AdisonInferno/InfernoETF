@@ -20,7 +20,7 @@ import { QUOTE } from "@/lib/fund-profiles";
    If those can't be reached the chart falls back to labelled model data.
    ───────────────────────────────────────────────────────────── */
 
-const MONO = "font-['JetBrains_Mono_Variable','JetBrains_Mono',ui-monospace,monospace]";
+const MONO = "font-mono";
 
 interface Quote { price: number; prevClose: number; chg: number; session: "PRE" | "REG" | "POST" | "CLOSED"; currency: string; exchange: string }
 interface News { id: string; ts: number; headline: string; url: string; source: string; tickers: string[] }

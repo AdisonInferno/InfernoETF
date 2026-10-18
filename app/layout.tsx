@@ -1,12 +1,7 @@
 import type { Metadata } from "next";
-import "@fontsource-variable/space-grotesk";
-import "@fontsource-variable/jetbrains-mono";
+// OASIS type: Manrope (text + headings) · Geist Mono (numbers, labels, tables) — soft, calm, elegant
+import "@fontsource-variable/manrope";
 import "@fontsource-variable/geist-mono";
-// Chakra Petch = display font of the Deep View design.
-import "@fontsource/chakra-petch/400.css";
-import "@fontsource/chakra-petch/500.css";
-import "@fontsource/chakra-petch/600.css";
-import "@fontsource/chakra-petch/700.css";
 // Syncopate = wide display font of the OASIS logotype
 import "@fontsource/syncopate/700.css";
 import SiteHeader from "@/components/SiteHeader";
