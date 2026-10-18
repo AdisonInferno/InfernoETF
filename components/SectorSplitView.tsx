@@ -100,7 +100,7 @@ function RelChart({ a, b, labelA, labelB }: { a: Raw; b: Raw; labelA: string; la
           <line x1={0} x2={W} y1={y(0)} y2={y(0)} stroke="rgba(255,255,255,0.12)" strokeDasharray="2 4" vectorEffect="non-scaling-stroke" />
           {/* spread fill between the two lines */}
           <path d={`${path(pa)} ${pb.map((v, k) => `L${x(pb.length - 1 - k).toFixed(1)},${y(pb[pb.length - 1 - k]).toFixed(1)}`).join(" ")} Z`} fill={pa[pa.length - 1] >= pb[pb.length - 1] ? "rgba(52,211,153,0.06)" : "rgba(244,63,94,0.06)"} />
-          <path d={path(pb)} fill="none" stroke="#d4d4d8" strokeOpacity={0.4} strokeWidth={1.2} strokeDasharray="3 3" vectorEffect="non-scaling-stroke" />
+          <path d={path(pb)} fill="none" stroke="var(--color-zinc-300)" strokeOpacity={0.4} strokeWidth={1.2} strokeDasharray="3 3" vectorEffect="non-scaling-stroke" />
           <path d={path(pa)} fill="none" stroke="#34d399" strokeWidth={2} strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
         </svg>
         {hover !== null && <div className="pointer-events-none absolute inset-y-0 w-px bg-white/20" style={{ left: `${(x(i) / W) * 100}%` }} />}

@@ -104,7 +104,7 @@ export function SegRail<T extends string>({ items, value, pos, onChange, width =
       onPointerDown={(e) => { e.currentTarget.setPointerCapture(e.pointerId); pick(e.clientX); }}
       onPointerMove={(e) => { if (e.currentTarget.hasPointerCapture(e.pointerId)) pick(e.clientX); }}
       style={{ width }}
-      className="relative flex h-[30px] max-w-full flex-none cursor-ew-resize touch-none select-none overflow-hidden rounded-sm border border-oasis/25 bg-[#060a0e] outline-none focus-visible:ring-1 focus-visible:ring-oasis/40">
+      className="relative flex h-[30px] max-w-full flex-none cursor-ew-resize touch-none select-none overflow-hidden rounded-sm border border-oasis/25 bg-[var(--oasis-bg)] outline-none focus-visible:ring-1 focus-visible:ring-oasis/40">
       <span className="pointer-events-none absolute inset-y-[2px] rounded-xs border border-oasis/80 bg-oasis/20 shadow-[0_0_5px_color-mix(in_srgb,var(--oasis-accent)_25%,transparent)] transition-[left] duration-150 ease-out"
         style={{ left: `calc(${(p / n) * 100}% + 2px)`, width: `calc(${100 / n}% - 4px)` }} />
       {items.map((t, i) => (

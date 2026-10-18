@@ -125,7 +125,7 @@ function Seasonality({ fund }: { fund: FundData }) {
               {r.cells.map((c, i) => (
                 <span key={i} title={c.tip} className={`flex h-[34px] min-w-0 items-center justify-center overflow-hidden whitespace-nowrap hover:outline hover:outline-1 hover:outline-gray-200 ${r.isAvg ? "mt-1 " : ""}`} style={{ background: c.bg, color: c.fg, fontWeight: c.fw }}>{c.v}</span>
               ))}
-              <span title={r.tn} className={`flex h-[34px] items-center justify-center whitespace-nowrap font-bold text-white ${r.isAvg ? "mt-1 " : ""}`} style={{ background: r.tb }}>{r.t}</span>
+              <span title={r.tn} className={`on-color flex h-[34px] items-center justify-center whitespace-nowrap font-bold text-white ${r.isAvg ? "mt-1 " : ""}`} style={{ background: r.tb }}>{r.t}</span>
             </div>
           ))}
         </div>

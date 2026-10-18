@@ -72,7 +72,7 @@ function SectorBreakdown({ fund }: { fund: FundData }) {
                 <div
                   key={sb.name}
                   onMouseMove={showTip(sc.parent, sb.name, sb.v, sb.lc)}
-                  className="absolute box-border cursor-crosshair overflow-hidden border border-[#0c0c0e] bg-[image:var(--bg)] transition-[background,box-shadow] duration-100 hover:z-[2] hover:bg-[image:var(--bgh)] hover:shadow-[inset_0_0_0_1px_var(--bc)]"
+                  className="on-color absolute box-border cursor-crosshair overflow-hidden border border-[var(--oasis-panel)] bg-[image:var(--bg)] transition-[background,box-shadow] duration-100 hover:z-[2] hover:bg-[image:var(--bgh)] hover:shadow-[inset_0_0_0_1px_var(--bc)]"
                   style={{ left: sb.x, top: sb.y, width: sb.w, height: sb.h, "--bg": sb.bg, "--bgh": sb.bgh, "--bc": sb.bc } as CSSProperties}
                 >
                   {sb.show && (
@@ -116,7 +116,7 @@ function TopHoldings({ fund }: { fund: FundData }) {
         </div>
         <div className="-mt-1 flex flex-col">
           {rows.map((h, i) => (
-            <div key={h.tic} title={h.name} className="grid h-5 flex-none grid-cols-[20px_52px_minmax(0,1fr)_48px] items-center gap-2.5 hover:bg-[#0b0b0b]">
+            <div key={h.tic} title={h.name} className="grid h-5 flex-none grid-cols-[20px_52px_minmax(0,1fr)_48px] items-center gap-2.5 hover:bg-[var(--oasis-bg)]">
               <span className="text-[9.5px] text-gray-600">{String(i + 1).padStart(2, "0")}</span>
               <Link href={`/stock/${h.tic}`} className="text-[11px] font-bold text-neutral-200 hover:text-emerald-300">{h.tic}</Link>
               <div className="h-[3px] bg-gray-900"><div className="h-full bg-neutral-300 opacity-75" style={{ width: ((h.w / maxW) * 100).toFixed(1) + "%" }} /></div>

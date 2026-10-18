@@ -259,7 +259,7 @@ export function ExplorerTable({ x }: { x: Explorer }) {
                     )}
                   </span>
                 </span>
-                <span className="font-bold" style={{ color: on ? c : "#ffffff" }}>{r.tic}</span>
+                <span className="font-bold" style={{ color: on ? c : "var(--color-white)" }}>{r.tic}</span>
                 <span className="truncate font-display text-xs text-zinc-300">{r.name}</span>
                 <span className="truncate text-[10.5px] tracking-[0.04em] text-zinc-400">{r.sub}</span>
                 <span className="flex min-w-0 items-center gap-2.5">
@@ -333,12 +333,12 @@ export function ExplorerChart({ x }: { x: Explorer }) {
             <Line
               dataKey={ETF_KEY}
               type="monotone"
-              stroke="#f4f4f5"
+              stroke="var(--color-white)"
               strokeWidth={3}
               strokeOpacity={hover ? 0.5 : 1}
               filter="url(#etfGlow)"
               dot={false}
-              activeDot={{ r: 4, fill: "#ffffff", strokeWidth: 0 }}
+              activeDot={{ r: 4, fill: "var(--color-white)", strokeWidth: 0 }}
               isAnimationActive={false}
             />
           </LineChart>

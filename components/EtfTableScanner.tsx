@@ -145,7 +145,7 @@ function EdgeTab({ side, dir, label, onClick }: { side: "left" | "right"; dir: "
       onClick={onClick}
       title={label}
       aria-label={label}
-      className={`absolute top-1/2 z-20 flex h-11 w-3.5 -translate-y-1/2 items-center justify-center border border-white/[0.08] bg-[#141418] text-zinc-400 transition-colors hover:border-red-500/40 hover:bg-red-500/[0.12] hover:text-red-300 ${
+      className={`absolute top-1/2 z-20 flex h-11 w-3.5 -translate-y-1/2 items-center justify-center border border-white/[0.08] bg-[var(--oasis-panel)] text-zinc-400 transition-colors hover:border-red-500/40 hover:bg-red-500/[0.12] hover:text-red-300 ${
         side === "left" ? "right-full rounded-l-sm border-r-0" : "left-full rounded-r-sm border-l-0"
       }`}
     >

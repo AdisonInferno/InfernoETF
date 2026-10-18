@@ -225,7 +225,7 @@ function sparkline(etf: Etf, tf: TfKey) {
 /* ───────────────────────────── UI pieces ───────────────────────────── */
 
 const SectionLabel: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-  <span className="text-[11px] font-semibold tracking-[0.08em] text-[#71717A]">{children}</span>
+  <span className="text-[11px] font-semibold tracking-[0.08em] text-zinc-500">{children}</span>
 );
 
 const ToggleButton: React.FC<{ active: boolean; onClick: () => void; children: React.ReactNode }> = ({
@@ -240,7 +240,7 @@ const ToggleButton: React.FC<{ active: boolean; onClick: () => void; children: R
       "flex-1 cursor-pointer rounded-sm border px-1 py-[9px] text-center text-xs font-semibold transition-colors",
       active
         ? "oasis-on"
-        : "border-white/[0.06] bg-white/[0.03] text-[#A1A1AA] hover:bg-white/[0.08]",
+        : "border-white/[0.06] bg-white/[0.03] text-zinc-400 hover:bg-white/[0.08]",
     ].join(" ")}
   >
     {children}
@@ -367,11 +367,11 @@ export default function InfernoEtfScanner() {
   const tipColor = tip ? trendColor(tip.etf.perf[tf]) : "#34D399";
 
   return (
-    <div className="absolute inset-0 grid grid-cols-[260px_minmax(0,1fr)] grid-rows-[minmax(0,1fr)] gap-4 overflow-hidden bg-[var(--oasis-bg)] p-4 font-sans text-[#E5E5E5]">
+    <div className="absolute inset-0 grid grid-cols-[260px_minmax(0,1fr)] grid-rows-[minmax(0,1fr)] gap-4 overflow-hidden bg-[var(--oasis-bg)] p-4 font-sans text-zinc-200">
       {/* ── Sidebar ── */}
       <aside className="flex min-h-0 flex-col gap-5 self-stretch overflow-y-auto oasis-glass border border-white/[0.06] bg-[var(--oasis-panel)] p-3">
         <div className="flex flex-col gap-1">
-          <span className={`${MONO} text-[13px] font-semibold tracking-[0.12em] text-[#FAFAFA]`}>[ ETF MARKET MAP ]</span>
+          <span className={`${MONO} text-[13px] font-semibold tracking-[0.12em] text-zinc-50`}>[ ETF MARKET MAP ]</span>
         </div>
 
         <div className="flex flex-col gap-2.5">
@@ -428,8 +428,8 @@ export default function InfernoEtfScanner() {
                   >
                     {on ? "✓" : ""}
                   </span>
-                  <span className={`flex-1 text-[13px] ${on ? "text-[#E5E5E5]" : "text-[#71717A]"}`}>{p}</span>
-                  <span className={`${MONO} text-[11px] text-[#52525B]`}>{providerCounts[p]}</span>
+                  <span className={`flex-1 text-[13px] ${on ? "text-zinc-200" : "text-zinc-500"}`}>{p}</span>
+                  <span className={`${MONO} text-[11px] text-zinc-600`}>{providerCounts[p]}</span>
                 </button>
               );
             })}
@@ -490,7 +490,7 @@ export default function InfernoEtfScanner() {
                   <div
                     key={etf.ticker}
                     {...hoverHandlers(etf)}
-                    className="absolute box-border flex cursor-pointer flex-col items-center justify-center gap-0.5 overflow-hidden rounded-[1px] border-b border-r border-[#030303] transition-[filter] duration-150 hover:z-20 hover:brightness-125"
+                    className="on-color absolute box-border flex cursor-pointer flex-col items-center justify-center gap-0.5 overflow-hidden rounded-[1px] border-b border-r border-[#030303] transition-[filter] duration-150 hover:z-20 hover:brightness-125"
                     style={{ left: x, top: y, width: w, height: h, background: tileBg(etf.perf[tf] / TF_SCALE[tf]) }}
                   >
                     <span
@@ -514,7 +514,7 @@ export default function InfernoEtfScanner() {
           ))}
 
           {sectors.length === 0 && (
-            <div className="p-12 text-center text-[13px] text-[#71717A]">No funds match the selected providers.</div>
+            <div className="p-12 text-center text-[13px] text-zinc-500">No funds match the selected providers.</div>
           )}
         </div>
 
@@ -523,9 +523,9 @@ export default function InfernoEtfScanner() {
           <SegRail items={TFS} value={tf} onChange={setTf} width={420} />
           <div className="flex min-w-[260px] flex-1 items-center gap-3">
             <SectionLabel>COLOR SCALE</SectionLabel>
-            <span className={`${MONO} text-[11px] text-[#71717A]`}>−{(1.5 * TF_SCALE[tf]).toFixed(1).replace(/\.0$/, "")}%</span>
+            <span className={`${MONO} text-[11px] text-zinc-500`}>−{(1.5 * TF_SCALE[tf]).toFixed(1).replace(/\.0$/, "")}%</span>
             <div className="h-2 flex-1 rounded-sm bg-[linear-gradient(90deg,#b91c1c_0_16%,#991b1b_16%_32%,#7f1d1d_32%_44%,#27272a_44%_56%,#064e3b_56%_68%,#065f46_68%_84%,#047857_84%)]" />
-            <span className={`${MONO} text-[11px] text-[#71717A]`}>+{(1.5 * TF_SCALE[tf]).toFixed(1).replace(/\.0$/, "")}%</span>
+            <span className={`${MONO} text-[11px] text-zinc-500`}>+{(1.5 * TF_SCALE[tf]).toFixed(1).replace(/\.0$/, "")}%</span>
           </div>
         </div>
 
@@ -541,8 +541,8 @@ export default function InfernoEtfScanner() {
                   className="flex cursor-pointer items-center justify-between gap-3 rounded-sm border border-white/[0.06] bg-white/[0.03] px-4 py-3 transition-all duration-75 hover:border-white/[0.2] hover:bg-white/[0.08]"
                 >
                   <span className="flex items-baseline gap-2.5">
-                    <span className={`${MONO} text-[16px] font-bold text-[#FAFAFA]`}>{m.ticker}</span>
-                    <span className="text-[11.5px] uppercase tracking-[0.06em] text-[#71717A]">{m.tag}</span>
+                    <span className={`${MONO} text-[16px] font-bold text-zinc-50`}>{m.ticker}</span>
+                    <span className="text-[11.5px] uppercase tracking-[0.06em] text-zinc-500">{m.tag}</span>
                   </span>
                   <span
                     className={`${MONO} rounded-sm px-2 py-1 text-[13px] font-bold ${
@@ -565,8 +565,8 @@ export default function InfernoEtfScanner() {
           style={{ left: Math.min(tip.x + 18, vw - 304), top: Math.max(8, Math.min(tip.y + 18, vh - 340)) }}
         >
           <div className="flex flex-col gap-0.5">
-            <span className={`${MONO} text-[15px] font-bold text-[#FAFAFA]`}>{tip.etf.ticker}</span>
-            <span className="text-xs text-[#A1A1AA]">{tip.etf.name}</span>
+            <span className={`${MONO} text-[15px] font-bold text-zinc-50`}>{tip.etf.ticker}</span>
+            <span className="text-xs text-zinc-400">{tip.etf.name}</span>
           </div>
           <svg viewBox="0 0 256 56" width={256} height={56} className="block">
             <polygon points={spark.area} fill={tipColor} fillOpacity={0.08} />
@@ -580,7 +580,7 @@ export default function InfernoEtfScanner() {
             />
           </svg>
           <div className={`${MONO} flex items-baseline justify-between`}>
-            <span className="text-lg font-semibold text-[#FAFAFA]">${tip.etf.price.toFixed(2)}</span>
+            <span className="text-lg font-semibold text-zinc-50">${tip.etf.price.toFixed(2)}</span>
             <span className="text-[13px] font-bold" style={{ color: tipColor }}>
               {fmtPct(tip.etf.perf[tf])} {tf}
             </span>

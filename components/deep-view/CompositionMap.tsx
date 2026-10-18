@@ -58,7 +58,7 @@ function HoldingsMap({ fund, tf }: { fund: FundData; tf: MapTf }) {
           <div
             key={it.tic}
             title={`${it.name} · ${it.w.toFixed(2)}% weight · ${fp(it.v)}`}
-            className="absolute box-border cursor-default overflow-hidden border border-[var(--oasis-panel)] text-white transition-[filter] duration-200 hover:z-[2] hover:brightness-[1.18]"
+            className="on-color absolute box-border cursor-default overflow-hidden border border-[var(--oasis-panel)] text-white transition-[filter] duration-200 hover:z-[2] hover:brightness-[1.18]"
             style={{ left: x, top: y, width: w, height: h, background: tileColor(it.v, sc), padding: `${big ? 6 : 3}px ${big ? 9 : 5}px` }}
           >
             <div className="whitespace-nowrap font-display font-semibold leading-[1.05]" style={{ fontSize: fs, opacity: w < 26 || h < 14 ? 0 : 1 }}>{it.tic}</div>

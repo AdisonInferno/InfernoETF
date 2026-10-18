@@ -123,7 +123,7 @@ export default function SiteHeader() {
   const pathname = usePathname();
 
   return (
-    <header className="z-50 w-full flex-none bg-[#060607]">
+    <header className="z-50 w-full flex-none bg-[var(--oasis-bg)]">
       {/* Row 1: logo · search · actions */}
       <div className="grid h-[68px] grid-cols-[1fr_minmax(0,620px)_1fr] items-center gap-6 px-3">
         <Link href="/scanner" className="flex items-center gap-3 justify-self-start">
@@ -134,12 +134,12 @@ export default function SiteHeader() {
 
         <div className="flex items-center gap-2 justify-self-end">
           <IconButton label="Settings · accent colour" onClick={() => window.dispatchEvent(new Event("oasis:accent-toggle"))}>
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="#e4e4e7">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" className="text-zinc-200">
               <path d="M19.4 13a7.5 7.5 0 0 0 0-2l2.1-1.6-2-3.5-2.5 1a7.6 7.6 0 0 0-1.7-1L15 3.3h-4l-.4 2.6a7.6 7.6 0 0 0-1.7 1l-2.5-1-2 3.5L6.6 11a7.5 7.5 0 0 0 0 2l-2.1 1.6 2 3.5 2.5-1a7.6 7.6 0 0 0 1.7 1l.4 2.6h4l.4-2.6a7.6 7.6 0 0 0 1.7-1l2.5 1 2-3.5L19.4 13ZM13 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7Z" transform="translate(-1 0)" />
             </svg>
           </IconButton>
           <IconButton label="Account">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="#a1a1aa">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" className="text-zinc-400">
               <circle cx="12" cy="8" r="4.2" />
               <path d="M3.5 21c0-4.4 3.8-7.5 8.5-7.5s8.5 3.1 8.5 7.5Z" />
             </svg>

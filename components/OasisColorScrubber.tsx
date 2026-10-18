@@ -21,9 +21,17 @@ const BG_PRESETS = [
   ["GRAPHITE", "#16181c"],
   ["SLATE", "#1c2026"],
   ["DARK NAVY", "#0b1220"],
+  ["SOFT WHITE", "#e8e8eb"],
 ] as const;
+/** Light backgrounds switch the whole UI to the light theme (see html[data-theme="light"] in globals.css). */
+const isLight = (hex: string) => {
+  const n = parseInt(hex.slice(1), 16), r = (n >> 16) & 255, g = (n >> 8) & 255, b = n & 255;
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b > 140;
+};
 function applyBg(hex: string) {
-  document.documentElement.style.setProperty("--oasis-bg", hex);
+  const root = document.documentElement;
+  root.style.setProperty("--oasis-bg", hex);
+  if (isLight(hex)) root.dataset.theme = "light"; else delete root.dataset.theme;
 }
 
 function apply(hex: string) {
@@ -74,7 +82,7 @@ export default function OasisColorScrubber() {
 
   if (!open) return null; // opened from the ⚙ button in the header
   return (
-    <div className="fixed bottom-4 right-4 z-[9999] flex w-[264px] flex-col gap-2.5 rounded-sm border border-white/10 bg-[var(--oasis-panel)] p-3 font-mono shadow-[0_8px_30px_rgba(0,0,0,0.6)]">
+    <div className="oasis-glass fixed bottom-4 right-4 z-[9999] flex w-[264px] flex-col gap-2.5 border border-white/10 bg-[var(--oasis-panel)] p-3 font-mono">
       <div className="flex items-center justify-between">
         <span className="text-[10px] font-bold tracking-[0.14em] text-zinc-300">[ OASIS ACCENT ]</span>
         <button type="button" onClick={() => setOpen(false)} aria-label="Collapse" className="text-[12px] text-zinc-500 hover:text-white">—</button>
@@ -105,7 +113,7 @@ export default function OasisColorScrubber() {
         <div className="grid grid-cols-2 gap-1.5">
           {BG_PRESETS.map(([name, v]) => (
             <button key={v} type="button" onClick={() => setBg(v)}
-              className={`flex items-center gap-2 border px-2 py-1.5 text-left text-[9.5px] font-bold tracking-[0.08em] transition-colors ${bg.toLowerCase() === v ? "border-white/30 text-white" : "border-white/[0.06] text-zinc-400 hover:text-white"}`}>
+              className={`${isLight(v) ? "col-span-2" : ""} flex items-center gap-2 border px-2 py-1.5 text-left text-[9.5px] font-bold tracking-[0.08em] transition-colors ${bg.toLowerCase() === v ? "border-white/30 text-white" : "border-white/[0.06] text-zinc-400 hover:text-white"}`}>
               <span className="h-2.5 w-2.5 flex-none rounded-xs border border-white/20" style={{ background: v }} />{name}
             </button>
           ))}

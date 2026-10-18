@@ -14,13 +14,19 @@ export const metadata: Metadata = {
   description: "ETF scanner, portfolio and AI assistant",
 };
 
+const THEME_BOOT = `try{var b=localStorage.getItem("oasis.bg.v1");if(b&&/^#[0-9a-f]{6}$/i.test(b)){var d=document.documentElement,n=parseInt(b.slice(1),16);d.style.setProperty("--oasis-bg",b);if(0.2126*(n>>16&255)+0.7152*(n>>8&255)+0.0722*(n&255)>140)d.dataset.theme="light"}}catch(e){}`;
+
 export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="pl">
+    <html lang="pl" suppressHydrationWarning>
+      <head>
+        {/* Restore the saved background / theme before first paint (no dark→light flash) */}
+        <script dangerouslySetInnerHTML={{ __html: THEME_BOOT }} />
+      </head>
       {/* Fixed-height app shell: header stays put, only <main> scrolls. */}
       <body className="flex h-dvh flex-col overflow-hidden bg-[var(--oasis-bg)] font-sans text-white antialiased">
         <SiteHeader />

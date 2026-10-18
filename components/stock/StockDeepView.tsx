@@ -435,7 +435,7 @@ function Charts({ d, sym }: { d: StockData; sym: string }) {
             <tbody>
               {seas.map(([y, ms]) => (
                 <tr key={y}><td className="py-[3px] pr-2 text-zinc-400">{y}</td>
-                  {ms.map((v, i) => <td key={i} className="border border-[#0a0a0c] py-[5px] text-center" style={heat(v)}>{v == null ? "·" : v.toFixed(1)}</td>)}
+                  {ms.map((v, i) => <td key={i} className="border border-[var(--oasis-panel)] py-[5px] text-center" style={heat(v)}>{v == null ? "·" : v.toFixed(1)}</td>)}
                 </tr>
               ))}
               <tr className="border-t border-white/[0.08]"><td className="py-1 pr-2 text-zinc-500">AVG</td>
@@ -527,7 +527,7 @@ export default function StockDeepView({ ticker, yahoo = ticker }: { ticker: stri
   const newsItems = useMemo(() => [{ ticker, name: d?.name ?? ticker, weight: 100, kind: "stock" as const, sector: d?.industry ?? "Other" }], [ticker, d?.name, d?.industry]);
 
   return (
-    <div className="flex min-h-full min-w-0 flex-col bg-[var(--oasis-bg)] text-[#e6e6e6]">
+    <div className="flex min-h-full min-w-0 flex-col bg-[var(--oasis-bg)] text-zinc-200">
       <header className={`flex flex-col gap-3 border-b ${B} px-5 pt-3.5`}>
         <div className="flex items-center justify-between gap-3">
           <button type="button" onClick={() => (window.history.length > 1 ? router.back() : router.push("/scanner"))} className="font-mono text-[11px] font-semibold tracking-[0.14em] text-gray-500 hover:text-white">[ ← BACK ]</button>
