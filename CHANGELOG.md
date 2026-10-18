@@ -4,8 +4,10 @@ _Generowany automatycznie z historii git. Zmiany oddalone o mniej niż godzinę 
 
 ## niedziela, 18 października 2026
 
-### Sesja #19 · 22:51–22:51 · 1 zmian · AdisonInferno
+### Sesja #19 · 22:51–23:35 · 3 zmian · AdisonInferno
 
+- `23:35` Data integrity + workspace cleanup: currency formatting, real market-map returns, scanner scope bar
+- `22:51` Dziennik zmian
 - `22:51` Zmiany lokalne
 
 ### Sesja #18 · 14:38–14:38 · 1 zmian · AdisonInferno
