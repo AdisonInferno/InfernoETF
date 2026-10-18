@@ -95,6 +95,19 @@ function SearchBox() {
   );
 }
 
+/** University building — pediment, four columns, steps (glossary / learning) */
+function GlossaryIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M2.5 8.6 12 3.2l9.5 5.4" />
+      <path d="M3.5 9.6h17" />
+      <circle cx="12" cy="6.7" r="0.9" fill="currentColor" stroke="none" />
+      <path d="M5.5 11.2v6.4M9.8 11.2v6.4M14.2 11.2v6.4M18.5 11.2v6.4" />
+      <path d="M3.5 18.6h17M2.5 20.8h19" />
+    </svg>
+  );
+}
+
 function IconButton({ label, children, onClick }: { label: string; children: React.ReactNode; onClick?: () => void }) {
   return (
     <button
@@ -133,6 +146,17 @@ export default function SiteHeader() {
         <SearchBox />
 
         <div className="flex items-center gap-2 justify-self-end">
+          <Link
+            href="/glossary"
+            title="Glossary · investing terms explained"
+            aria-label="Glossary"
+            className={`flex h-9 items-center gap-2 rounded-sm border px-3 text-[12px] font-semibold tracking-[0.06em] transition-colors ${
+              pathname?.startsWith("/glossary") ? "oasis-on" : "border-white/[0.06] bg-white/[0.03] text-zinc-300 hover:bg-white/[0.08] hover:text-white"
+            }`}
+          >
+            <GlossaryIcon />
+            Glossary
+          </Link>
           <IconButton label="Settings · accent colour" onClick={() => window.dispatchEvent(new Event("oasis:accent-toggle"))}>
             <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" className="text-zinc-200">
               <path d="M19.4 13a7.5 7.5 0 0 0 0-2l2.1-1.6-2-3.5-2.5 1a7.6 7.6 0 0 0-1.7-1L15 3.3h-4l-.4 2.6a7.6 7.6 0 0 0-1.7 1l-2.5-1-2 3.5L6.6 11a7.5 7.5 0 0 0 0 2l-2.1 1.6 2 3.5 2.5-1a7.6 7.6 0 0 0 1.7 1l.4 2.6h4l.4-2.6a7.6 7.6 0 0 0 1.7-1l2.5 1 2-3.5L19.4 13ZM13 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7Z" transform="translate(-1 0)" />
