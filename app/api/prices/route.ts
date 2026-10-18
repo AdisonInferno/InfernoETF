@@ -41,7 +41,7 @@ async function series(sym: string, range: string): Promise<S | null> {
 export async function GET(req: Request) {
   const p = new URL(req.url).searchParams;
   const range = (p.get("range") ?? "") in RANGES ? p.get("range")! : "1mo";
-  const syms = (p.get("symbols") ?? "").split(",").map((x) => x.trim().toUpperCase()).filter((x) => /^[A-Z][A-Z0-9.^=-]{0,9}$/.test(x)).slice(0, 20);
+  const syms = (p.get("symbols") ?? "").split(",").map((x) => x.trim().toUpperCase()).filter((x) => /^[A-Z0-9^][A-Z0-9.^=-]{0,14}$/.test(x)).slice(0, 20);
   const out: Record<string, S | null> = {};
   await Promise.all(syms.map(async (s) => { out[s] = await series(s, range); }));
   return Response.json({ series: out });

@@ -10,14 +10,16 @@
 import { useEffect, useMemo, useState } from "react";
 import { snapLoaded, useSnapshot } from "@/lib/market-snapshot";
 
-export type RetPeriod = "1D" | "1M" | "3M" | "6M" | "YTD" | "1Y" | "3Y" | "5Y";
-export const RET_PERIODS: RetPeriod[] = ["1D", "1M", "3M", "6M", "YTD", "1Y", "3Y", "5Y"];
+export type RetPeriod = "1D" | "1W" | "2W" | "1M" | "3M" | "6M" | "YTD" | "1Y" | "3Y" | "5Y";
+/** Composition Map periods (all of them are also terminal-chart timeframes) */
+export type CompPeriod = Exclude<RetPeriod, "1W" | "2W">;
+export const RET_PERIODS: CompPeriod[] = ["1D", "1M", "3M", "6M", "YTD", "1Y", "3Y", "5Y"];
 /** colour-scale half-width (± % that reaches full colour) per period */
-export const RET_SCALE: Record<RetPeriod, number> = { "1D": 3, "1M": 10, "3M": 20, "6M": 30, YTD: 35, "1Y": 50, "3Y": 100, "5Y": 150 };
-export const PERIOD_LABEL: Record<RetPeriod, string> = { "1D": "1-day", "1M": "1-month", "3M": "3-month", "6M": "6-month", YTD: "year-to-date", "1Y": "1-year", "3Y": "3-year (cumulative)", "5Y": "5-year (cumulative)" };
+export const RET_SCALE: Record<RetPeriod, number> = { "1D": 3, "1W": 6, "2W": 8, "1M": 10, "3M": 20, "6M": 30, YTD: 35, "1Y": 50, "3Y": 100, "5Y": 150 };
+export const PERIOD_LABEL: Record<RetPeriod, string> = { "1D": "1-day", "1W": "1-week", "2W": "2-week", "1M": "1-month", "3M": "3-month", "6M": "6-month", YTD: "year-to-date", "1Y": "1-year", "3Y": "3-year (cumulative)", "5Y": "5-year (cumulative)" };
 
-const RANGE: Record<Exclude<RetPeriod, "1D">, string> = { "1M": "3mo", "3M": "3mo", "6M": "1y", YTD: "ytd", "1Y": "1y", "3Y": "5y", "5Y": "5y" };
-const DAYS: Record<Exclude<RetPeriod, "1D" | "YTD">, number> = { "1M": 30, "3M": 91, "6M": 182, "1Y": 365, "3Y": 1096, "5Y": 1826 };
+const RANGE: Record<Exclude<RetPeriod, "1D">, string> = { "1W": "1mo", "2W": "1mo", "1M": "3mo", "3M": "3mo", "6M": "1y", YTD: "ytd", "1Y": "1y", "3Y": "5y", "5Y": "5y" };
+const DAYS: Record<Exclude<RetPeriod, "1D" | "YTD">, number> = { "1W": 7, "2W": 14, "1M": 30, "3M": 91, "6M": 182, "1Y": 365, "3Y": 1096, "5Y": 1826 };
 const DAY = 86400;
 
 export type Series = { t: number[]; c: number[] } | null;
@@ -38,15 +40,33 @@ async function loadSeries(syms: string[], range: string): Promise<boolean> {
   return ok;
 }
 
-function periodReturn(s: Series, p: Exclude<RetPeriod, "1D">): number | null {
-  if (!s || s.c.length < 2) return null;
-  const end = s.t[s.t.length - 1], last = s.c[s.c.length - 1];
-  if (p === "YTD") return (last / s.c[0] - 1) * 100; // range=ytd starts at the first session of the year
-  const target = end - DAYS[p] * DAY;
-  if (s.t[0] > target + 10 * DAY) return null; // history too short for this period
+/** /api/prices range that covers a period ("1D" → today's intraday bars, used for sparklines). */
+export const rangeFor = (p: RetPeriod) => (p === "1D" ? "1d" : RANGE[p]);
+
+/** Index of the period's start bar (last close at or before end − period), or null when history is too short. */
+function startIndex(s: NonNullable<Series>, p: Exclude<RetPeriod, "1D">): number | null {
+  if (p === "YTD") return 0; // range=ytd starts at the first session of the year
+  const target = s.t[s.t.length - 1] - DAYS[p] * DAY;
+  if (s.t[0] > target + (DAYS[p] <= 14 ? 3 : 10) * DAY) return null; // history too short for this period
   let k = 0;
   while (k + 1 < s.t.length && s.t[k + 1] <= target) k++;
-  return s.c[k] ? (last / s.c[k] - 1) * 100 : null;
+  return k;
+}
+
+/** Return_T = (P_now − P_start) / P_start × 100 — the one formula every view uses. */
+export function periodReturn(s: Series, p: Exclude<RetPeriod, "1D">): number | null {
+  if (!s || s.c.length < 2) return null;
+  const k = startIndex(s, p);
+  const last = s.c[s.c.length - 1];
+  return k != null && s.c[k] ? ((last - s.c[k]) / s.c[k]) * 100 : null;
+}
+
+/** The bars a period's return is measured over (for sparklines that must match the number). */
+export function periodWindow(s: Series, p: RetPeriod): { t: number[]; c: number[] } | null {
+  if (!s || s.c.length < 2) return null;
+  if (p === "1D") return s;
+  const k = startIndex(s, p);
+  return k == null ? null : { t: s.t.slice(k), c: s.c.slice(k) };
 }
 
 export type RetState = "loading" | "ready" | "error";

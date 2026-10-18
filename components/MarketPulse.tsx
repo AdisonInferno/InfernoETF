@@ -152,6 +152,13 @@ export default function MarketPulse({ rows, all = ETFS }: { rows: EtfRow[]; /** 
       .catch(() => { if (!off) setNews([]); });
     return () => { off = true; };
   }, [nr]);
+  /* strictly newest first (UTC epoch seconds) — impact stays visible on each row, it no longer reorders the feed */
+  const [scope, setScope] = useState<"all" | "mine">("all");
+  const shown = useMemo(() => {
+    if (!news) return null;
+    const list = scope === "mine" ? news.filter((n) => n.tickers.some((t) => (mineW[t] ?? 0) > 0)) : news;
+    return [...list].sort((a, b) => b.ts - a.ts);
+  }, [news, scope, mineW]);
   const setInsight = (id: string, i: Insight) => setNews((l) => l?.map((n) => (n.id === id ? { ...n, insight: i } : n)) ?? l);
 
   return (
@@ -203,9 +210,19 @@ export default function MarketPulse({ rows, all = ETFS }: { rows: EtfRow[]; /** 
             </button>
           ))}
         </div>
+        {myPos.length > 0 && (
+          <div className="flex gap-1.5 px-3 pb-2 font-mono text-[9.5px] font-bold tracking-[0.12em]">
+            {([["all", "ALL"], ["mine", "MY HOLDINGS"]] as const).map(([k, l]) => (
+              <button key={k} type="button" onClick={() => setScope(k)} aria-pressed={scope === k}
+                className={`h-5 rounded-sm border px-2 ${scope === k ? "oasis-on" : "border-white/[0.08] text-zinc-500 hover:text-zinc-200"}`}>{l}</button>
+            ))}
+            <span className="ml-auto self-center font-normal text-zinc-600">NEWEST FIRST</span>
+          </div>
+        )}
         <div className="flex flex-col">
           {news === null && Array.from({ length: 5 }, (_, i) => <div key={i} className="mx-3 my-1.5 h-9 animate-pulse rounded-sm bg-white/[0.03]" />)}
-          {news?.map((n) => <NewsRow key={n.id} n={n} onInsight={setInsight} mine={mineW} />)}
+          {shown?.map((n) => <NewsRow key={n.id} n={n} onInsight={setInsight} mine={mineW} />)}
+          {news && news.length > 0 && shown?.length === 0 && <p className="m-0 px-3 py-3 font-mono text-[11px] text-zinc-600">No headlines about your holdings in this window.</p>}
           {news?.length === 0 && (
             <p className="m-0 px-3 py-3 font-mono text-[11px] leading-relaxed text-zinc-600">
               No headlines yet — the news collector fills this once it runs (needs FINNHUB_API_KEY).

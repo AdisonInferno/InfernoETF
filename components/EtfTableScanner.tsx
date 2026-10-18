@@ -8,7 +8,9 @@ import { buildFund } from "@/components/deep-view/buildFund";
 import EtfDeepDiveCockpit from "@/components/EtfDeepDiveCockpit";
 import InfernoChart from "@/components/InfernoChart";
 import { useMyPortfolio } from "@/lib/my-portfolio";
-import { useLiveEtfs } from "@/lib/market-snapshot";
+import { useLiveEtfs, useSnapshot } from "@/lib/market-snapshot";
+import { useWatchlist } from "@/lib/watchlist";
+import { yahooOf } from "@/lib/portfolio-live";
 import MarketPulse from "@/components/MarketPulse";
 import RecentTickers from "@/components/RecentTickers";
 
@@ -73,6 +75,8 @@ const GROUP_BY_ID = Object.fromEntries(GROUPS.map((g) => [g.id, g])) as Record<G
 
 type TabId = (typeof CATEGORIES)[number]["id"] | "portfolio";
 type SortKey = "default" | "aum" | "ytd" | "chg1d" | "wk";
+/** Scope bar: which universe the table shows (the category tabs then narrow it further) */
+type Scope = "all" | "portfolio" | "watchlist";
 
 const PRESETS: { icon: string; label: string; tab: TabId; filters: Filters; sort: SortKey }[] = [
   { icon: "", label: "AI & High Growth", tab: "ai-tech", filters: {}, sort: "ytd" },
@@ -99,6 +103,7 @@ function GroupIcon({ id }: { id: GroupId }) {
 }
 
 function PctBadge({ v, arrow }: { v: number; arrow?: boolean }) {
+  if (!Number.isFinite(v)) return <span className="font-mono text-[11.5px] text-zinc-600" title="No live quote for this ticker">—</span>;
   return (
     <span className={`inline-flex items-center gap-1 rounded-sm px-1.5 py-[2px] font-mono text-[11.5px] font-bold tabular-nums ${v >= 0 ? "bg-emerald-500/10 text-emerald-400" : "bg-rose-500/10 text-rose-400"}`}>
       {arrow && <span className="text-[9px] leading-none">{v > 0 ? "▲" : v < 0 ? "▼" : "■"}</span>}
@@ -184,6 +189,9 @@ export default function EtfTableScanner() {
   const [mode, setMode] = useState<Mode>("price");
   const [hidden, setHidden] = useState<Hidden>("none");
   const [sel, setSel] = useState<string | null>(null);
+  const [scope, setScopeState] = useState<Scope>("all");
+  // a narrower scope starts on ALL categories, so nothing in it is hidden by a tab
+  const setScope = (sc: Scope) => { setScopeState(sc); setTab(sc === "all" ? "trending" : "all"); setSort("default"); setSortDir(1); };
 
   // A search from the header shows results across all ETFs.
   useEffect(() => {
@@ -216,25 +224,42 @@ export default function EtfTableScanner() {
     ticker: a.ticker, name: a.name, issuer: "Stock", category: "others", sector: a.sector.toUpperCase(), sectorIcon: "",
     aum: NaN, ytd: a.ytd, chg1d: a.chg1d, volatility: "High", dividendYield: 0, leverage: "1x", region: "", ...listingOf(a.ticker),
   }) as EtfRow), [mine]);
-  const stockSet = useMemo(() => new Set(stockRows.map((r) => r.ticker)), [stockRows]);
+  /* Watchlist (favorites + user groups); non-ETF entries get rows from today's live snapshot */
+  const watch = useWatchlist();
+  const watchSet = useMemo(() => new Set([...watch.favorites, ...watch.groups.flatMap((g) => g.tickers)]), [watch]);
+  const watchExtra = useMemo(() => [...watchSet].filter((t) => !ETFS.some((e) => e.ticker === t) && !stockRows.some((r) => r.ticker === t)), [watchSet, stockRows]);
+  const watchSnap = useSnapshot(useMemo(() => watchExtra.map((t) => yahooOf(t)), [watchExtra]));
+  const watchRows = useMemo<EtfRow[]>(() => watchExtra.map((t) => {
+    const sn = watchSnap[yahooOf(t).toUpperCase()];
+    return {
+      ticker: t, name: t, issuer: "Stock", category: "others", sector: "STOCK", sectorIcon: "",
+      aum: NaN, ytd: sn?.ytd ?? NaN, chg1d: sn?.chg1d ?? NaN, volatility: "High", dividendYield: 0, leverage: "1x", region: "", ...listingOf(t),
+    } as EtfRow;
+  }), [watchExtra, watchSnap]);
+  const stockSet = useMemo(() => new Set([...stockRows, ...watchRows].map((r) => r.ticker)), [stockRows, watchRows]);
+  const inScope = (e: EtfRow) =>
+    scope === "portfolio" ? e.ticker in mineW : scope === "watchlist" ? watchSet.has(e.ticker) : !stockSet.has(e.ticker);
 
   // Filters + search, before the category tab is applied (tab counts come from this).
   const base = useMemo(() => {
     const s = query.toLowerCase();
-    return [...LIVE_ETFS, ...stockRows].filter(
+    return [...LIVE_ETFS, ...stockRows, ...watchRows].filter(
       (e) =>
+        inScope(e) &&
         (!s || e.ticker.toLowerCase().includes(s) || e.name.toLowerCase().includes(s)) &&
         GROUPS.every((g) => {
           const sel = filters[g.id];
           return !sel?.length || sel.some((o) => g.test(e, o));
         })
     );
-  }, [filters, query, stockRows, LIVE_ETFS]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- inScope reads scope / mineW / watchSet / stockSet (listed)
+  }, [filters, query, stockRows, watchRows, LIVE_ETFS, scope, mineW, watchSet, stockSet]);
 
   const inTab = (e: EtfRow, t: TabId) =>
-    t === "portfolio" ? e.ticker in mineW
-    : stockSet.has(e.ticker) ? false // single stocks only live in the portfolio tab
-    : t === "all" ? true : t === "trending" ? e.trending !== undefined : inCategory(e, t);
+    t === "all" ? true
+    : t === "portfolio" ? e.ticker in mineW
+    : stockSet.has(e.ticker) ? false // single stocks show under ALL (portfolio / watchlist scope)
+    : t === "trending" ? e.trending !== undefined : inCategory(e, t);
   const subs = tab === "all" || tab === "trending" || tab === "portfolio" ? [] : (SUBCATEGORIES[tab as CategoryId] ?? []);
   const activeSub = subs.find((s) => s.id === sub);
   const tabLabel = tab === "portfolio" ? "MY PORTFOLIO" : CATEGORIES.find((c) => c.id === tab)?.label ?? "";
@@ -242,15 +267,15 @@ export default function EtfTableScanner() {
   const rows = useMemo(() => {
     const list = base.filter((e) => inTab(e, tab) && (!activeSub || activeSub.tickers.includes(e.ticker)));
     const by: Record<SortKey, (a: EtfRow, b: EtfRow) => number> = {
-      default: tab === "portfolio" ? (a, b) => (mineW[b.ticker] ?? 0) - (mineW[a.ticker] ?? 0)
+      default: tab === "portfolio" || scope === "portfolio" ? (a, b) => (mineW[b.ticker] ?? 0) - (mineW[a.ticker] ?? 0)
         : tab === "trending" ? (a, b) => (a.trending ?? 99) - (b.trending ?? 99) : (a, b) => b.aum - a.aum,
       aum: (a, b) => (Number.isFinite(b.aum) ? b.aum : -1) - (Number.isFinite(a.aum) ? a.aum : -1),
-      ytd: (a, b) => b.ytd - a.ytd,
-      chg1d: (a, b) => b.chg1d - a.chg1d,
+      ytd: (a, b) => (Number.isFinite(b.ytd) ? b.ytd : -Infinity) - (Number.isFinite(a.ytd) ? a.ytd : -Infinity),
+      chg1d: (a, b) => (Number.isFinite(b.chg1d) ? b.chg1d : -Infinity) - (Number.isFinite(a.chg1d) ? a.chg1d : -Infinity),
       wk: (a, b) => wk(b) - wk(a),
     };
     return [...list].sort((a, b) => by[sort](a, b) * sortDir);
-  }, [base, tab, sort, sortDir, activeSub, mineW, stockSet]);
+  }, [base, tab, sort, sortDir, activeSub, mineW, stockSet, scope]);
 
   // Charts view: the clicked ETF (falls back to the first row when filters drop it)
   const selected = rows.find((e) => e.ticker === sel) ?? rows[0] ?? null;
@@ -333,7 +358,7 @@ export default function EtfTableScanner() {
                   <td className={`${gap} py-[8px] text-right transition-colors group-hover:bg-white/[0.03]`}><PctBadge v={e.ytd} /></td>
                   <td className={`${gap} py-[8px] text-right transition-colors group-hover:bg-white/[0.03]`}><PctBadge v={e.chg1d} arrow /></td>
                   <td className={`${gap} rounded-r-sm py-[8px] pr-2 transition-colors group-hover:bg-white/[0.03]`}>
-                    {(() => { const p = week(e), w = p[p.length - 1]; return (
+                    {!Number.isFinite(e.chg1d) ? <span className="block text-right font-mono text-[11px] text-zinc-600">—</span> : (() => { const p = week(e), w = p[p.length - 1]; return (
                       <span className="flex items-center justify-end gap-1.5">
                         <Spark pts={p} w={84} h={28} />
                         <span className={`w-[50px] text-right font-mono text-[11px] font-bold tabular-nums ${w >= 0 ? "text-emerald-400" : "text-rose-400"}`}>{fmtPct(w)}</span>
@@ -346,7 +371,9 @@ export default function EtfTableScanner() {
           </table>
       {rows.length === 0 && (
         <div className="flex flex-col items-center gap-2 p-12 text-center text-[13px] text-zinc-500">
-          No ETFs match the current filters{tab !== "all" ? ` in ${tabLabel}` : ""}.
+          {scope === "watchlist" && watchSet.size === 0 ? "Your watchlist is empty — star a ticker (☆ FAVORITE) in any deep dive to add it."
+            : scope === "portfolio" && mine.length === 0 ? "No portfolio yet — build or import one on the Portfolio page."
+            : `No ETFs match the current filters${tab !== "all" ? ` in ${tabLabel}` : ""}.`}
           {filterCount > 0 && <button type="button" onClick={clearAll} className="font-mono text-[11px] tracking-[0.1em] text-zinc-400 underline-offset-2 hover:text-white hover:underline">CLEAR FILTERS</button>}
         </div>
       )}
@@ -506,19 +533,20 @@ export default function EtfTableScanner() {
             ))}
           </div>
           <span className="mx-1 h-5 w-px flex-none bg-white/[0.06]" />
-          {mine.length > 0 && (
-            <button
-              type="button"
-              onClick={() => { setTab("portfolio"); setSort("default"); setSortDir(1); }}
-              title="Positions from your portfolio"
-              className={`flex flex-none items-center gap-2 rounded-none px-3.5 py-1.5 font-mono text-[11.5px] font-bold tracking-[0.06em] transition-colors ${
-                tab === "portfolio" ? "oasis-on" : "bg-emerald-400/[0.04] text-emerald-400/80 hover:bg-emerald-400/[0.1] hover:text-emerald-300"
-              }`}
-            >
-              ★ PORTFOLIO
-              <span className="text-[10px] font-medium text-emerald-400/60">{base.filter((e) => inTab(e, "portfolio")).length}</span>
-            </button>
-          )}
+          {/* Scope bar: ALL | PORTFOLIO | WATCHLIST */}
+          <div role="tablist" aria-label="Scope" className="flex flex-none items-center rounded-sm border border-white/[0.05] bg-[var(--oasis-bg)] p-0.5 font-mono">
+            {([["all", "ALL"], ["portfolio", "PORTFOLIO"], ["watchlist", "WATCHLIST"]] as const).map(([k, l]) => {
+              const n = k === "portfolio" ? mine.length : k === "watchlist" ? watchSet.size : null;
+              return (
+                <button key={k} type="button" role="tab" aria-selected={scope === k} onClick={() => setScope(k)}
+                  title={k === "portfolio" ? "Only your portfolio holdings" : k === "watchlist" ? "Only starred tickers and your watchlist groups" : "Every ETF in the database"}
+                  className={`flex h-7 items-center gap-1.5 rounded-sm px-3 text-[11px] font-bold tracking-[0.1em] transition-colors ${scope === k ? "bg-oasis-muted text-oasis" : "text-zinc-500 hover:text-zinc-200"}`}>
+                  {l}{n != null && <span className={`text-[10px] font-medium ${scope === k ? "text-oasis" : "text-zinc-600"}`}>{n}</span>}
+                </button>
+              );
+            })}
+          </div>
+          <span className="mx-1 h-5 w-px flex-none bg-white/[0.06]" />
           {CATEGORIES.map((c) => {
             const active = tab === c.id;
             const count = base.filter((e) => inTab(e, c.id)).length;
@@ -643,7 +671,7 @@ export default function EtfTableScanner() {
                         <div className="w-[72px] flex-none text-right font-mono tabular-nums">
                           <div className={`text-[12px] ${on ? "text-white" : "text-zinc-300"}`}>{px != null ? `$${px.toFixed(2)}` : "—"}</div>
                           <div className={`text-[10.5px] font-bold ${e.chg1d >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
-                            {e.chg1d > 0 ? "▲" : e.chg1d < 0 ? "▼" : "■"} {fmtPct(e.chg1d)}
+                            {Number.isFinite(e.chg1d) ? `${e.chg1d > 0 ? "▲" : e.chg1d < 0 ? "▼" : "■"} ${fmtPct(e.chg1d)}` : "—"}
                           </div>
                         </div>
                       </button>

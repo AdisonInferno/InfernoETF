@@ -385,7 +385,7 @@ export default function MarketIntel() {
           {!loading && d && d.macro.news.length > 0 && (
             <div className="flex flex-col gap-2 border-t border-white/[0.06] pt-3">
               <span className={label}>MACRO NEWS</span>
-              {d.macro.news.map((n) => (
+              {[...d.macro.news].sort((a, b) => b.ts - a.ts).map((n) => (
                 <div key={n.id} className="flex flex-col gap-1.5">
                   <div className="flex items-start gap-3 text-[12.5px]">
                     <span className="w-[52px] flex-none pt-0.5 text-[10px] text-zinc-600">{when(n.ts * 1000).replace(/ \d\d:\d\d$/, "")}</span>

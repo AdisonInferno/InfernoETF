@@ -1,7 +1,7 @@
 "use client";
 
 import type { FundData, FundStats } from "./types";
-import InfernoChart from "@/components/InfernoChart";
+import InfernoChart, { type ChartTf } from "@/components/InfernoChart";
 import { sg } from "./utils";
 import { METRIC_INFO, MODEL_NOTE } from "./metricInfo";
 
@@ -93,11 +93,11 @@ export function MetricsGrid({ stats }: { stats: FundStats }) {
 
 /* ── Chart Overview = trading chart + metrics ─────────────── */
 
-export default function PriceChart({ fund }: { fund: FundData }) {
+export default function PriceChart({ fund, initialTf = "1Y" }: { fund: FundData; initialTf?: ChartTf }) {
   return (
     <div className="flex flex-none flex-col gap-2.5">
       <section className="flex h-[520px] flex-col rounded-sm border border-white/[0.06] bg-[var(--oasis-bg)] p-3">
-        <InfernoChart key={fund.tic}
+        <InfernoChart key={fund.tic} initialTf={initialTf}
           main={{ id: fund.tic, label: fund.tic, sym: fund.tic, color: "#f87171" }}
           pinned={[{ id: "SPY", label: "S&P 500", sym: "SPY", color: "#a1a1aa", dashed: true },
             ...fund.holdings.slice(0, 5).map((h, i) => ({ id: `top:${h.tic}`, label: h.tic, sym: h.tic, color: ["#60a5fa", "#f59e0b", "#f472b6", "#22d3ee", "#a3e635"][i] }))].filter((l) => l.sym !== fund.tic)}

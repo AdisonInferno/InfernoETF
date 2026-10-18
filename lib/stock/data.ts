@@ -11,6 +11,11 @@
 
 import { cikMap, sec } from "@/lib/intel/sec";
 import { summary, toYahoo } from "@/lib/yahoo";
+import { isNum } from "@/lib/format";
+
+/* sanitizers: small caps (GPW / NewConnect) often come back with NaN or 0 — those become null ("N/A"), never a number */
+const pos = (v: number | null | undefined) => (isNum(v) && v > 0 ? v : null);
+const finite = (v: number | null | undefined) => (isNum(v) ? v : null);
 
 const DATA = process.env.SEC_DATA_BASE_URL ?? "https://data.sec.gov";
 const FINN = process.env.FINNHUB_BASE_URL ?? "https://finnhub.io/api/v1";
@@ -163,7 +168,8 @@ async function yahooDaily(sym: string, range = "1y") {
 export function benchmarkOf(ysym: string): { sym: string; label: string } {
   const sfx = (/\.([A-Z]{1,2})$/.exec(ysym.toUpperCase()) ?? [])[1] ?? "";
   const M: Record<string, { sym: string; label: string }> = {
-    WA: { sym: "WIG20.WA", label: "WIG20" }, DE: { sym: "^GDAXI", label: "DAX" }, F: { sym: "^GDAXI", label: "DAX" }, L: { sym: "^FTSE", label: "FTSE 100" },
+    // Yahoo has no Warsaw index series — the Beta ETF WIG20TR (total return) is the closest real proxy
+    WA: { sym: "ETFBW20TR.WA", label: "WIG20TR (ETF)" }, DE: { sym: "^GDAXI", label: "DAX" }, F: { sym: "^GDAXI", label: "DAX" }, L: { sym: "^FTSE", label: "FTSE 100" },
     PA: { sym: "^FCHI", label: "CAC 40" }, AS: { sym: "^AEX", label: "AEX" }, MI: { sym: "FTSEMIB.MI", label: "FTSE MIB" }, MC: { sym: "^IBEX", label: "IBEX 35" },
     SW: { sym: "^SSMI", label: "SMI" }, T: { sym: "^N225", label: "NIKKEI 225" }, HK: { sym: "^HSI", label: "HANG SENG" }, TO: { sym: "^GSPTSE", label: "TSX" },
     AX: { sym: "^AXJO", label: "ASX 200" }, ST: { sym: "^OMX", label: "OMX 30" }, CO: { sym: "^OMXC25", label: "OMXC25" }, OL: { sym: "OBX.OL", label: "OBX" },
@@ -229,20 +235,20 @@ export async function stockData(raw: string, yahooSym?: string): Promise<StockDa
     industry: fProf?.finnhubIndustry ?? y?.industry ?? prof?.industry ?? null, exchange: fProf?.exchange ?? prof?.exchange ?? y?.exchange ?? null,
     country: fProf?.country ?? y?.country ?? null, web: fProf?.weburl ?? prof?.web ?? y?.web ?? null, logo: fProf?.logo ?? null,
     price, currency: px?.currency ?? "USD", chg1d,
-    marketCap: marketCap ?? y?.marketCap ?? null,
-    pe: price && epsTTM && epsTTM > 0 ? price / epsTTM : (y?.pe ?? met.peTTM ?? met.peBasicExclExtraTTM ?? null),
+    marketCap: pos(marketCap ?? y?.marketCap),
+    pe: pos(price && epsTTM && epsTTM > 0 ? price / epsTTM : (y?.pe ?? met.peTTM ?? met.peBasicExclExtraTTM ?? null)),
     epsTTM: epsTTM ?? y?.eps ?? null, revenueTTM, netIncomeTTM,
     grossMargin: gpTTM != null && revenueTTM ? (gpTTM / revenueTTM) * 100 : (met.grossMarginTTM ?? null),
     netMargin: netIncomeTTM != null && revenueTTM ? (netIncomeTTM / revenueTTM) * 100 : (met.netProfitMarginTTM ?? null),
     dividendYield: y?.dividendYield ?? met.dividendYieldIndicatedAnnual ?? null,
-    beta: beta ?? y?.beta ?? met.beta ?? null,
+    beta: finite(beta ?? y?.beta ?? met.beta),
     hi52: px ? Math.max(...px.c) : (met["52WeekHigh"] ?? null), lo52: px ? Math.min(...px.c) : (met["52WeekLow"] ?? null),
     quarters: qs,
     earnings: (fEarn ?? []).map((e) => ({ period: e.period, quarter: e.quarter, year: e.year, actual: e.actual, estimate: e.estimate, surprise: e.surprise, surprisePct: e.surprisePercent })),
     earningsDates: prof?.earningsDates ?? [],
     peers: (fPeers ?? []).filter((p) => p !== ticker).slice(0, 6),
     quoteType: y?.type ?? null, sector: y?.sector ?? null, description: y?.description ?? null, forwardPe: y?.forwardPe ?? null,
-    aum: y?.totalAssets ?? null, ter: y?.expenseRatio ?? null, category: y?.category ?? null, family: y?.family ?? null,
+    aum: pos(y?.totalAssets), ter: finite(y?.expenseRatio), category: y?.category ?? null, family: y?.family ?? null,
     fundHoldings: y?.holdings ?? [],
     benchmark: benchmarkOf(ysym),
     sources, missing,

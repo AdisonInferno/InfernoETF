@@ -1,5 +1,6 @@
 "use client";
 
+import { currencyOf, formatMarketValue } from "@/lib/format";
 import Link from "next/link";
 import { AnimatePresence, LayoutGroup, motion, useReducedMotion, type Variants } from "framer-motion";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -377,6 +378,10 @@ export default function PortfolioPage() {
 
   const variants = reduceMotion ? fadeCardVariants : cardVariants;
 
+  /** Overview with a saved portfolio = zero-scroll cockpit on wide screens (xl+): everything fits the viewport,
+   *  long lists scroll inside their own panels. Smaller screens and the deep view keep normal page scrolling. */
+  const cockpit = loaded && showMine && !isDeep;
+
   /* ── Bottom cards ── */
   const bottomCards = [
     /* Builder */
@@ -533,7 +538,7 @@ export default function PortfolioPage() {
   return (
     // flex-none: the page grows with its content (never squeezed to the viewport);
     // falling cards are clipped by <main> while its scroll is locked during the transition.
-    <div className="relative mx-auto flex min-h-full w-full max-w-[3200px] flex-none flex-col gap-3 overflow-x-clip bg-[var(--oasis-bg)] px-3 min-[1800px]:px-6 pb-5 pt-3">
+    <div className={`relative mx-auto flex min-h-full w-full max-w-[3200px] flex-none flex-col gap-3 overflow-x-clip bg-[var(--oasis-bg)] px-3 min-[1800px]:px-6 pb-5 pt-3 ${cockpit ? "xl:h-full xl:min-h-0 xl:gap-2 xl:overflow-hidden xl:pb-3 xl:pt-2" : ""}`}>
       {/* XTB import over an existing portfolio: replaces positions after review */}
       {importing && showMine && (
         <div className="fixed inset-0 z-[80] overflow-y-auto bg-[var(--oasis-bg)]/85 p-4" onClick={() => setImporting(false)}>
@@ -552,7 +557,7 @@ export default function PortfolioPage() {
       <LayoutGroup>
         {/* Dashboard: portfolio 3/4 · builder + whales (insight) 1/4. Deep view: full width. */}
         {/* Dashboard: portfolio on top (~3/4 of the screen), builder + whales side by side below */}
-        <div className="flex flex-col gap-3">
+        <div className={`flex flex-col gap-3 ${cockpit ? "xl:min-h-0 xl:flex-1 xl:gap-2" : ""}`}>
         {!loaded ? (
           <section className={`${card} h-[300px] animate-pulse`} />
         ) : showMine ? (
@@ -562,7 +567,7 @@ export default function PortfolioPage() {
             transition={{ layout: reduceMotion ? { duration: 0 } : LAYOUT_SPRING }}
             onClick={onCardClick}
             title={isDeep ? undefined : "Click for the full portfolio deep view"}
-            className={`${card} flex flex-none flex-col gap-3 p-3 ${isExpanded ? "min-h-[calc(100dvh-230px)]" : isDeep ? "" : "cursor-pointer transition-colors hover:border-white/[0.09]"}`}
+            className={`${card} flex flex-none flex-col gap-3 p-3 ${isExpanded ? "min-h-[calc(100dvh-230px)]" : isDeep ? "" : "cursor-pointer transition-colors hover:border-white/[0.09] xl:min-h-0 xl:flex-[3] xl:gap-2 xl:overflow-hidden xl:p-2.5"}`}
           >
             <motion.div layout="position" className="flex flex-wrap items-end justify-between gap-4">
               <div className="flex flex-col gap-3">
@@ -692,13 +697,13 @@ export default function PortfolioPage() {
               </motion.div>
             ) : (
             /* Chart (left) · metrics + positions (right) — side by side on wide screens */
-            <motion.div layout="position" className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1.45fr)_minmax(0,1fr)]">
-              <div onClick={(e) => e.stopPropagation()} className="min-w-0">
-                <div className="flex h-[max(260px,calc(100dvh-735px))] flex-col rounded-sm border border-white/[0.06] bg-[var(--oasis-bg)] p-3">
+            <motion.div layout="position" className={`grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1.45fr)_minmax(0,1fr)] ${cockpit ? "xl:min-h-0 xl:flex-1 xl:gap-3" : ""}`}>
+              <div onClick={(e) => e.stopPropagation()} className="min-w-0 xl:min-h-0">
+                <div className={`flex flex-col rounded-sm border border-white/[0.06] bg-[var(--oasis-bg)] p-3 ${cockpit ? "h-[max(260px,calc(100dvh-735px))] xl:h-full xl:min-h-[220px] xl:p-2" : "h-[max(260px,calc(100dvh-735px))]"}`}>
                   <InfernoChart main={chartMain} pinned={chartPinned} picker={chartPicker} tf={chartTf} onTfChange={(t) => setChartTf(t as ChartTf & PTf)} tfs={PF_CHART_TFS} valueScale={usdVal.total ?? MODEL_BALANCE} />
                 </div>
               </div>
-              <div className="flex min-w-0 flex-col gap-2.5">
+              <div className={`flex min-w-0 flex-col gap-2.5 ${cockpit ? "xl:min-h-0 xl:gap-2" : ""}`}>
                 {isExpanded ? (
                   <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1, transition: { delay: 0.2 } }} className="h-full" onClick={(e) => e.stopPropagation()}>
                     <PortfolioFlows positions={livePos} tf={chartTf} rets={chartHist.rets} />
@@ -725,7 +730,7 @@ export default function PortfolioPage() {
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1, transition: { delay: 0.15 } }}
                       exit={{ opacity: 0, transition: { duration: 0.15 } }}
-                      className="flex min-h-0 flex-col gap-1.5 xl:max-h-[max(150px,calc(100dvh-880px))] xl:overflow-y-auto xl:pr-1"
+                      className={`flex min-h-0 flex-col gap-1.5 xl:overflow-y-auto xl:pr-1 ${cockpit ? "xl:flex-1" : "xl:max-h-[max(150px,calc(100dvh-880px))]"}`}
                     >
                   {livePos.map((p, i) => {
                     const color = SEG_COLORS[i % SEG_COLORS.length];
@@ -744,7 +749,7 @@ export default function PortfolioPage() {
                           <span className="font-mono text-[11px] text-zinc-500">WEIGHT <span className="ml-1 text-[13px] font-semibold text-zinc-100">{p.weight}%</span></span>
                           <div className="h-1.5 w-full overflow-hidden rounded-none bg-white/[0.06]"><div className="h-full rounded-none" style={{ width: `${p.weight}%`, background: color }} /></div>
                         </div>
-                        <span className="hidden w-[80px] text-right font-mono text-[13px] text-zinc-200 md:block xl:hidden 2xl:block">${p.asset.price.toFixed(2)}</span>
+                        <span className="hidden w-[96px] text-right font-mono text-[13px] text-zinc-200 md:block xl:hidden 2xl:block">{formatMarketValue(p.asset.price, currencyOf(symOf[p.asset.ticker] ?? p.asset.ticker))}</span>
                         <span className={`w-[70px] flex-none rounded-sm px-1.5 py-0.5 text-center font-mono text-[11.5px] font-bold ${p.asset.chg1d >= 0 ? "bg-emerald-500/10 text-emerald-400" : "bg-rose-500/10 text-rose-400"}`}>{fmtP(p.asset.chg1d)}</span>
                         <span className={`hidden w-[78px] flex-none rounded-sm px-1.5 py-0.5 text-center font-mono text-[11.5px] font-bold sm:block ${p.asset.ytd >= 0 ? "bg-emerald-500/10 text-emerald-400" : "bg-rose-500/10 text-rose-400"}`}>{fmtP(p.asset.ytd)}</span>
                         <span className={`w-[22px] flex-none text-right font-mono text-[13px] text-zinc-500 group-hover:text-white`} title={isEtf ? "ETF deep view" : "Stock deep dive"}>→</span>
@@ -846,7 +851,7 @@ export default function PortfolioPage() {
         )}
 
         {/* ── Bottom cards: tumble off-screen in deep view, spring back on return ── */}
-        <div className={`relative grid grid-cols-1 gap-3 lg:grid-cols-2 ${isDeep ? "" : "flex-1"}`}>
+        <div className={`relative grid grid-cols-1 gap-3 lg:grid-cols-2 ${isDeep ? "" : "flex-1"} ${cockpit ? "xl:min-h-0 xl:flex-[2] xl:gap-2" : ""}`}>
           <AnimatePresence mode="popLayout" initial={false}>
             {!isDeep &&
               bottomCards.map((content, i) => (
@@ -859,7 +864,7 @@ export default function PortfolioPage() {
                   animate="show"
                   exit="fall"
                   style={{ transformOrigin: i === 0 ? "70% 30%" : i === 2 ? "30% 30%" : "50% 30%", willChange: "transform, opacity" }}
-                  className={`${card} flex flex-col gap-4 p-3 xl:gap-3 xl:p-5`}
+                  className={`${card} flex flex-col gap-4 p-3 ${cockpit ? "xl:min-h-0 xl:gap-2 xl:overflow-y-auto xl:p-3" : "xl:gap-3 xl:p-5"}`}
                 >
                   {content}
                 </motion.section>

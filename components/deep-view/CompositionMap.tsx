@@ -8,7 +8,7 @@ import { SegRail, type MainDef } from "@/components/InfernoChart";
 import type { FundData } from "./types";
 import { SECTOR_RGB, squarify } from "./utils";
 import { ExplorerChart, ExplorerTable, RetCell, useHoldingsExplorer, type Explorer } from "./HoldingsPerformance";
-import { PERIOD_LABEL, RET_PERIODS, RET_SCALE, useHoldingReturns, type RetPeriod } from "./useHoldingReturns";
+import { PERIOD_LABEL, RET_PERIODS, RET_SCALE, useHoldingReturns, type CompPeriod } from "./useHoldingReturns";
 
 /* ─────────────────────────────────────────────────────────────
    COMPOSITION MAP
@@ -307,7 +307,7 @@ function SelectionBar({ x, onShowChart }: { x: Explorer; onShowChart: () => void
 /** `main` = the line the holdings are compared against (default: the ETF itself; the portfolio passes its basket) */
 export default function CompositionMap({ fund, main }: { fund: FundData; main?: MainDef }) {
   const [mode, setMode] = useState<Mode>("COMPOSITION");
-  const [period, setPeriod] = useState<RetPeriod>("1Y");
+  const [period, setPeriod] = useState<CompPeriod>("1Y");
   const tickers = useMemo(() => fund.holdings.filter((h) => h.w > 0).map((h) => h.tic), [fund.holdings]);
   const { ret: rets, state } = useHoldingReturns(tickers, period);
   const ret = useMemo(() => ({ period, state, of: (tic: string) => rets[tic.toUpperCase()] ?? null }), [period, state, rets]);

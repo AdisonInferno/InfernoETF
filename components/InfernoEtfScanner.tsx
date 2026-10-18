@@ -7,6 +7,9 @@ import { QUOTE } from "@/lib/fund-profiles";
 import { useMyPortfolio } from "@/lib/my-portfolio";
 import { useSnapshot } from "@/lib/market-snapshot";
 import { SegRail } from "@/components/InfernoChart";
+import { periodWindow, rangeFor, useHoldingReturns, usePriceSeries } from "@/components/deep-view/useHoldingReturns";
+import { yahooOf } from "@/lib/portfolio-live";
+import { currencyOf, formatMarketValue } from "@/lib/format";
 
 /* ─────────────────────────────── Types ─────────────────────────────── */
 
@@ -18,10 +21,10 @@ interface Etf {
   provider: Provider;
   /** Assets under management, in $B */
   aum: number;
-  /** 1-day change, in % */
+  /** Yahoo symbol the returns / price are loaded for (index codes and Warsaw tickers differ from the label) */
+  sym: string;
+  /** 1-day change, in % (static fallback; the map uses the live snapshot) */
   change1d: number;
-  /** Pre-computed performance for every scrubber timeframe, in % (the scrubber only switches the key) */
-  perf: Record<TfKey, number>;
   price: number;
   note: string;
 }
@@ -48,26 +51,9 @@ interface Rect {
 
 const TFS = ["1D", "1W", "2W", "1M", "3M", "6M", "1Y"] as const;
 type TfKey = (typeof TFS)[number];
-/** Colour-scale stretch per timeframe (≈ √time): a ±1.5% day is as "loud" as a ±22% year. */
+/** Colour-scale stretch per timeframe (≈ √time): a ±1.5% day is as "loud" as a ±22% year.
+ *  Every tile, label, tooltip, sector average and sort reads ONE value per ticker: retOf(etf) for the selected tf. */
 const TF_SCALE: Record<TfKey, number> = { "1D": 1, "1W": 2.2, "2W": 3.1, "1M": 4.5, "3M": 7.5, "6M": 10.5, "1Y": 15 };
-const VOL_D = { Low: 0.8, Medium: 1.3, High: 2.2 } as const;
-
-/** Deterministic multi-timeframe path anchored on the real 1D and YTD figures (illustrative). */
-function perfFor(ticker: string, chg1d: number, ytd: number, vol: keyof typeof VOL_D, lev = 1): Record<TfKey, number> {
-  let h = 0;
-  for (const ch of ticker + "tf") h = (h * 31 + ch.charCodeAt(0)) >>> 0;
-  const n = () => ((h = (h * 1664525 + 1013904223) >>> 0) / 4294967296 - 0.5) * 2; // −1…1
-  const sd = VOL_D[vol] * lev;
-  const w1 = chg1d + n() * sd * 1.6;
-  const w2 = w1 + n() * sd * 1.9;
-  const m1 = w2 + n() * sd * 2.6 + ytd * 0.05;
-  const m3 = ytd * 0.3 + n() * sd * 3.5;
-  const m6 = ytd * 0.62 + n() * sd * 4.5;
-  const y1 = ytd * 1.18 + n() * sd * 5;
-  const r = (v: number) => Math.round(v * 100) / 100;
-  return { "1D": r(chg1d), "1W": r(w1), "2W": r(w2), "1M": r(m1), "3M": r(m3), "6M": r(m6), "1Y": r(y1) };
-}
-
 /* ───────────────────────────── Mock data ───────────────────────────── */
 
 /** Map sectors built from the full ETF database (lib/etfs). Order = default tile order. */
@@ -87,8 +73,7 @@ const MAP_SECTORS: { title: string; short: string; test: (e: EtfRow) => boolean 
 const KNOWN: Provider[] = ["BlackRock", "Vanguard", "State Street", "Invesco"];
 const toEtf = (e: EtfRow): Etf => ({
   ticker: e.ticker, name: e.name, provider: (KNOWN as string[]).includes(e.issuer) ? (e.issuer as Provider) : "Other",
-  aum: e.aum, change1d: e.chg1d, price: QUOTE[e.ticker]?.[0] ?? 0, note: `${e.sector} · ${e.issuer}`,
-  perf: perfFor(e.ticker, e.chg1d, e.ytd, e.volatility, e.leverage === "1x" ? 1 : 2.5),
+  sym: e.ticker, aum: e.aum, change1d: e.chg1d, price: QUOTE[e.ticker]?.[0] ?? 0, note: `${e.sector} · ${e.issuer}`,
 });
 const SECTORS: Sector[] = MAP_SECTORS.map(({ title, test }) => ({
   title,
@@ -98,7 +83,16 @@ const SHORT: Record<string, string> = { ...Object.fromEntries(MAP_SECTORS.map((m
 /** Average sector size ($B) — the portfolio sector is drawn as one average-sized sector, split by your weights */
 const AVG_SECTOR_AUM = SECTORS.reduce((s, g) => s + g.etfs.reduce((a, e) => a + e.aum, 0), 0) / SECTORS.length;
 
-/* ── COUNTRIES universe: 3 main equity indices per market (ILLUSTRATIVE levels/moves).
+/** Yahoo symbols of the country indices (codes without one show N/A instead of a made-up move). */
+const IX_YAHOO: Record<string, string> = {
+  SPX: "^GSPC", NDX: "^NDX", DJI: "^DJI", N225: "^N225", SHCOMP: "000001.SS", SZCOMP: "399001.SZ",
+  HSI: "^HSI", HSCEI: "^HSCE", UKX: "^FTSE", MCX: "^FTMC", DAX: "^GDAXI", MDAX: "^MDAXI", TECDAX: "^TECDAX", CAC: "^FCHI", SBF120: "^SBF120",
+  NIFTY: "^NSEI", SENSEX: "^BSESN", BANKNIFTY: "^NSEBANK", KOSPI: "^KS11", KOSDAQ: "^KQ11", TAIEX: "^TWII", TSX: "^GSPTSE",
+  SMI: "^SSMI", XJO: "^AXJO", XAO: "^AORD", IBOV: "^BVSP",
+  // Yahoo has no Warsaw index series: WIG20 via the Beta ETF WIG20TR (total-return proxy); mWIG40 / sWIG80 have none → N/A
+  WIG20: "ETFBW20TR.WA",
+};
+/* ── COUNTRIES universe: 3 main equity indices per market (static levels/moves are fallbacks; live data via IX_YAHOO).
       aum = approx. market cap of the country's listed equities in $B → drives MKT WEIGHT. ── */
 type Ix = [code: string, name: string, level: number, chg1d: number, ytd: number];
 const COUNTRIES: { title: string; short: string; capB: number; vol: "Low" | "Medium" | "High"; ix: Ix[] }[] = [
@@ -121,10 +115,9 @@ const COUNTRIES: { title: string; short: string; capB: number; vol: "Low" | "Med
 const COUNTRY_SECTORS: Sector[] = COUNTRIES.map((c) => ({
   title: c.title,
   etfs: c.ix.map(([code, name, level, chg1d, ytd], i) => ({
-    ticker: code, name, provider: "Other" as Provider,
+    ticker: code, sym: IX_YAHOO[code] ?? code, name, provider: "Other" as Provider,
     aum: c.capB * [0.55, 0.3, 0.15][i], // index share of the country's weight on the map
-    change1d: chg1d, price: level, note: `${c.title} · main equity index`,
-    perf: perfFor(code, chg1d, ytd, c.vol),
+    change1d: chg1d, price: level, note: `${c.title} · main equity index${code === "WIG20" ? " · via Beta ETF WIG20TR (total-return proxy, price in PLN)" : IX_YAHOO[code] ? "" : " · no data feed for this index"} · ytd ${ytd}% (static)`,
   })),
 }));
 const COUNTRY_SHORT: Record<string, string> = Object.fromEntries(COUNTRIES.map((c) => [c.title, c.short]));
@@ -134,10 +127,7 @@ const MACRO: MacroEtf[] = ([
   { ticker: "GLD", name: "SPDR Gold Shares", provider: "State Street", tag: "Gold", aum: 72, change1d: 0.9, price: 243.7, note: "Gold edges up as real yields ease and central-bank buying persists." },
   { ticker: "SLV", name: "iShares Silver Trust", provider: "BlackRock", tag: "Silver", aum: 13, change1d: 1.74, price: 27.6, note: "Silver outpaces gold on industrial demand and solar-sector orders." },
   { ticker: "SPY", name: "SPDR S&P 500 ETF Trust", provider: "State Street", tag: "S&P 500", aum: 580, change1d: 0.42, price: 584.2, note: "Broad tape firm as megacap earnings revisions lift index EPS estimates." },
-] as Omit<MacroEtf, "perf">[]).map((m) => {
-  const row = ETFS.find((e) => e.ticker === m.ticker);
-  return { ...m, perf: perfFor(m.ticker, m.change1d, row?.ytd ?? 0, row?.volatility ?? "Low") };
-});
+] as Omit<MacroEtf, "sym">[]).map((m) => ({ ...m, sym: m.ticker }));
 
 const PROVIDERS: Provider[] = ["BlackRock", "Vanguard", "State Street", "Invesco", "Other"];
 
@@ -198,28 +188,34 @@ function layoutTreemap<T extends { wt: number }>(
   return out;
 }
 
-/** Deterministic pseudo-random sparkline seeded by ticker. */
-function sparkline(etf: Etf, tf: TfKey) {
-  let h = 0;
-  for (const ch of etf.ticker) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
-  const rnd = () => {
-    h = (h * 1664525 + 1013904223) >>> 0;
-    return h / 4294967296;
-  };
-  const up = etf.perf[tf] >= 0;
-  const n = 32;
-  const pts: number[] = [];
-  let v = 0;
-  for (let i = 0; i < n; i++) {
-    v += (rnd() - 0.5) * 1.2 + (up ? 0.1 : -0.1);
-    pts.push(v);
-  }
+/** Sparkline from the real bars of the selected window (same bars the % is computed from). */
+function sparkline(bars: { c: number[] } | null) {
+  if (!bars || bars.c.length < 2) return null;
+  const pts = bars.c, n = pts.length;
   const mn = Math.min(...pts);
   const rg = Math.max(...pts) - mn || 1;
   const line = pts
     .map((p, i) => `${((i / (n - 1)) * 256).toFixed(1)},${(52 - ((p - mn) / rg) * 46).toFixed(1)}`)
     .join(" ");
   return { line, area: `0,56 ${line} 256,56` };
+}
+
+/** Tile colour for a missing return (no price history for this symbol / window) */
+const NA_TILE = "repeating-linear-gradient(135deg, #1f1f23 0 6px, #18181b 6px 12px)";
+/** map timeframes the ETF deep-view chart can open on directly */
+const CHART_TF = new Set(["1D", "1W", "1M", "3M", "1Y"]);
+
+/** Tooltip sparkline: the bars of the selected window for one symbol (shared price cache). */
+function TipSpark({ sym, tf, color }: { sym: string; tf: TfKey; color: string }) {
+  const px = usePriceSeries([sym], rangeFor(tf));
+  const sp = sparkline(periodWindow(px.series[sym.toUpperCase()] ?? null, tf));
+  if (!sp) return <div className={`${MONO} flex h-14 items-center text-[10px] tracking-[0.1em] text-zinc-600`}>{px.state === "loading" ? "LOADING…" : "NO PRICE HISTORY FOR THIS WINDOW"}</div>;
+  return (
+    <svg viewBox="0 0 256 56" width={256} height={56} className="block">
+      <polygon points={sp.area} fill={color} fillOpacity={0.08} />
+      <polyline points={sp.line} fill="none" stroke={color} strokeWidth={1.6} strokeLinejoin="round" strokeLinecap="round" />
+    </svg>
+  );
 }
 
 /* ───────────────────────────── UI pieces ───────────────────────────── */
@@ -277,22 +273,28 @@ export default function InfernoEtfScanner() {
       etfs: mine.map(({ asset: a, weight }) => {
         const row = ETFS.find((e) => e.ticker === a.ticker);
         const base = row ? toEtf(row) : {
-          ticker: a.ticker, name: a.name, provider: "Other" as Provider, aum: 0, change1d: a.chg1d, price: a.price,
-          note: `${a.sector} · stock`, perf: perfFor(a.ticker, a.chg1d, a.ytd, "High"),
+          ticker: a.ticker, sym: yahooOf(a.ticker), name: a.name, provider: "Other" as Provider, aum: 0, change1d: a.chg1d, price: a.price,
+          note: `${a.sector} · stock`,
         };
-        return { ...base, aum: (AVG_SECTOR_AUM * weight) / 100, note: `${weight}% of my portfolio · ${base.note}` };
+        return { ...base, sym: yahooOf(a.ticker), aum: (AVG_SECTOR_AUM * weight) / 100, note: `${weight}% of my portfolio · ${base.note}` };
       }),
     };
   }, [mine]);
-  /* Today's real moves (Yahoo): 1D change + price replace the static database values on every tile */
-  const snap = useSnapshot(useMemo(() => [...new Set([...SECTORS.flatMap((g) => g.etfs.map((e) => e.ticker)), ...MACRO.map((m) => m.ticker), ...(mineSector?.etfs.map((e) => e.ticker) ?? [])])], [mineSector]));
+  /* Every symbol on screen (both universes + macro strip + my portfolio) */
+  const allSyms = useMemo(() => [...new Set([...SECTORS.flatMap((g) => g.etfs.map((e) => e.sym)), ...COUNTRY_SECTORS.flatMap((g) => g.etfs.map((e) => e.sym)), ...MACRO.map((m) => m.sym), ...(mineSector?.etfs.map((e) => e.sym) ?? [])])], [mineSector]);
+  /* Live price (+ currency) for the tooltip */
+  const snap = useSnapshot(allSyms);
   const liveEtf = useCallback(<T extends Etf>(e: T): T => {
-    const s = snap[e.ticker];
-    return s ? { ...e, change1d: s.chg1d, price: s.price, perf: { ...e.perf, "1D": s.chg1d } } : e;
+    const s = snap[e.sym.toUpperCase()];
+    return s ? { ...e, change1d: s.chg1d, price: s.price } : e;
   }, [snap]);
+  /* THE return per ticker for the selected timeframe — Return_T = (P_now − P_start) / P_start (real closes;
+     1D = vs previous close). Tile colour, tile %, tooltip, sector average, sorting and the macro strip all read it. */
+  const rets = useHoldingReturns(allSyms, tf);
+  const retOf = useCallback((e: Etf): number | null => rets.ret[e.sym.toUpperCase()] ?? null, [rets]);
   const macro = useMemo(() => MACRO.map(liveEtf), [liveEtf]);
   const groupsSrc = useMemo(() => {
-    if (universe !== "ETF") return COUNTRY_SECTORS;
+    if (universe !== "ETF") return COUNTRY_SECTORS.map((x) => ({ ...x, etfs: x.etfs.map(liveEtf) }));
     const g = mineSector ? [mineSector, ...SECTORS] : SECTORS;
     return g.map((x) => ({ ...x, etfs: x.etfs.map(liveEtf) }));
   }, [universe, mineSector, liveEtf]);
@@ -320,11 +322,13 @@ export default function InfernoEtfScanner() {
 
   const { sectors, count } = useMemo(() => {
     const cmp =
-      sort === "aum" ? (a: Etf, b: Etf) => (b.aum - a.aum) * -dir : (a: Etf, b: Etf) => (b.perf[tf] - a.perf[tf]) * -dir;
+      sort === "aum" ? (a: Etf, b: Etf) => (b.aum - a.aum) * -dir
+      : (a: Etf, b: Etf) => { const ra = retOf(a), rb = retOf(b); return ra == null || rb == null ? (ra == null ? 1 : 0) - (rb == null ? 1 : 0) : (rb - ra) * -dir; };
 
     const groups = groupsSrc.filter((g) => !focus.length || focus.includes(g.title)).map(({ title, etfs }) => {
       const rows = etfs.filter((e) => universe !== "ETF" || title === "MY PORTFOLIO" || !disabled[e.provider]).sort(cmp);
-      const avg = rows.length ? rows.reduce((s, e) => s + e.perf[tf], 0) / rows.length : 0;
+      const known = rows.map(retOf).filter((v): v is number => v != null);
+      const avg = known.length ? known.reduce((s, v) => s + v, 0) / known.length : null;
       return {
         title,
         rows,
@@ -334,7 +338,7 @@ export default function InfernoEtfScanner() {
       };
     }).filter((g) => g.rows.length);
 
-    groups.sort(sort === "aum" ? (p, q) => (q.aum - p.aum) * -dir : (p, q) => (q.avg - p.avg) * -dir);
+    groups.sort(sort === "aum" ? (p, q) => (q.aum - p.aum) * -dir : (p, q) => ((q.avg ?? -Infinity) - (p.avg ?? -Infinity)) * -dir);
 
     const laid = layoutTreemap(groups, { x: 0, y: 0, w: size.w, h: size.h }).map(({ item, x, y, w, h }) => {
       const cardW = w - SECTOR_GAP * 2;
@@ -347,7 +351,7 @@ export default function InfernoEtfScanner() {
     });
 
     return { sectors: laid, count: groups.reduce((n, g) => n + g.rows.length, 0) };
-  }, [sort, dir, disabled, size, weightOf, focus, tf, groupsSrc, universe]);
+  }, [sort, dir, disabled, size, weightOf, focus, retOf, groupsSrc, universe]);
 
   const providerCounts = useMemo(() => {
     const all = SECTORS.flatMap((s) => s.etfs);
@@ -355,7 +359,8 @@ export default function InfernoEtfScanner() {
   }, []);
 
   const hoverHandlers = (etf: Etf) => ({
-    onClick: () => { if (universe !== "ETF") return; router.push(ETFS.some((e) => e.ticker === etf.ticker) ? `/etf/${etf.ticker}` : `/stock/${etf.ticker}`); },
+    // the deep view opens on the same timeframe when its chart has it
+    onClick: () => { if (universe !== "ETF") return; const q = CHART_TF.has(tf) ? `?tf=${tf}` : ""; router.push(ETFS.some((e) => e.ticker === etf.ticker) ? `/etf/${etf.ticker}${q}` : `/stock/${etf.ticker}`); },
     onMouseEnter: (e: React.MouseEvent) => setTip({ etf, x: e.clientX, y: e.clientY }),
     onMouseMove: (e: React.MouseEvent) => setTip({ etf, x: e.clientX, y: e.clientY }),
     onMouseLeave: () => setTip(null),
@@ -363,8 +368,8 @@ export default function InfernoEtfScanner() {
 
   const vw = typeof window !== "undefined" ? window.innerWidth : 1400;
   const vh = typeof window !== "undefined" ? window.innerHeight : 900;
-  const spark = tip ? sparkline(tip.etf, tf) : null;
-  const tipColor = tip ? trendColor(tip.etf.perf[tf]) : "#34D399";
+  const tipRet = tip ? retOf(tip.etf) : null;
+  const tipColor = tipRet == null ? "#71717a" : trendColor(tipRet);
 
   return (
     <div className="absolute inset-0 grid grid-cols-[260px_minmax(0,1fr)] grid-rows-[minmax(0,1fr)] gap-4 overflow-hidden bg-[var(--oasis-bg)] p-4 font-sans text-zinc-200">
@@ -459,7 +464,7 @@ export default function InfernoEtfScanner() {
               </button>
             );
           })}
-          <span className="ml-auto text-[10px] tracking-[0.08em] text-zinc-600">{focus.length > 1 ? `COMPARE · ${focus.length} ${universe === "ETF" ? "SECTORS" : "COUNTRIES"}` : "RIGHT-CLICK = COMPARE"} · {count} {universe === "ETF" ? "ETF" : "INDICES · ILLUSTRATIVE"}</span>
+          <span className="ml-auto text-[10px] tracking-[0.08em] text-zinc-600">{focus.length > 1 ? `COMPARE · ${focus.length} ${universe === "ETF" ? "SECTORS" : "COUNTRIES"}` : "RIGHT-CLICK = COMPARE"} · {count} {universe === "ETF" ? "ETF" : "INDICES"}</span>
         </nav>
 
         {/* Treemap */}
@@ -478,20 +483,21 @@ export default function InfernoEtfScanner() {
                   className={`${MONO} min-w-0 truncate text-left text-[13px] font-bold tracking-[0.1em] hover:text-white ${s.title === "MY PORTFOLIO" ? "text-emerald-300" : "text-zinc-200"}`}>
                   {s.title === "MY PORTFOLIO" ? "★ " : ""}{s.title}{focus.length === 1 && focus[0] === s.title ? "  ← ALL" : ""}
                 </button>
-                <span className={`${MONO} flex-none text-[12px] font-bold`} style={{ color: trendColor(s.avg) }}>
-                  {fmtPct(s.avg)}
+                <span className={`${MONO} flex-none text-[12px] font-bold`} style={{ color: s.avg == null ? "#52525b" : trendColor(s.avg) }} title={`Average ${tf} return of the tiles with data`}>
+                  {s.avg == null ? "N/A" : fmtPct(s.avg)}
                 </span>
               </div>
 
               {s.tiles.map(({ item: { etf }, x, y, w, h }) => {
                 const m = Math.min(w, h);
+                const r = retOf(etf);
                 const showPct = h >= 34 && w >= 54;
                 return (
                   <div
                     key={etf.ticker}
                     {...hoverHandlers(etf)}
                     className="on-color absolute box-border flex cursor-pointer flex-col items-center justify-center gap-0.5 overflow-hidden rounded-[1px] border-b border-r border-[#030303] transition-[filter] duration-150 hover:z-20 hover:brightness-125"
-                    style={{ left: x, top: y, width: w, height: h, background: tileBg(etf.perf[tf] / TF_SCALE[tf]) }}
+                    style={{ left: x, top: y, width: w, height: h, background: rets.state === "loading" ? "#1c1c20" : r == null ? NA_TILE : tileBg(r / TF_SCALE[tf]) }}
                   >
                     <span
                       className={`${MONO} font-bold text-white`}
@@ -504,7 +510,7 @@ export default function InfernoEtfScanner() {
                         className={`${MONO} font-semibold text-white/85`}
                         style={{ fontSize: Math.max(9, Math.min(13, Math.round(m / 6))) }}
                       >
-                        {fmtPct(etf.perf[tf])}
+                        {rets.state === "loading" ? "···" : r == null ? "N/A" : fmtPct(r)}
                       </span>
                     )}
                   </div>
@@ -533,7 +539,7 @@ export default function InfernoEtfScanner() {
         <div className="mt-1 box-border w-full flex-none rounded-sm border border-white/[0.06] bg-[var(--oasis-panel)] p-2">
           <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
             {macro.map((m) => {
-              const up = m.perf[tf] >= 0;
+              const r = retOf(m), up = (r ?? 0) >= 0;
               return (
                 <div
                   key={m.ticker}
@@ -546,10 +552,10 @@ export default function InfernoEtfScanner() {
                   </span>
                   <span
                     className={`${MONO} rounded-sm px-2 py-1 text-[13px] font-bold ${
-                      up ? "bg-emerald-500/10 text-[#34D399]" : "bg-rose-500/10 text-[#FB7185]"
+                      r == null ? "bg-white/[0.04] text-zinc-600" : up ? "bg-emerald-500/10 text-[#34D399]" : "bg-rose-500/10 text-[#FB7185]"
                     }`}
                   >
-                    {fmtPct(m.perf[tf])}
+                    {r == null ? (rets.state === "loading" ? "···" : "N/A") : fmtPct(r)}
                   </span>
                 </div>
               );
@@ -559,7 +565,7 @@ export default function InfernoEtfScanner() {
       </main>
 
       {/* ── Tooltip ── */}
-      {tip && spark && (
+      {tip && (
         <div
           className="pointer-events-none fixed z-[100] box-border flex w-72 flex-col gap-3 rounded-sm border border-white/[0.08] bg-[var(--oasis-panel)] p-4"
           style={{ left: Math.min(tip.x + 18, vw - 304), top: Math.max(8, Math.min(tip.y + 18, vh - 340)) }}
@@ -568,30 +574,20 @@ export default function InfernoEtfScanner() {
             <span className={`${MONO} text-[15px] font-bold text-zinc-50`}>{tip.etf.ticker}</span>
             <span className="text-xs text-zinc-400">{tip.etf.name}</span>
           </div>
-          <svg viewBox="0 0 256 56" width={256} height={56} className="block">
-            <polygon points={spark.area} fill={tipColor} fillOpacity={0.08} />
-            <polyline
-              points={spark.line}
-              fill="none"
-              stroke={tipColor}
-              strokeWidth={1.6}
-              strokeLinejoin="round"
-              strokeLinecap="round"
-            />
-          </svg>
+          <TipSpark sym={tip.etf.sym} tf={tf} color={tipColor} />
           <div className={`${MONO} flex items-baseline justify-between`}>
-            <span className="text-lg font-semibold text-zinc-50">${tip.etf.price.toFixed(2)}</span>
+            <span className="text-lg font-semibold text-zinc-50">{formatMarketValue(tip.etf.price || null, universe === "ETF" ? currencyOf(tip.etf.sym, { currency: snap[tip.etf.sym.toUpperCase()]?.currency }) : "PTS")}</span>
             <span className="text-[13px] font-bold" style={{ color: tipColor }}>
-              {fmtPct(tip.etf.perf[tf])} {tf}
+              {tipRet == null ? "N/A" : fmtPct(tipRet)} {tf}
             </span>
           </div>
           <div className="flex flex-col gap-1.5 border-t border-white/[0.06] pt-2.5">
             <span className={`${MONO} flex justify-between text-[10px] tracking-[0.1em] text-zinc-500`}>
               <span>[ CATALYST ]</span>
-              <span className={tip.etf.perf[tf] >= 0 ? "text-emerald-400" : "text-rose-400"}>[ {tf}: {tip.etf.perf[tf] >= 0 ? "BULLISH" : "BEARISH"} ]</span>
+              {tipRet != null && <span className={tipRet >= 0 ? "text-emerald-400" : "text-rose-400"}>[ {tf}: {tipRet >= 0 ? "BULLISH" : "BEARISH"} ]</span>}
             </span>
             <span className="text-xs leading-snug text-zinc-300">{tip.etf.note}</span>
-            <span className={`${MONO} text-[9.5px] tracking-[0.08em] text-zinc-600`}>SRC: DESK NOTE · ILLUSTRATIVE</span>
+            <span className={`${MONO} text-[9.5px] tracking-[0.08em] text-zinc-600`}>{tf} RETURN = (LAST CLOSE − CLOSE {tf} AGO) / CLOSE {tf} AGO · YAHOO</span>
           </div>
         </div>
       )}

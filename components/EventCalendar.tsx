@@ -1,8 +1,12 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useMyPortfolio } from "@/lib/my-portfolio";
+import { lookThrough } from "@/lib/portfolio";
 
-/* Month calendar — its own card on the NEWS page (under MACRO).
+/* Month calendar — its own card on the NEWS page (under MACRO). 5-day trading week (Mon–Fri):
+   weekend events are not dropped, Friday shows a "+N WKND" marker and lists them when picked.
+   Scope: ALL EVENTS · PORTFOLIO ONLY (earnings of what you hold, incl. look-through of your ETFs) · MACRO.
    Days with an event are filled (colour = most important source) and list their codes;
    clicking a day shows its events underneath. */
 
@@ -18,7 +22,9 @@ const SRC: Record<string, { rank: number; label: string; cell: string; bar: stri
 const OTHER = { rank: 9, label: "OTHER", cell: "bg-white/[0.04] hover:bg-white/[0.07]", bar: "bg-zinc-400", chip: "bg-white/[0.08] text-zinc-300" };
 const src = (s: string) => SRC[s] ?? OTHER;
 
-const WEEK = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"];
+const WEEK = ["MON", "TUE", "WED", "THU", "FRI"];
+type Scope = "all" | "portfolio" | "macro";
+const MACRO_SRC = new Set(["FED", "FRED", "MKT"]);
 const pad = (n: number) => String(n).padStart(2, "0");
 /** Local (viewer time zone) "YYYY-MM-DD". */
 const localKey = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
@@ -31,6 +37,10 @@ export default function EventCalendar() {
   const month = `${ym.y}-${pad(ym.m + 1)}`;
   const [picked, setPicked] = useState<string | null>(null);
   const [st, setSt] = useState<{ month: string; events: Ev[]; missing: string[]; error?: string } | null>(null);
+  const [scope, setScope] = useState<Scope>("all");
+  const myPos = useMyPortfolio();
+  /** tickers I own directly or through my ETFs */
+  const mine = useMemo(() => new Set(Object.keys(lookThrough(myPos)).concat(myPos.map((p) => p.asset.ticker))), [myPos]);
 
   useEffect(() => {
     let cancelled = false;
@@ -44,23 +54,29 @@ export default function EventCalendar() {
   const loading = st?.month !== month;
   const byDay = useMemo(() => {
     const map: Record<string, Ev[]> = {};
-    if (!loading) for (const e of st?.events ?? []) (map[evKey(e)] ??= []).push(e);
+    const keep = (e: Ev) => scope === "all" ? true : scope === "macro" ? MACRO_SRC.has(e.source) : e.source === "EARN" && mine.has(e.code.toUpperCase());
+    if (!loading) for (const e of st?.events ?? []) if (keep(e)) (map[evKey(e)] ??= []).push(e);
     for (const list of Object.values(map)) list.sort((a, b) => src(a.source).rank - src(b.source).rank || a.at.localeCompare(b.at));
     return map;
-  }, [st, loading]);
+  }, [st, loading, scope, mine]);
 
-  // 6 weeks × 7 days, Monday first
+  // 6 weeks × Mon–Fri (weekends folded into Friday)
   const cells = useMemo(() => {
     const first = new Date(ym.y, ym.m, 1);
     const offset = (first.getDay() + 6) % 7;
-    return Array.from({ length: 42 }, (_, i) => new Date(ym.y, ym.m, 1 - offset + i));
+    return Array.from({ length: 42 }, (_, i) => new Date(ym.y, ym.m, 1 - offset + i)).filter((d) => d.getDay() !== 0 && d.getDay() !== 6);
   }, [ym]);
+  /** Sat + Sun events of the weekend after a Friday */
+  const weekendOf = (fri: Date) => [1, 2].flatMap((n) => byDay[localKey(new Date(fri.getFullYear(), fri.getMonth(), fri.getDate() + n))] ?? []);
 
   // Selected day: what the user clicked, else today (this month) or the first day with events
+  // on a weekend "today" is the Friday cell (it carries the weekend's events)
+  const todayCell = today.getDay() === 0 || today.getDay() === 6 ? localKey(new Date(today.getFullYear(), today.getMonth(), today.getDate() - (today.getDay() === 0 ? 2 : 1))) : todayKey;
   const sel = picked && picked.startsWith(month) ? picked
-    : todayKey.startsWith(month) ? todayKey
+    : todayCell.startsWith(month) ? todayCell
     : Object.keys(byDay).filter((k) => k.startsWith(month)).sort()[0] ?? null;
-  const selEvents = sel ? byDay[sel] ?? [] : [];
+  const selDate = sel ? new Date(`${sel}T12:00:00`) : null;
+  const selEvents = sel ? [...(byDay[sel] ?? []), ...(selDate && selDate.getDay() === 5 ? weekendOf(selDate) : [])] : [];
   const monthCount = Object.entries(byDay).filter(([k]) => k.startsWith(month)).reduce((n, [, l]) => n + l.length, 0);
 
   const shift = (d: number) => setYm(({ y, m }) => { const t = new Date(y, m + d, 1); return { y: t.getFullYear(), m: t.getMonth() }; });
@@ -85,18 +101,29 @@ export default function EventCalendar() {
         </div>
       </div>
 
+      {/* Scope */}
+      <div role="tablist" aria-label="Calendar scope" className="flex w-fit rounded-sm border border-white/[0.05] bg-[var(--oasis-bg)] p-0.5 font-mono">
+        {([["all", "ALL EVENTS"], ["portfolio", "PORTFOLIO ONLY"], ["macro", "MACRO"]] as const).map(([k, l]) => (
+          <button key={k} type="button" role="tab" aria-selected={scope === k} onClick={() => setScope(k)}
+            title={k === "portfolio" ? (myPos.length ? "Earnings of companies you hold, directly or inside your ETFs" : "No portfolio saved yet") : k === "macro" ? "Fed, macro data releases and market events" : "Everything in the calendar"}
+            className={`h-6 rounded-sm px-2.5 text-[9.5px] font-bold tracking-[0.12em] ${scope === k ? "bg-oasis-muted text-oasis" : "text-zinc-500 hover:text-zinc-200"}`}>{l}</button>
+        ))}
+      </div>
+      {scope === "portfolio" && !myPos.length && <span className="font-mono text-[10px] text-zinc-600">No portfolio saved — build or import one to filter earnings to your holdings.</span>}
+
       {/* Weekday header */}
-      <div className="grid grid-cols-7 gap-1">
-        {WEEK.map((w, i) => (
-          <span key={w} className={`text-center font-mono text-[9px] font-bold tracking-[0.14em] ${i >= 5 ? "text-zinc-700" : "text-zinc-600"}`}>{w}</span>
+      <div className="grid grid-cols-5 gap-1">
+        {WEEK.map((w) => (
+          <span key={w} className="text-center font-mono text-[9px] font-bold tracking-[0.14em] text-zinc-600">{w}</span>
         ))}
       </div>
 
       {/* Day grid */}
-      <div className="grid flex-1 grid-cols-7 grid-rows-6 gap-1">
+      <div className="grid flex-1 grid-cols-5 grid-rows-6 gap-1">
         {cells.map((d) => {
           const k = localKey(d), evs = byDay[k] ?? [], inMonth = d.getMonth() === ym.m;
-          const isToday = k === todayKey, isSel = k === sel, weekend = d.getDay() === 0 || d.getDay() === 6;
+          const isToday = k === todayKey, isSel = k === sel;
+          const wknd = d.getDay() === 5 ? weekendOf(d).length : 0;
           const top = evs[0] ? src(evs[0].source) : null;
           return (
             <button
@@ -106,7 +133,7 @@ export default function EventCalendar() {
               aria-pressed={isSel}
               aria-label={`${d.toDateString()}${evs.length ? `, ${evs.length} event${evs.length > 1 ? "s" : ""}` : ""}`}
               className={`relative flex min-h-[46px] min-w-0 flex-col items-stretch gap-0.5 overflow-hidden rounded-sm border px-1 pb-1 pl-1.5 pt-0.5 text-left transition-colors
-                ${top ? top.cell : weekend ? "bg-white/[0.01] hover:bg-white/[0.04]" : "bg-[var(--oasis-bg)] hover:bg-white/[0.04]"}
+                ${top ? top.cell : "bg-[var(--oasis-bg)] hover:bg-white/[0.04]"}
                 ${isToday ? "border-red-500/70" : isSel ? "border-white/[0.25]" : "border-white/[0.05]"}
                 ${isSel ? "shadow-[inset_0_0_0_1px_rgba(255,255,255,0.14)]" : ""}
                 ${inMonth ? "" : "opacity-35"}`}
@@ -114,7 +141,10 @@ export default function EventCalendar() {
               {top && <span className={`absolute inset-y-0 left-0 w-[2px] ${top.bar}`} />}
               <span className="flex items-center justify-between">
                 <span className={`font-mono text-[10.5px] font-bold tabular-nums ${isToday ? "text-red-400" : top ? "text-zinc-100" : "text-zinc-600"}`}>{d.getDate()}</span>
-                {evs.length > 2 && <span className="font-mono text-[8.5px] font-bold text-zinc-500">+{evs.length - 2}</span>}
+                <span className="flex gap-1">
+                  {wknd > 0 && <span className="font-mono text-[8.5px] font-bold text-zinc-500" title={`${wknd} weekend event${wknd > 1 ? "s" : ""} — click to see`}>+{wknd} WKND</span>}
+                  {evs.length > 2 && <span className="font-mono text-[8.5px] font-bold text-zinc-500">+{evs.length - 2}</span>}
+                </span>
               </span>
               {evs.slice(0, 2).map((e, i) => (
                 <span key={i} className={`truncate rounded-xs px-1 font-mono text-[8.5px] font-bold leading-[13px] tracking-[0.04em] ${src(e.source).chip}`}>{e.code}</span>

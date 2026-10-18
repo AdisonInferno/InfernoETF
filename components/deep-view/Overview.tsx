@@ -7,6 +7,7 @@ import type { FundData } from "./types";
 import { COUNTRY_CODE } from "./mockData";
 import { SECTOR_RGB, aumFmt, pctOf, squarify } from "./utils";
 import PriceChart from "./PriceChart";
+import type { ChartTf } from "@/components/InfernoChart";
 
 const CARD = "oasis-glass border border-white/[0.06] bg-[var(--oasis-panel)]";
 const H_LABEL = "font-display text-[10.5px] font-bold tracking-[0.18em] text-neutral-300";
@@ -181,10 +182,10 @@ function CatalystMatrix({ note, ticker }: { note: string; ticker: string }) {
   );
 }
 
-export default function Overview({ fund }: { fund: FundData; onUpgrade?: () => void }) {
+export default function Overview({ fund, initialTf }: { fund: FundData; onUpgrade?: () => void; initialTf?: ChartTf }) {
   return (
     <div className="flex flex-none flex-col gap-4 px-5 pb-10 pt-4">
-      <PriceChart fund={fund} />
+      <PriceChart fund={fund} initialTf={initialTf} />
       <div className="grid grid-cols-1 items-stretch gap-4 lg:grid-cols-12">
         <div className="min-w-0 lg:col-span-8"><SectorBreakdown fund={fund} /></div>
         <div className="min-w-0 lg:col-span-4"><TopHoldings fund={fund} /></div>

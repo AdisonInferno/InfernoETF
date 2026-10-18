@@ -23,16 +23,16 @@ import { useMyPortfolio } from "@/lib/my-portfolio";
 import { useSnapshot } from "@/lib/market-snapshot";
 import { toggleFavorite, useWatchlist } from "@/lib/watchlist";
 import type { EarningsRow, Quarter, StockData } from "@/lib/stock/data";
+import { NA_CLASS, currencyOf, fmtPctValue, fmtRatio, formatMarketValue, naTone } from "@/lib/format";
 
 const B = "border-white/[0.06]";
 const CARD = `oasis-glass border ${B} bg-[var(--oasis-panel)]`;
 const LABEL = "font-mono text-[10px] font-semibold tracking-[0.14em] text-zinc-500";
 
-const big = (v: number | null | undefined, cur = "$") => {
-  if (v == null || !isFinite(v)) return "—";
-  const a = Math.abs(v), s = v < 0 ? "−" : "";
-  return a >= 1e12 ? `${s}${cur}${(a / 1e12).toFixed(2)}T` : a >= 1e9 ? `${s}${cur}${(a / 1e9).toFixed(2)}B` : a >= 1e6 ? `${s}${cur}${(a / 1e6).toFixed(1)}M` : `${s}${cur}${a.toFixed(0)}`;
-};
+/** compact money in the listing's currency ("$2.45B" / "2.45B PLN"); "—" when missing */
+const big = (v: number | null | undefined, ccy = "USD") => formatMarketValue(v, ccy, { compact: true, digits: 0 });
+/** per-share money (EPS) in the listing's currency */
+const perShare = (v: number | null | undefined, ccy = "USD") => formatMarketValue(v, ccy);
 const pct = (v: number | null | undefined, d = 1) => (v == null || !isFinite(v) ? "—" : `${v >= 0 ? "+" : "−"}${Math.abs(v).toFixed(d)}%`);
 const tone = (v: number | null | undefined) => (v == null ? "text-zinc-500" : v > 0 ? "text-emerald-400" : v < 0 ? "text-rose-400" : "text-zinc-300");
 const chgOf = (a: number | null, b: number | null) => (a != null && b != null && b !== 0 ? ((a - b) / Math.abs(b)) * 100 : null);
@@ -59,16 +59,17 @@ function Overview({ d, held, sym }: { d: StockData; held: { etf: string; name: s
   const peers = d.peers.slice(0, 4);
   const pos52 = d.price != null && d.hi52 != null && d.lo52 != null && d.hi52 > d.lo52 ? ((d.price - d.lo52) / (d.hi52 - d.lo52)) * 100 : null;
   const isFund = d.quoteType === "ETF" || d.quoteType === "MUTUALFUND";
+  const ccy = currencyOf(d.ticker, { currency: d.currency, exchange: d.exchange });
   const groups: { t: string; items: [string, string, string?][] }[] = isFund ? [
-    { t: "FUND PROFILE", items: [["AUM", big(d.aum)], ["TER", d.ter != null ? `${d.ter.toFixed(2)}%` : "—"]] },
+    { t: "FUND PROFILE", items: [["AUM", big(d.aum, ccy)], ["TER", fmtPctValue(d.ter)]] },
     { t: "CATEGORY", items: [["CATEGORY", d.category ?? "—"], ["ISSUER", d.family ?? "—"]] },
-    { t: "INCOME", items: [["YIELD", d.dividendYield != null ? `${d.dividendYield.toFixed(2)}%` : "—"], ["P/E", d.pe != null ? d.pe.toFixed(1) : "—"]] },
-    { t: "RISK", items: [["BETA (1Y)", d.beta != null ? d.beta.toFixed(2) : "—"], ["52W", d.lo52 != null && d.hi52 != null ? `${d.lo52.toFixed(0)}–${d.hi52.toFixed(0)}` : "—"]] },
+    { t: "INCOME", items: [["YIELD", fmtPctValue(d.dividendYield)], ["P/E", fmtRatio(d.pe, 1)]] },
+    { t: "RISK", items: [["BETA (1Y)", fmtRatio(d.beta)], ["52W", d.lo52 != null && d.hi52 != null && isFinite(d.lo52) && isFinite(d.hi52) ? `${d.lo52.toFixed(0)}–${d.hi52.toFixed(0)}` : "—"]] },
   ] : [
-    { t: "VALUATION", items: [["MARKET CAP", big(d.marketCap)], ["P/E (TTM)", d.pe != null ? d.pe.toFixed(1) : "—"]] },
-    { t: "PROFITABILITY", items: [["GROSS MARGIN", d.grossMargin != null ? `${d.grossMargin.toFixed(1)}%` : "—"], ["NET MARGIN", d.netMargin != null ? `${d.netMargin.toFixed(1)}%` : "—", d.netMargin != null && d.netMargin < 0 ? "text-rose-400" : undefined]] },
-    { t: "EPS & REVENUE (TTM)", items: [["EPS", d.epsTTM != null ? `$${d.epsTTM.toFixed(2)}` : "—", d.epsTTM != null && d.epsTTM < 0 ? "text-rose-400" : undefined], ["REVENUE", big(d.revenueTTM)]] },
-    { t: "RISK & INCOME", items: [["BETA (1Y)", d.beta != null ? d.beta.toFixed(2) : "—"], ["DIV YIELD", d.dividendYield != null ? `${d.dividendYield.toFixed(2)}%` : "—"]] },
+    { t: "VALUATION", items: [["MARKET CAP", big(d.marketCap, ccy)], ["P/E (TTM)", fmtRatio(d.pe, 1)]] },
+    { t: "PROFITABILITY", items: [["GROSS MARGIN", fmtPctValue(d.grossMargin, 1)], ["NET MARGIN", fmtPctValue(d.netMargin, 1), d.netMargin != null && d.netMargin < 0 ? "text-rose-400" : undefined]] },
+    { t: "EPS & REVENUE (TTM)", items: [["EPS", perShare(d.epsTTM, ccy), d.epsTTM != null && d.epsTTM < 0 ? "text-rose-400" : undefined], ["REVENUE", big(d.revenueTTM, ccy)]] },
+    { t: "RISK & INCOME", items: [["BETA (1Y)", fmtRatio(d.beta)], ["DIV YIELD", fmtPctValue(d.dividendYield)]] },
   ];
   return (
     <div className="flex flex-col gap-4 px-5 pb-12 pt-5">
@@ -87,7 +88,7 @@ function Overview({ d, held, sym }: { d: StockData; held: { etf: string; name: s
               {g.items.map(([k, v, c], i) => (
                 <div key={k} className={`flex flex-col gap-1.5 ${i ? "pl-4" : "pr-4"}`}>
                   <span className="font-mono text-[10px] font-semibold tracking-[0.12em] text-zinc-500">{k}</span>
-                  <span className={`font-mono text-[20px] font-semibold leading-none tabular-nums ${c ?? "text-zinc-100"}`}>{v}</span>
+                  <span className={`font-mono text-[20px] font-semibold leading-none tabular-nums ${naTone(v, c ?? "text-zinc-100")}`}>{v}</span>
                 </div>
               ))}
             </div>
@@ -524,6 +525,7 @@ export default function StockDeepView({ ticker, yahoo = ticker }: { ticker: stri
   const fav = w.favorites.includes(ticker);
   const inPf = w.portfolio.find((p) => p.ticker === ticker);
   const price = live?.price ?? d?.price ?? null, chg = live?.chg1d ?? d?.chg1d ?? null;
+  const ccy = currencyOf(yahoo, { currency: live?.currency ?? d?.currency, exchange: d?.exchange });
   const newsItems = useMemo(() => [{ ticker, name: d?.name ?? ticker, weight: 100, kind: "stock" as const, sector: d?.industry ?? "Other" }], [ticker, d?.name, d?.industry]);
 
   return (
@@ -537,15 +539,16 @@ export default function StockDeepView({ ticker, yahoo = ticker }: { ticker: stri
           <span className="text-[56px] font-bold leading-[0.82] tracking-[0.01em] text-white">{ticker}</span>
           <span className="pb-0.5 text-xl font-medium tracking-[0.02em] text-neutral-400">{(d?.name && d.name !== ticker ? d.name : localName ?? d?.name) ?? (st ? "" : "…")}</span>
           <div className="ml-auto flex items-baseline gap-3 font-mono tabular-nums">
-            <span className="text-[30px] font-semibold text-neutral-100">{price != null ? `${(live?.currency ?? d?.currency) === "USD" ? "$" : (live?.currency ?? d?.currency ?? "") + " "}${price.toFixed(2)}` : "—"}</span>
+            <span className={`text-[30px] font-semibold ${price == null ? NA_CLASS : "text-neutral-100"}`}>{formatMarketValue(price, ccy)}</span>
             <span className={`text-[13px] font-bold ${tone(chg)}`}>{pct(chg, 2)}</span>
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2 py-0.5">
-          {([["MARKET CAP", big(d?.marketCap)], ["P/E", d?.pe != null ? d.pe.toFixed(1) : "—"], ["INDUSTRY", d?.industry ?? "—"], ["EXCHANGE", d?.exchange ?? "—"]] as const).map(([k, v]) => (
-            <div key={k} className="flex h-7 items-center gap-2 whitespace-nowrap rounded-sm border border-white/[0.03] px-3">
+          <span className="flex h-7 items-center whitespace-nowrap border border-oasis/50 bg-oasis-muted px-2.5 font-mono text-[11px] font-bold tracking-[0.12em] text-oasis" title="All prices and money values on this page are in this currency">[ CURRENCY: {ccy} ]</span>
+          {([["MARKET CAP", big(d?.marketCap, ccy)], ["P/E", fmtRatio(d?.pe, 1)], ["INDUSTRY", d?.industry ?? "—"], ["EXCHANGE", d?.exchange ?? "—"]] as const).map(([k, v]) => (
+            <div key={k} className="flex h-7 items-center gap-2 whitespace-nowrap rounded-sm border border-white/[0.05] px-3">
               <span className="text-[10.5px] font-semibold tracking-[0.12em] text-gray-400">{k}:</span>
-              <span className="font-mono text-xs font-semibold text-neutral-100">{v}</span>
+              <span className={`font-mono text-xs font-semibold ${naTone(v, "text-neutral-100")}`}>{v}</span>
             </div>
           ))}
           {inPf && <span className="h-7 border border-emerald-500/40 bg-emerald-500/10 px-2.5 py-1 font-mono text-[10.5px] font-bold text-emerald-300">★ IN MY PORTFOLIO · {inPf.weight}%</span>}

@@ -1,5 +1,6 @@
 "use client";
 
+import { formatMarketValue } from "@/lib/format";
 import Link from "next/link";
 import { AnimatePresence, motion, type Variants } from "framer-motion";
 import { useEffect, useMemo, useState } from "react";
@@ -338,7 +339,11 @@ export function OpenPositions({ positions, lots, saveLot, live, fx, tf, onTfChan
                         <span className="truncate text-[11px] text-zinc-500">{p.asset.name}</span>
                       </span>
                     </span>
-                    <span className="text-right font-mono text-[12.5px] font-semibold tabular-nums text-zinc-50">{money(r.value)}</span>
+                    <span className="flex flex-col items-end font-mono tabular-nums">
+                      <span className="text-[12.5px] font-semibold text-zinc-50">{money(r.value)}</span>
+                      {/* native value next to the USD conversion (PLN / EUR … holdings) */}
+                      {r.ccy !== "USD" && r.ccy !== "?" && fx[r.ccy] ? <span className="text-[10px] text-zinc-500" title={`1 ${r.ccy} = ${fx[r.ccy].toFixed(4)} USD`}>{formatMarketValue(r.value / fx[r.ccy], r.ccy)}</span> : null}
+                    </span>
                     <span className={`flex flex-col items-end font-mono tabular-nums ${tone(r.pl)}`}>
                       <span className="text-[12px] font-semibold">{signMoney(r.pl)}</span>
                       <span className="text-[10px]">{pct(r.plPct, 2)}</span>

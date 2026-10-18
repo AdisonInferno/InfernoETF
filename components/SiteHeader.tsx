@@ -9,7 +9,7 @@ import { ETFS, fmtPct } from "@/lib/etfs";
 const NAV = [
   { href: "/scanner", label: "SCANNER" },
   { href: "/portfolio", label: "PORTFOLIO" },
-  { href: "/watchlist", label: "WATCHLIST" },
+  // WATCHLIST lives in the scanner scope bar now (/watchlist still works as a page)
   { href: "/news", label: "NEWS" },
   { href: "/etf-tools", label: "ETF TOOLS" },
 ];

@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import InfernoChart, { type MainDef } from "@/components/InfernoChart";
 import { SUB_PARENT } from "@/lib/fund-profiles";
 import type { FundData } from "./types";
-import { RET_PERIODS, type RetPeriod, type RetState } from "./useHoldingReturns";
+import { RET_PERIODS, type CompPeriod, type RetState } from "./useHoldingReturns";
 
 /* ─────────────────────────────────────────────────────────────
    Holdings Explorer  (COMPOSITION MAP tab)
@@ -38,7 +38,7 @@ const LEVEL_STYLE = {
 export interface Row { rank: number; tic: string; name: string; w: number; sub: string; parent: string; cap: number; r: number | null }
 /** "ALL" · "sector:<parent>" · "sub:<sub-sector>" */
 export type SectorFilter = string;
-export interface RetInfo { period: RetPeriod; of: (tic: string) => number | null; state: RetState }
+export interface RetInfo { period: CompPeriod; of: (tic: string) => number | null; state: RetState }
 
 /* ── State ─────────────────────────────────────────────────── */
 
@@ -257,7 +257,7 @@ export function ExplorerTable({ x }: { x: Explorer }) {
 
 /** Relative performance of the ETF and the plotted holdings — the shared terminal chart (real prices),
  *  in % mode so every line starts at 0% at the left edge. Its timeframe rail IS the Composition Map period. */
-export function ExplorerChart({ x, onPeriod, main }: { x: Explorer; onPeriod: (p: RetPeriod) => void; main?: MainDef }) {
+export function ExplorerChart({ x, onPeriod, main }: { x: Explorer; onPeriod: (p: CompPeriod) => void; main?: MainDef }) {
   const { fund, shown, plotted } = x;
   const pinned = useMemo(() => shown.map((h) => ({ id: `h:${h.tic}`, label: h.tic, sym: h.tic, color: plotted.get(h.tic) ?? PALETTE[0] })), [shown, plotted]);
   const picker = useMemo(() => fund.holdings.map((h) => ({ sym: h.tic, label: h.tic, sub: `${h.w.toFixed(2)}% · ${h.name}` })), [fund.holdings]);
@@ -267,7 +267,7 @@ export function ExplorerChart({ x, onPeriod, main }: { x: Explorer; onPeriod: (p
         <InfernoChart key={fund.tic}
           main={main ?? { id: fund.tic, label: fund.tic, sym: fund.tic, color: "#f4f4f5" }}
           pinned={pinned} picker={picker} initialUnit="PCT"
-          tfs={RET_PERIODS} tf={x.ret.period} onTfChange={(t) => onPeriod(t as RetPeriod)} />
+          tfs={RET_PERIODS} tf={x.ret.period} onTfChange={(t) => onPeriod(t as CompPeriod)} />
       </div>
       <div className="mt-1.5 flex flex-none flex-wrap items-center gap-3 border-t border-white/[0.06] px-1 pt-2 text-[10px] tracking-[0.1em]">
         <span className="text-zinc-600">Tick ☐ in the holdings table to add or remove a line · click a legend entry to hide it</span>
