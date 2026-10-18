@@ -2,10 +2,27 @@
 
 _Generowany automatycznie z historii git. Zmiany oddalone o mniej niż godzinę = jedna sesja._
 
+## niedziela, 18 października 2026
+
+### Sesja #17 · 12:10–13:22 · 6 zmian · Claude
+
+- `13:22` Nagłówek: napisy Settings / Profile po najechaniu (wspólny HoverLabel)
+- `13:19` Glossary: sama ikona, napis tylko po najechaniu
+- `13:14` Glossary: przycisk z ikoną uczelni w nagłówku + pusta strona /glossary
+- `12:30` Logo OASIS: elegancki Cormorant Garamond zamiast Syncopate
+- `12:25` Motyw SOFT WHITE: jasna, lekko szara biel w stylu Apple
+- `12:10` Typografia OASIS: Manrope + Geist Mono, lżejsze pogrubienia
+
 ## sobota, 17 października 2026
 
-### Sesja #15 · 14:50–17:59 · 32 zmian · AdisonInferno
+### Sesja #16 · 21:07–21:15 · 2 zmian · Claude
 
+- `21:15` ETF Tools: zaokrąglone panele Sector Split (oasis-glass)
+- `21:07` Miękkie rogi OASIS + panele w stylu glass
+
+### Sesja #15 · 14:50–18:02 · 33 zmian · AdisonInferno
+
+- `18:02` Dziennik zmian
 - `17:59` Dziennik zmian
 - `17:59` Portfolio deep view: sector + holdings donuts (click = sub-sector ring) with sector table above PnL attribution
 - `17:56` Charts 1D→1Y, plain price label; Market News (GLOBAL, no sentiment tiles, real IMPORTANT sort); scanner CCY/EXCHANGE; wide OASIS logotype
