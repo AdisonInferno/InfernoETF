@@ -148,14 +148,16 @@ export default function SiteHeader() {
         <div className="flex items-center gap-2 justify-self-end">
           <Link
             href="/glossary"
-            title="Glossary · investing terms explained"
             aria-label="Glossary"
-            className={`flex h-9 items-center gap-2 rounded-sm border px-3 text-[12px] font-semibold tracking-[0.06em] transition-colors ${
+            className={`group relative flex h-9 w-9 items-center justify-center rounded-sm border transition-colors ${
               pathname?.startsWith("/glossary") ? "oasis-on" : "border-white/[0.06] bg-white/[0.03] text-zinc-300 hover:bg-white/[0.08] hover:text-white"
             }`}
           >
             <GlossaryIcon />
-            Glossary
+            {/* label shows only on hover / keyboard focus */}
+            <span role="tooltip" className="pointer-events-none absolute right-1/2 top-[calc(100%+8px)] z-[70] translate-x-1/2 whitespace-nowrap rounded-xs border border-white/[0.08] bg-[var(--oasis-panel)] px-2 py-1 text-[11px] font-medium tracking-[0.04em] text-zinc-200 opacity-0 shadow-[0_6px_18px_-8px_rgba(0,0,0,0.5)] transition-opacity duration-150 group-hover:opacity-100 group-focus-visible:opacity-100">
+              Glossary
+            </span>
           </Link>
           <IconButton label="Settings · accent colour" onClick={() => window.dispatchEvent(new Event("oasis:accent-toggle"))}>
             <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" className="text-zinc-200">
