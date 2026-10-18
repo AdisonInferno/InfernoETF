@@ -108,16 +108,25 @@ function GlossaryIcon() {
   );
 }
 
-function IconButton({ label, children, onClick }: { label: string; children: React.ReactNode; onClick?: () => void }) {
+/** Small label under a header icon — appears only on hover / keyboard focus */
+function HoverLabel({ text }: { text: string }) {
+  return (
+    <span role="tooltip" className="pointer-events-none absolute right-1/2 top-[calc(100%+8px)] z-[70] translate-x-1/2 whitespace-nowrap rounded-xs border border-white/[0.08] bg-[var(--oasis-panel)] px-2 py-1 text-[11px] font-medium tracking-[0.04em] text-zinc-200 opacity-0 shadow-[0_6px_18px_-8px_rgba(0,0,0,0.5)] transition-opacity duration-150 group-hover:opacity-100 group-focus-visible:opacity-100">
+      {text}
+    </span>
+  );
+}
+
+function IconButton({ label, hint, children, onClick }: { label: string; hint: string; children: React.ReactNode; onClick?: () => void }) {
   return (
     <button
       type="button"
       aria-label={label}
-      title={label}
       onClick={onClick}
-      className="flex h-9 w-9 items-center justify-center rounded-sm border border-white/[0.06] bg-white/[0.03] transition-colors hover:bg-white/[0.08]"
+      className="group relative flex h-9 w-9 items-center justify-center rounded-sm border border-white/[0.06] bg-white/[0.03] transition-colors hover:bg-white/[0.08]"
     >
       {children}
+      <HoverLabel text={hint} />
     </button>
   );
 }
@@ -154,17 +163,14 @@ export default function SiteHeader() {
             }`}
           >
             <GlossaryIcon />
-            {/* label shows only on hover / keyboard focus */}
-            <span role="tooltip" className="pointer-events-none absolute right-1/2 top-[calc(100%+8px)] z-[70] translate-x-1/2 whitespace-nowrap rounded-xs border border-white/[0.08] bg-[var(--oasis-panel)] px-2 py-1 text-[11px] font-medium tracking-[0.04em] text-zinc-200 opacity-0 shadow-[0_6px_18px_-8px_rgba(0,0,0,0.5)] transition-opacity duration-150 group-hover:opacity-100 group-focus-visible:opacity-100">
-              Glossary
-            </span>
+            <HoverLabel text="Glossary" />
           </Link>
-          <IconButton label="Settings · accent colour" onClick={() => window.dispatchEvent(new Event("oasis:accent-toggle"))}>
+          <IconButton label="Settings · accent colour" hint="Settings" onClick={() => window.dispatchEvent(new Event("oasis:accent-toggle"))}>
             <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" className="text-zinc-200">
               <path d="M19.4 13a7.5 7.5 0 0 0 0-2l2.1-1.6-2-3.5-2.5 1a7.6 7.6 0 0 0-1.7-1L15 3.3h-4l-.4 2.6a7.6 7.6 0 0 0-1.7 1l-2.5-1-2 3.5L6.6 11a7.5 7.5 0 0 0 0 2l-2.1 1.6 2 3.5 2.5-1a7.6 7.6 0 0 0 1.7 1l.4 2.6h4l.4-2.6a7.6 7.6 0 0 0 1.7-1l2.5 1 2-3.5L19.4 13ZM13 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7Z" transform="translate(-1 0)" />
             </svg>
           </IconButton>
-          <IconButton label="Account">
+          <IconButton label="Profile" hint="Profile">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" className="text-zinc-400">
               <circle cx="12" cy="8" r="4.2" />
               <path d="M3.5 21c0-4.4 3.8-7.5 8.5-7.5s8.5 3.1 8.5 7.5Z" />
