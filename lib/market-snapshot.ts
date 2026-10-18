@@ -29,6 +29,9 @@ async function load(syms: string[]) {
   }
 }
 
+/** true once a request for `sym` has finished (a null snapshot then means "no live data", not "still loading"). */
+export const snapLoaded = (sym: string) => store.has(sym.toUpperCase());
+
 /** Live snapshot per symbol (null = no live data → keep the static value). Refreshes every minute. */
 export function useSnapshot(symbols: string[]): Record<string, Snap | null> {
   const key = [...new Set(symbols.map((s) => s.toUpperCase()))].sort().join(",");

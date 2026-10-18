@@ -73,19 +73,10 @@
   box-shadow: 0 4px 6px -6px color-mix(in srgb, var(--oasis-accent) 60%, transparent);
 }
 
-@theme {
-  --animate-ticker: ticker 160s linear infinite;
-
-  @keyframes ticker {
-    from { transform: translateX(0); }
-    to { transform: translateX(-50%); }
-  }
-}
-
-/* Fade the ticker in/out at the edges. */
-.ticker-mask {
-  mask-image: linear-gradient(90deg, transparent, #000 4%, #000 96%, transparent);
-}
+/* MARKETS strip: one soft highlight when a quote changes (no crawl, no blinking). */
+@keyframes quote-flash { from { background-color: color-mix(in srgb, var(--oasis-accent) 22%, transparent); } to { background-color: transparent; } }
+.animate-quote-flash { animation: quote-flash 1.2s ease-out; }
+@media (prefers-reduced-motion: reduce) { .animate-quote-flash { animation: none; } }
 
 /* Thin dark scrollbars to match the UI. */
 * {

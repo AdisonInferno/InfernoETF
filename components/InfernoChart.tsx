@@ -2,7 +2,7 @@
 
 /* ─────────────────────────────────────────────────────────────
    INFERNO CHART — one chart for the whole terminal (portfolio deep view, ETF deep view, scanner cockpit).
-   · Vertical timeframe rail on the left (1Y → 1D). Picking a stop zooms the chart to that window;
+   · Timeframe rail (1D → MAX; 3Y / 5Y / MAX load weekly / monthly history, the rest daily). Picking a stop zooms the chart to that window;
      scrolling / zooming the chart moves the rail thumb to the matching position (e.g. two months
      sits between 1M and 3M). Daily history is loaded for 2 years, so scrolling back shows real
      earlier months instead of an empty gap; both edges are pinned (no holes left or right).
@@ -20,11 +20,11 @@ import {
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ETFS } from "@/lib/etfs";
 
-export type ChartTf = "1Y" | "YTD" | "3M" | "1M" | "1W" | "1D";
-/** shortest → longest, left → right */
-export const CHART_TFS: ChartTf[] = ["1D", "1W", "1M", "3M", "YTD", "1Y"];
+export type ChartTf = "MAX" | "5Y" | "3Y" | "1Y" | "YTD" | "6M" | "3M" | "1M" | "1W" | "1D";
+/** shortest → longest, left → right (6M is opt-in through the `tfs` prop) */
+export const CHART_TFS: ChartTf[] = ["1D", "1W", "1M", "3M", "YTD", "1Y", "3Y", "5Y", "MAX"];
 
-type Raw = { t: number[]; c: number[]; o?: number[]; h?: number[]; l?: number[] };
+export type Raw = { t: number[]; c: number[]; o?: number[]; h?: number[]; l?: number[] };
 export interface LineDef { id: string; label: string; sym: string; color: string; dashed?: boolean }
 export interface MainDef {
   id: string; label: string; color: string;
@@ -37,20 +37,48 @@ export interface MainDef {
 const MONO = "font-mono";
 const DAY = 86400;
 const EXTRA_COLORS = ["#f472b6", "#22d3ee", "#facc15", "#a78bfa", "#fb923c", "#4ade80", "#38bdf8", "#e879f9"];
-const rangeOf = (tf: ChartTf) => (tf === "1D" ? "1d" : tf === "1W" ? "5d" : "2y");
+const rangeOf = (tf: ChartTf) => (tf === "1D" ? "1d" : tf === "1W" ? "5d" : tf === "3Y" || tf === "5Y" ? "5y" : tf === "MAX" ? "max" : "2y");
 const ytdDays = () => { const n = new Date(); return Math.max(1, (n.getTime() - Date.UTC(n.getUTCFullYear(), 0, 1)) / 864e5); };
-const spanOf = (tf: ChartTf) => ({ "1Y": 365, YTD: ytdDays(), "3M": 91, "1M": 30, "1W": 7, "1D": 1 })[tf];
+const spanOf = (tf: ChartTf) => ({ MAX: Infinity, "5Y": 1826, "3Y": 1096, "1Y": 365, YTD: ytdDays(), "6M": 182, "3M": 91, "1M": 30, "1W": 7, "1D": 1 })[tf];
+/** windows that always show the whole loaded series */
+const WHOLE = (tf: ChartTf) => tf === "1D" || tf === "1W" || tf === "MAX";
 const sgn = (v: number) => (v >= 0 ? "+" : "−") + Math.abs(v).toFixed(2) + "%";
 
-/** Rail position (0 = 1D … 5 = 1Y, fractional) for a visible span in days — log-interpolated between stops. */
-function posOf(spanDays: number): number {
-  const s = [...CHART_TFS].reverse().map(spanOf), n = s.length - 1;
-  if (spanDays >= s[0]) return n;
-  for (let i = 0; i < n; i++) {
-    const a = s[i], b = s[i + 1];
-    if (spanDays <= a && spanDays >= b && a !== b) return n - (i + Math.log(a / spanDays) / Math.log(a / b));
+/** Rail position (index into `items`, fractional) for a visible span in days — log-interpolated between stops. */
+function posOf(spanDays: number, items: readonly ChartTf[]): number {
+  const stops = items.map((t, i) => [i, spanOf(t)] as const).filter(([, d]) => Number.isFinite(d)).reverse();
+  if (!stops.length) return 0;
+  if (spanDays >= stops[0][1]) return stops[0][0];
+  for (let k = 0; k < stops.length - 1; k++) {
+    const [ia, a] = stops[k], [ib, b] = stops[k + 1];
+    if (spanDays <= a && spanDays >= b && a !== b) return ia - (ia - ib) * (Math.log(a / spanDays) / Math.log(a / b));
   }
-  return 0;
+  return stops[stops.length - 1][0];
+}
+
+/* ── live window statistics (from the loaded closes; price return, no distributions) ── */
+interface WinStats { ret: number; cagr: number | null; maxDD: number; vol: number | null }
+function windowStats(s: Raw, from: number, to: number, intraday: boolean): WinStats | null {
+  const idx: number[] = [];
+  for (let i = 0; i < s.t.length; i++) if (s.t[i] >= from && s.t[i] <= to) idx.push(i);
+  if (idx.length < 3) return null;
+  const c = idx.map((i) => s.c[i]), t = idx.map((i) => s.t[i]);
+  const ret = (c[c.length - 1] / c[0] - 1) * 100;
+  let peak = c[0], dd = 0;
+  for (const v of c) { if (v > peak) peak = v; dd = Math.min(dd, v / peak - 1); }
+  const years = (t[t.length - 1] - t[0]) / (365.25 * DAY);
+  let vol: number | null = null;
+  if (!intraday) {
+    const r = c.slice(1).map((v, i) => Math.log(v / c[i]));
+    const m = r.reduce((a, x) => a + x, 0) / r.length;
+    const sd = Math.sqrt(r.reduce((a, x) => a + (x - m) ** 2, 0) / Math.max(1, r.length - 1));
+    const gaps = t.slice(1).map((v, i) => v - t[i]).sort((a, b) => a - b);
+    const perYear = (365.25 * DAY) / gaps[Math.floor(gaps.length / 2)];
+    // daily bars trade ~252 days a year, not 365 — trading-day annualisation for daily data
+    vol = sd * Math.sqrt(perYear > 300 ? 252 : perYear) * 100;
+  }
+  const cagr = !intraday && years >= 0.98 ? (Math.pow(c[c.length - 1] / c[0], 1 / years) - 1) * 100 : null;
+  return { ret, cagr, maxDD: dd * 100, vol };
 }
 
 /** Deterministic stand-in when Yahoo is unreachable */
@@ -68,14 +96,14 @@ function model(sym: string, range: string): Raw {
 }
 
 /** value of s at time t (last close at or before t; first close before the series starts) */
-function at(s: Raw, t: number) {
+export function at(s: Raw, t: number) {
   if (t <= s.t[0]) return s.c[0];
   let lo = 0, hi = s.t.length - 1;
   while (lo < hi) { const m = (lo + hi + 1) >> 1; if (s.t[m] <= t) lo = m; else hi = m - 1; }
   return s.c[lo];
 }
 
-function basketSeries(parts: { s: Raw; w: number }[]): Raw | null {
+export function basketSeries(parts: { s: Raw; w: number }[]): Raw | null {
   const ok = parts.filter((p) => p.s && p.s.c.length > 1);
   if (!ok.length) return null;
   const grid = ok.reduce((a, p) => (p.s.t.length > a.length ? p.s.t : a), [] as number[]);
@@ -115,8 +143,15 @@ export function SegRail<T extends string>({ items, value, pos, onChange, width =
 }
 
 export function TfRail({ value, pos, onChange }: { value: ChartTf; pos?: number; onChange: (t: ChartTf) => void }) {
-  return <SegRail items={CHART_TFS} value={value} pos={pos} onChange={onChange} />;
+  return <SegRail items={CHART_TFS} value={value} pos={pos} onChange={onChange} width={CHART_TFS.length * 44} />;
 }
+
+const STAT_INFO = {
+  ret: "Price change from the first to the last bar of the visible window. Price return — excludes distributions.",
+  cagr: "Compound annual growth rate over the visible window (price only). Shown for windows of about 1 year or longer.",
+  dd: "Largest peak-to-trough fall within the visible window, from closing prices.",
+  vol: "Annualised standard deviation of bar-to-bar log returns within the visible window (daily bars: ×√252).",
+};
 
 /** "#60a5fa" → "rgba(96,165,250,a)" — comparison lines are drawn muted so the main line dominates */
 const mute = (hex: string, a: number) => {
@@ -126,7 +161,13 @@ const mute = (hex: string, a: number) => {
   return `rgba(${n >> 16},${(n >> 8) & 255},${n & 255},${a})`;
 };
 
-export default function InfernoChart({ main, pinned: pinnedAll = [], picker = [], tf: tfProp, onTfChange, initialTf = "1Y", className = "", groupLabel = "TOP 5 HOLDINGS", valueScale, unitLabel = "PRICE" }: {
+export default function InfernoChart({ main, pinned: pinnedAll = [], picker = [], tf: tfProp, onTfChange, initialTf = "1Y", className = "", groupLabel = "TOP 5 HOLDINGS", valueScale, unitLabel = "PRICE", tfs = CHART_TFS, initialUnit = "PRICE", stats = false }: {
+  /** timeframes offered on the rail (default: every stop 1D → MAX) */
+  tfs?: readonly ChartTf[];
+  /** right axis on first render: price / value, or % (every line rebased to its first visible bar) */
+  initialUnit?: "PRICE" | "PCT";
+  /** show return / CAGR / max drawdown / volatility of the main line over the visible window */
+  stats?: boolean;
   /** basket only: today's value (e.g. portfolio $) — PRICE mode then plots the basket in money, not an index */
   valueScale?: number;
   /** label for the price-mode button ("PRICE", "VALUE") */
@@ -148,7 +189,7 @@ export default function InfernoChart({ main, pinned: pinnedAll = [], picker = []
   const setTf = (t: ChartTf) => { setTfLocal(t); onTfChange?.(t); };
   const [kind, setKind] = useState<"LINE" | "BARS">("LINE");
   /** right axis: real price / value (default) or % change from the first visible bar */
-  const [unit, setUnit] = useState<"PRICE" | "PCT">("PRICE");
+  const [unit, setUnit] = useState<"PRICE" | "PCT">(initialUnit);
   const [off, setOff] = useState<Set<string>>(new Set());
   const [extras, setExtras] = useState<LineDef[]>([]);
   const [pickOpen, setPickOpen] = useState(false);
@@ -281,19 +322,21 @@ export default function InfernoChart({ main, pinned: pinnedAll = [], picker = []
     // zoom to the picked timeframe once per pick / data load
     if (fitTo.current) {
       const end = r.t[r.t.length - 1];
-      const from = fitTo.current === "1D" || fitTo.current === "1W" ? r.t[0] : end - spanOf(fitTo.current) * DAY;
+      const from = WHOLE(fitTo.current) ? r.t[0] : end - spanOf(fitTo.current) * DAY;
       chart.timeScale().setVisibleRange({ from: Math.max(r.t[0], from) as Time, to: end as Time });
       fitTo.current = null;
     }
   }, [ready, mainRaw, lines, kind, off, main.id, main.label, main.color, unit, valueScale]);
 
   const pick = (t: ChartTf) => { fitTo.current = t; setTf(t); };
+  // timeframe changed from outside (controlled `tf`, e.g. the Composition Map period) → zoom to it as well
+  useEffect(() => { fitTo.current = tf; }, [tf]);
   // same data range (e.g. 1M → 3M on the 2-year daily set): just zoom, no reload
   useEffect(() => {
     const chart = chartRef.current;
     if (!chart || !mainRaw || !fitTo.current || rangeOf(fitTo.current) !== range) return;
     const end = mainRaw.t[mainRaw.t.length - 1];
-    const from = fitTo.current === "1D" || fitTo.current === "1W" ? mainRaw.t[0] : end - spanOf(fitTo.current) * DAY;
+    const from = WHOLE(fitTo.current) ? mainRaw.t[0] : end - spanOf(fitTo.current) * DAY;
     chart.timeScale().setVisibleRange({ from: Math.max(mainRaw.t[0], from) as Time, to: end as Time });
     fitTo.current = null;
   }, [tf, range, mainRaw]);
@@ -305,7 +348,11 @@ export default function InfernoChart({ main, pinned: pinnedAll = [], picker = []
     return a ? (b / a - 1) * 100 : null;
   };
   const span = vis ? (vis.to - vis.from) / DAY : spanOf(tf);
-  const pos = tf === "1D" || tf === "1W" ? CHART_TFS.indexOf(tf) : posOf(span);
+  const pos = WHOLE(tf) ? tfs.indexOf(tf) : posOf(span, tfs);
+  /* the instrument's history is shorter than the picked window (young fund / limited data) */
+  const shortHistory = mainRaw && !WHOLE(tf) && mainRaw.t[0] > mainRaw.t[mainRaw.t.length - 1] - spanOf(tf) * DAY + 7 * DAY
+    ? new Date(mainRaw.t[0] * 1000).toLocaleDateString("en-US", { month: "short", year: "numeric", timeZone: "UTC" }).toUpperCase() : null;
+  const win = stats && mainRaw && vis && !ready?.model ? windowStats(mainRaw, vis.from, vis.to, tf === "1D" || tf === "1W") : null;
 
   const toggle = (id: string) => setOff((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; });
   const addExtra = (sym: string, label = sym) => {
@@ -350,7 +397,8 @@ export default function InfernoChart({ main, pinned: pinnedAll = [], picker = []
         <button type="button" onClick={() => setPickOpen((o) => !o)} aria-expanded={pickOpen} title="Add a comparison"
           className={`ml-0.5 flex h-5 w-5 items-center justify-center rounded-sm border text-[13px] leading-none transition-colors ${pickOpen ? "border-emerald-400/50 text-emerald-300" : "border-white/[0.12] text-zinc-400 hover:border-white/[0.3] hover:text-white"}`}>+</button>
         <span className="ml-auto flex items-center gap-2">
-          {ready?.model && <span className="rounded-sm bg-amber-400/10 px-1.5 py-px text-[9.5px] font-bold tracking-[0.1em] text-amber-300" title="Live prices unavailable — synthetic data">MODEL DATA</span>}
+          {shortHistory && <span className="rounded-sm bg-white/[0.05] px-1.5 py-px text-[9.5px] font-bold tracking-[0.1em] text-zinc-400" title={`Price history only starts in ${shortHistory} — the chart shows everything available`}>HISTORY FROM {shortHistory}</span>}
+          {ready?.model && <span className="rounded-sm bg-amber-400/10 px-1.5 py-px text-[9.5px] font-bold tracking-[0.1em] text-amber-300" title="Live prices could not be loaded (offline, blocked or unknown symbol) — the lines are synthetic placeholders">MODEL DATA</span>}
           <span className="flex rounded-sm border border-white/[0.06] bg-[var(--oasis-bg)] p-0.5" title="Right axis: price / value, or % change from the first visible bar">
             {(["PRICE", "PCT"] as const).map((u) => (
               <button key={u} type="button" onClick={() => setUnit(u)} aria-pressed={unit === u}
@@ -392,8 +440,32 @@ export default function InfernoChart({ main, pinned: pinnedAll = [], picker = []
         <div ref={box} className="absolute inset-0" />
         {!ready && <div className="absolute inset-0 animate-pulse bg-white/[0.02]" />}
       </div>
+      {stats && (
+        <div className={`${MONO} flex flex-none flex-wrap items-center gap-x-5 gap-y-1 border-t border-white/[0.05] pt-2 text-[10.5px] tabular-nums`}>
+          {ready?.model ? (
+            <span className="text-zinc-600">Statistics need live prices — not shown for model data.</span>
+          ) : !win ? (
+            <span className="text-zinc-600">{ready ? "Not enough bars in the visible window for statistics." : "Loading prices…"}</span>
+          ) : (
+            <>
+              {([
+                ["RETURN", sgn(win.ret), win.ret, STAT_INFO.ret],
+                ["CAGR", win.cagr != null ? sgn(win.cagr) : "— (< 1Y)", win.cagr ?? 0, STAT_INFO.cagr],
+                ["MAX DD", win.maxDD.toFixed(2) + "%", win.maxDD, STAT_INFO.dd],
+                ["VOLATILITY", win.vol != null ? win.vol.toFixed(1) + "% ann." : "— (intraday)", 0, STAT_INFO.vol],
+              ] as const).map(([l, v, n, hint]) => (
+                <span key={l} className="flex items-baseline gap-1.5" title={hint}>
+                  <span className="cursor-help text-[9.5px] font-bold tracking-[0.12em] text-zinc-500 underline decoration-white/15 decoration-dotted underline-offset-[3px]">{l}</span>
+                  <span className={n > 0 ? "text-emerald-400" : n < 0 ? "text-rose-400" : "text-zinc-200"}>{v}</span>
+                </span>
+              ))}
+              <span className="ml-auto text-[9.5px] tracking-[0.08em] text-zinc-600">{main.label} · VISIBLE WINDOW · PRICE RETURN</span>
+            </>
+          )}
+        </div>
+      )}
       <div className="flex flex-none items-center">
-        <TfRail value={tf} pos={pos} onChange={pick} />
+        <SegRail items={tfs} value={tfs.includes(tf) ? tf : tfs[0]} pos={pos} onChange={pick} width={Math.max(360, tfs.length * 44)} />
       </div>
     </div>
   );

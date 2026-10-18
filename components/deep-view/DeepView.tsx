@@ -14,6 +14,9 @@ const TABS: [SubTab, string][] = [
   ["OV", "OVERVIEW"], ["MAP", "COMPOSITION MAP"], ["SEAS", "CHARTS"], ["NEWS", "NEWS"],
 ];
 
+/** header chips already shown in the Overview metric strip */
+const OV_STRIP_KEYS = new Set(["EXPENSE RATIO", "ASSETS (AUM)"]);
+
 interface Props {
   fund: FundData;
   onBack?: () => void;
@@ -50,7 +53,8 @@ export default function DeepView({ fund, onBack, onSelectAlt }: Props) {
         </div>
 
         <div className="flex flex-wrap gap-2 py-0.5">
-          {fund.meta.map(([k, v]) => (
+          {/* AUM / TER live in the Overview metric strip — shown here only on the other tabs to keep context without repeating them */}
+          {fund.meta.filter(([k]) => tab !== "OV" || !OV_STRIP_KEYS.has(k)).map(([k, v]) => (
             <div key={k} className="flex h-7 items-center gap-2 whitespace-nowrap rounded-sm border border-white/[0.03] bg-[var(--oasis-bg)] px-3">
               <span className="font-display text-[10.5px] font-semibold tracking-[0.12em] text-gray-400">{k}:</span>
               <span className="font-mono text-xs font-semibold text-neutral-100">{v}</span>

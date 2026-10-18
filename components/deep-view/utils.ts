@@ -1,3 +1,11 @@
+/** Parent-sector colours ("r,g,b") — shared by the Overview sector map and the Composition Map. */
+export const SECTOR_RGB: Record<string, string> = {
+  Technology: "16,185,129", Materials: "251,191,36", "Cash & Other": "148,163,184", Other: "113,113,122",
+  Financials: "59,130,246", "Health Care": "236,72,153", Communication: "168,85,247", "Consumer Disc.": "249,115,22",
+  "Consumer Staples": "132,204,22", Energy: "239,68,68", Industrials: "56,189,248", Utilities: "45,212,191",
+  "Real Estate": "217,119,6", Commodities: "234,179,8", Crypto: "247,147,26", "Govt Bonds": "148,163,184",
+};
+
 export const sg = (v: number) => (v >= 0 ? "+" : "") + v.toFixed(2) + "%";
 export const usd = (v: number) => "$" + v.toFixed(2);
 export const aumFmt = (v: number) => (v >= 1 ? "$" + (v >= 100 ? v.toFixed(0) : v.toFixed(1)) + "B" : "$" + Math.round(v * 1000) + "M");

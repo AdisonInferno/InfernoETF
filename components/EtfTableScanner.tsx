@@ -6,6 +6,7 @@ import { CATEGORIES, ETFS, SUBCATEGORIES, fmtAum, fmtPct, inCategory, type Categ
 import { QUOTE } from "@/lib/fund-profiles";
 import { buildFund } from "@/components/deep-view/buildFund";
 import EtfDeepDiveCockpit from "@/components/EtfDeepDiveCockpit";
+import InfernoChart from "@/components/InfernoChart";
 import { useMyPortfolio } from "@/lib/my-portfolio";
 import { useLiveEtfs } from "@/lib/market-snapshot";
 import MarketPulse from "@/components/MarketPulse";
@@ -59,6 +60,16 @@ const GROUPS: { id: GroupId; label: string; options: string[]; test: (e: EtfRow,
   { id: "exchange", label: "EXCHANGE", options: uniq("exchange"), test: (e, o) => e.exchange === o },
   { id: "currency", label: "CURRENCY", options: uniq("currency"), test: (e, o) => e.currency === o },
 ];
+
+/** Filter Deck sections — every filter above, grouped by what it is about (order = display order). */
+const SECTIONS: { label: string; ids: GroupId[] }[] = [
+  { label: "FUND & MARKET", ids: ["aum", "issuer", "exchange", "currency"] },
+  { label: "EXPOSURE", ids: ["region"] },
+  { label: "INCOME & RISK", ids: ["dividend", "volatility", "leverage"] },
+];
+/** short names for the active-filter chips ("AUM: > $100B ×") */
+const CHIP_LABEL: Record<GroupId, string> = { aum: "AUM", volatility: "Volatility", dividend: "Dividend", leverage: "Leverage", issuer: "Issuer", region: "Region", exchange: "Exchange", currency: "Currency" };
+const GROUP_BY_ID = Object.fromEntries(GROUPS.map((g) => [g.id, g])) as Record<GroupId, (typeof GROUPS)[number]>;
 
 type TabId = (typeof CATEGORIES)[number]["id"] | "portfolio";
 type SortKey = "default" | "aum" | "ytd" | "chg1d" | "wk";
@@ -333,7 +344,12 @@ export default function EtfTableScanner() {
               ))}
             </tbody>
           </table>
-      {rows.length === 0 && <div className="p-12 text-center text-[13px] text-zinc-500">No ETFs match the current filters.</div>}
+      {rows.length === 0 && (
+        <div className="flex flex-col items-center gap-2 p-12 text-center text-[13px] text-zinc-500">
+          No ETFs match the current filters{tab !== "all" ? ` in ${tabLabel}` : ""}.
+          {filterCount > 0 && <button type="button" onClick={clearAll} className="font-mono text-[11px] tracking-[0.1em] text-zinc-400 underline-offset-2 hover:text-white hover:underline">CLEAR FILTERS</button>}
+        </div>
+      )}
     </>
   );
 
@@ -341,90 +357,118 @@ export default function EtfTableScanner() {
     <div className={`absolute inset-0 grid grid-rows-[auto_minmax(0,1fr)] gap-3 p-3 max-lg:grid-cols-1 ${
       mode === "price" ? "grid-cols-[240px_minmax(0,1fr)_380px] min-[1900px]:grid-cols-[260px_minmax(0,1fr)_440px]" : "grid-cols-[240px_minmax(0,1fr)]"
     }`}>
-      {/* ── Filter deck ── */}
-      <aside className={`row-span-2 flex min-h-0 flex-col overflow-hidden ${card} max-lg:row-span-1`}>
-        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto p-3">
-          <div className="mb-4 flex items-center gap-2 font-mono text-[12px] font-bold tracking-[0.14em] text-zinc-100">
+      {/* ── Filter deck ── ends after its content (no empty panel); scrolls inside when long */}
+      <aside className={`row-span-2 flex min-h-0 flex-col overflow-hidden ${card} max-lg:row-span-1 lg:max-h-full lg:self-start`}>
+        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain p-3">
+          <div className="mb-1 flex items-center gap-2 font-mono text-[12px] font-bold tracking-[0.14em] text-zinc-100">
             <span className="h-2 w-2 rounded-[1px] bg-emerald-400" />[ FILTER DECK ]
           </div>
-
-          <div className="flex flex-col">
-            {GROUPS.map((g) => {
-              const isOpen = !!open[g.id];
-              const n = filters[g.id]?.length ?? 0;
-              return (
-                <div key={g.id}>
-                  <button
-                    type="button"
-                    onClick={() => setOpen((o) => ({ ...o, [g.id]: !isOpen }))}
-                    className="flex w-full items-center gap-2.5 rounded-sm py-[7px] text-left transition-colors hover:text-white"
-                  >
-                    <span className={`text-[9px] text-oasis transition-transform ${isOpen ? "rotate-90" : ""}`}>▶</span>
-                    <GroupIcon id={g.id} />
-                    <span className="flex-1 font-mono text-[11.5px] font-semibold tracking-[0.1em] text-zinc-300">{g.label}</span>
-                    {n > 0 && <span className="rounded bg-oasis-muted px-1.5 font-mono text-[10px] font-bold text-oasis">{n}</span>}
-                  </button>
-                  {isOpen && (
-                    <div className="mb-2 ml-[22px] flex flex-wrap gap-1.5 pt-1">
-                      {g.options.map((o) => {
-                        const on = filters[g.id]?.includes(o);
-                        return (
-                          <button
-                            key={o}
-                            type="button"
-                            onClick={() => toggleOpt(g.id, o)}
-                            className={`rounded-sm border px-2 py-1 text-[11px] transition-colors ${
-                              on ? "oasis-on" : "border-white/[0.06] bg-white/[0.03] text-zinc-400 hover:bg-white/[0.07] hover:text-zinc-200"
-                            }`}
-                          >
-                            {o}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
+          {/* matching results — the same rows the table shows (filters + search + the open tab) */}
+          <div className="mb-3 font-mono text-[10.5px] tracking-[0.06em] text-zinc-500" aria-live="polite">
+            <span className="font-bold text-zinc-100">{rows.length}</span> {rows.length === 1 ? "ETF matches" : "ETFs match"}
+            {tab !== "all" && <span className="text-zinc-600"> in {activeSub ? activeSub.label : tabLabel} · {base.filter((e) => !stockSet.has(e.ticker)).length} across all</span>}
           </div>
 
-          {/* Only shown while something is filtered */}
+          {/* Presets: one click = their tab + filters + sort */}
+          <div className="mb-3 flex flex-col gap-1.5">
+            <span className="text-[9.5px] font-semibold tracking-[0.16em] text-zinc-600">PRESETS</span>
+            <div className="flex flex-wrap gap-1.5">
+              {PRESETS.map((p) => {
+                const on = tab === p.tab && JSON.stringify(filters) === JSON.stringify(p.filters) && sort === p.sort;
+                return (
+                  <button
+                    key={p.label}
+                    type="button"
+                    aria-pressed={on}
+                    onClick={() => { setTab(p.tab); setFilters(p.filters); setSort(p.sort); setSortDir(1); if (query) router.replace("/scanner"); }}
+                    className={`rounded-sm border px-2 py-1 text-left text-[11px] font-semibold transition-colors ${
+                      on ? "oasis-on" : "border-white/[0.06] bg-white/[0.035] text-zinc-300 hover:bg-white/[0.07] hover:text-white"
+                    }`}
+                  >
+                    {p.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Active filters as removable chips — each × removes exactly that condition */}
           {filterCount > 0 && (
-          <div className="mt-5 flex flex-col gap-2">
-            <span className="text-[10px] font-semibold tracking-[0.14em] text-zinc-500">ACTIVE FILTERS</span>
+            <div className="mb-3 flex flex-col gap-1.5">
+              <span className="flex items-center justify-between text-[9.5px] font-semibold tracking-[0.16em] text-zinc-600">
+                ACTIVE FILTERS
+                <button type="button" onClick={clearAll} className="font-bold text-zinc-500 hover:text-white">CLEAR ALL</button>
+              </span>
               <div className="flex flex-wrap gap-1.5">
                 {query && (
-                  <button type="button" onClick={() => router.replace("/scanner")} className="rounded-sm bg-white/[0.06] px-2 py-1 text-[11px] text-zinc-300 hover:bg-white/10">
-                    Search: {query} ✕
+                  <button type="button" onClick={() => router.replace("/scanner")} title="Remove search" className="rounded-sm bg-white/[0.06] px-2 py-1 text-[11px] text-zinc-300 hover:bg-white/10">
+                    <span className="text-zinc-500">Search:</span> {query} ✕
                   </button>
                 )}
                 {activeChips.map(({ g, o }) => (
-                  <button key={g + o} type="button" onClick={() => toggleOpt(g, o)} className="rounded-sm bg-white/[0.06] px-2 py-1 text-[11px] text-zinc-300 hover:bg-white/10">
-                    {o} ✕
+                  <button key={g + o} type="button" onClick={() => toggleOpt(g, o)} title="Remove this filter" className="rounded-sm bg-white/[0.06] px-2 py-1 text-[11px] text-zinc-300 hover:bg-white/10">
+                    <span className="text-zinc-500">{CHIP_LABEL[g]}:</span> {o} ✕
                   </button>
                 ))}
               </div>
-          </div>
+            </div>
           )}
 
-          <div className="mt-auto flex flex-col gap-2 pt-6">
-            {PRESETS.map((p) => (
-              <button
-                key={p.label}
-                type="button"
-                onClick={() => { setTab(p.tab); setFilters(p.filters); setSort(p.sort); setSortDir(1); if (query) router.replace("/scanner"); }}
-                className="flex items-center gap-3 rounded-sm bg-white/[0.035] px-3.5 py-2.5 text-left text-[12px] font-semibold text-zinc-300 transition-colors hover:bg-white/[0.07] hover:text-white"
-              >
-                [ {p.label.toUpperCase()} ]
-              </button>
-            ))}
-          </div>
+          {SECTIONS.map((sec) => (
+            <div key={sec.label} className="mb-2 flex flex-col">
+              <span className="mb-0.5 border-b border-white/[0.05] pb-1 text-[9.5px] font-semibold tracking-[0.16em] text-zinc-600">{sec.label}</span>
+              {sec.ids.map((id) => {
+                const g = GROUP_BY_ID[id];
+                const isOpen = !!open[g.id];
+                const sel = filters[g.id] ?? [];
+                return (
+                  <div key={g.id}>
+                    <button
+                      type="button"
+                      onClick={() => setOpen((o) => ({ ...o, [g.id]: !isOpen }))}
+                      aria-expanded={isOpen}
+                      className="flex w-full items-center gap-2.5 rounded-sm py-[6px] text-left transition-colors hover:text-white"
+                    >
+                      <span className={`text-[9px] text-oasis transition-transform ${isOpen ? "rotate-90" : ""}`}>▶</span>
+                      <GroupIcon id={g.id} />
+                      <span className="min-w-0 flex-1">
+                        <span className="block font-mono text-[11.5px] font-semibold tracking-[0.1em] text-zinc-300">{g.label}</span>
+                        {/* closed: what is selected, so nothing has to be expanded to see the state */}
+                        {!isOpen && sel.length > 0 && <span className="block truncate text-[10.5px] text-oasis" title={sel.join(", ")}>{sel.join(", ")}</span>}
+                      </span>
+                      {sel.length > 0 && <span className="rounded bg-oasis-muted px-1.5 font-mono text-[10px] font-bold text-oasis" title={`${sel.length} active`}>{sel.length}</span>}
+                    </button>
+                    {isOpen && (
+                      <div className="mb-2 ml-[22px] flex flex-wrap gap-1.5 pt-1">
+                        {g.options.map((o) => {
+                          const on = sel.includes(o);
+                          return (
+                            <button
+                              key={o}
+                              type="button"
+                              aria-pressed={on}
+                              onClick={() => toggleOpt(g.id, o)}
+                              className={`rounded-sm border px-2 py-1 text-[11px] transition-colors ${
+                                on ? "oasis-on" : "border-white/[0.06] bg-white/[0.03] text-zinc-400 hover:bg-white/[0.07] hover:text-zinc-200"
+                              }`}
+                            >
+                              {o}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          ))}
         </div>
-        <div className="flex flex-none items-center justify-between border-t border-white/[0.06] bg-white/[0.015] px-5 py-3">
+        <div className="flex flex-none items-center justify-between border-t border-white/[0.06] bg-white/[0.015] px-4 py-2.5">
           <span className="font-mono text-[10.5px] tracking-[0.12em] text-zinc-600">
-            {filterCount === 0 ? "" : `${filterCount} FILTER${filterCount > 1 ? "S" : ""}`}
+            {filterCount === 0 ? "NO FILTERS" : `${filterCount} FILTER${filterCount > 1 ? "S" : ""}`}
           </span>
-          <button type="button" onClick={clearAll} className="rounded-none bg-white/[0.06] px-3.5 py-1 font-mono text-[10.5px] font-bold tracking-[0.1em] text-zinc-300 transition-colors hover:bg-white/[0.12] hover:text-white">
+          <button type="button" onClick={clearAll} title="Clear all filters, the search and the sort order" className="rounded-none bg-white/[0.06] px-3.5 py-1 font-mono text-[10.5px] font-bold tracking-[0.1em] text-zinc-300 transition-colors hover:bg-white/[0.12] hover:text-white">
             CLEAR
           </button>
         </div>
@@ -527,9 +571,29 @@ export default function EtfTableScanner() {
               <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-2 pr-3.5 max-lg:min-h-[480px] max-lg:pr-0">
                 {selected && fund ? (
                   <EtfDeepDiveCockpit key={selected.ticker} etf={selected} fund={fund} />
+                ) : selected ? (
+                  /* no composition profile → no cockpit, but the price history still exists: show that */
+                  <div className="flex h-full min-h-0 flex-col gap-2">
+                    <div className="flex flex-none flex-wrap items-baseline gap-x-3 gap-y-1 rounded-sm border border-white/[0.06] bg-white/[0.02] px-3 py-2 font-mono text-[11px] text-zinc-400">
+                      <span className="font-bold text-zinc-100">{selected.ticker}</span>
+                      {stockSet.has(selected.ticker) ? (
+                        <>
+                          <span>Single stock — the ETF cockpit (holdings, composition) doesn&apos;t apply. Price history is shown below.</span>
+                          <button type="button" onClick={() => router.push(`/stock/${selected.ticker}`)} className="ml-auto font-bold tracking-[0.08em] text-zinc-200 hover:text-white">STOCK DEEP DIVE →</button>
+                        </>
+                      ) : (
+                        <span>No holdings profile for this fund yet, so composition, holdings and the deep-dive cockpit aren&apos;t available. Price history is shown below.</span>
+                      )}
+                    </div>
+                    <div className="min-h-[360px] flex-1">
+                      <InfernoChart key={selected.ticker} main={{ id: selected.ticker, label: selected.ticker, sym: selected.ticker, color: "#f87171" }}
+                        pinned={[{ id: "SPY", label: "S&P 500", sym: "SPY", color: "#a1a1aa", dashed: true }].filter((l) => l.sym !== selected.ticker)} />
+                    </div>
+                  </div>
                 ) : (
-                  <div className="flex h-full items-center justify-center rounded-sm border border-white/[0.06] font-mono text-[11px] tracking-[0.1em] text-zinc-600">
-                    {selected ? `NO DATA FOR ${selected.ticker}` : "NO ETF SELECTED"}
+                  <div className="flex h-full flex-col items-center justify-center gap-1 rounded-sm border border-white/[0.06] font-mono text-[11px] tracking-[0.1em] text-zinc-600">
+                    <span>NO ETF MATCHES THE CURRENT FILTERS</span>
+                    {filterCount > 0 && <button type="button" onClick={clearAll} className="text-zinc-400 underline-offset-2 hover:text-white hover:underline">clear filters</button>}
                   </div>
                 )}
               </div>

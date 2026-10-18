@@ -5,17 +5,11 @@ import { useMemo, useRef, useState } from "react";
 import type { CSSProperties } from "react";
 import type { FundData } from "./types";
 import { COUNTRY_CODE } from "./mockData";
-import { aumFmt, pctOf, squarify } from "./utils";
+import { SECTOR_RGB, aumFmt, pctOf, squarify } from "./utils";
 import PriceChart from "./PriceChart";
 
 const CARD = "oasis-glass border border-white/[0.06] bg-[var(--oasis-panel)]";
 const H_LABEL = "font-display text-[10.5px] font-bold tracking-[0.18em] text-neutral-300";
-const SECTOR_RGB: Record<string, string> = {
-  Technology: "16,185,129", Materials: "251,191,36", "Cash & Other": "148,163,184", Other: "113,113,122",
-  Financials: "59,130,246", "Health Care": "236,72,153", Communication: "168,85,247", "Consumer Disc.": "249,115,22",
-  "Consumer Staples": "132,204,22", Energy: "239,68,68", Industrials: "56,189,248", Utilities: "45,212,191",
-  "Real Estate": "217,119,6", Commodities: "234,179,8", Crypto: "247,147,26", "Govt Bonds": "148,163,184",
-};
 
 interface Tip { sector: string; name: string; usd: string; pct: string; col: string; x: number; y: number }
 
@@ -58,7 +52,7 @@ function SectorBreakdown({ fund }: { fund: FundData }) {
   };
 
   return (
-    <div className={`flex h-full min-w-0 flex-col gap-4 p-3 font-mono tabular-nums ${CARD}`}>
+    <div className={`flex h-full min-w-0 flex-col gap-2.5 p-3 font-mono tabular-nums ${CARD}`}>
       <div className="flex items-baseline justify-between gap-2">
         <span className={H_LABEL}>SECTOR &amp; SUB-SECTOR BREAKDOWN</span>
         <span className="whitespace-nowrap text-[9.5px] text-gray-600">AUM {aumFmt(fund.aumB)} · {nSecs} SECTORS · {fund.sectors.length} SUB-SECTORS</span>
@@ -133,30 +127,30 @@ function TopHoldings({ fund }: { fund: FundData }) {
 }
 
 function GeoAllocation({ fund }: { fund: FundData }) {
+  /* Compact tiles: size still follows the weight, but without the oversized padding / type of the old cards */
   return (
-    <div className={`flex h-full min-w-0 flex-col gap-4 p-3 font-mono tabular-nums ${CARD}`}>
+    <div className={`flex h-full min-w-0 flex-col gap-2.5 p-3 font-mono tabular-nums ${CARD}`}>
       <div className="flex items-baseline justify-between gap-2">
         <span className={H_LABEL}>GEOGRAPHIC ALLOCATION</span>
-        <span className="whitespace-nowrap text-[9.5px] text-gray-600">{fund.geo.length} REGIONS</span>
+        <span className="whitespace-nowrap text-[9.5px] text-gray-600">{fund.geo.length} REGIONS · % OF FUND</span>
       </div>
-      <div className="flex flex-wrap gap-2.5">
+      <div className="flex flex-wrap gap-2">
         {fund.geo.map(([name, v]) => {
-          const big = v > 40, cc = COUNTRY_CODE[name], fh = Math.round(20 + v * 0.9) + "px";
+          const big = v > 40, cc = COUNTRY_CODE[name], fh = Math.round(14 + Math.min(v, 60) * 0.25) + "px";
           return (
             <div
               key={name}
-              className="box-border flex min-w-0 items-center rounded-sm border border-white/[0.03] bg-[var(--oasis-bg)] px-[18px] py-4 transition-[border-color,box-shadow] hover:border-emerald-400 "
-              style={{ flex: `${Math.max(1, Math.round(v))} 1 ${big ? "100%" : "150px"}`, minHeight: Math.round(56 + v * 1.1), gap: big ? 24 : 12 }}
+              title={`${name} · ${v.toFixed(1)}% of the fund`}
+              className="box-border flex min-w-0 items-center gap-2.5 rounded-sm border border-white/[0.03] bg-[var(--oasis-bg)] px-3 py-2 transition-[border-color] hover:border-emerald-400"
+              style={{ flex: `${Math.max(1, Math.round(v))} 1 ${big ? "100%" : "140px"}` }}
             >
               {cc ? (
-                <div title={name} className="flex-none border border-white/[0.12] bg-cover bg-center" style={{ height: fh, aspectRatio: "3/2", backgroundImage: `url(https://flagcdn.com/w320/${cc}.png)` }} />
+                <div className="flex-none border border-white/[0.12] bg-cover bg-center" style={{ height: fh, aspectRatio: "3/2", backgroundImage: `url(https://flagcdn.com/w160/${cc}.png)` }} />
               ) : (
                 <span className="flex flex-none items-center justify-center border border-dashed border-gray-700 text-[9px] tracking-[0.1em] text-gray-500" style={{ height: fh, aspectRatio: "3/2" }}>···</span>
               )}
-              <div className="flex min-w-0 flex-col gap-1.5">
-                <span className="overflow-hidden text-ellipsis whitespace-nowrap font-display text-gray-300" style={{ fontSize: Math.round(12 + v * 0.14) }}>{name}</span>
-                <span className="self-start border border-emerald-400/35 bg-emerald-400/[0.06] px-2 py-px text-white" style={{ fontSize: Math.round(12 + v * 0.36), fontWeight: v > 40 ? 800 : v > 8 ? 700 : v > 2 ? 600 : 500 }}>{v.toFixed(1)}%</span>
-              </div>
+              <span className="min-w-0 flex-1 truncate font-display text-[12.5px] text-gray-300">{name}</span>
+              <span className="flex-none border border-emerald-400/35 bg-emerald-400/[0.06] px-1.5 py-px text-white" style={{ fontSize: big ? 15 : 12.5, fontWeight: v > 8 ? 700 : 600 }}>{v.toFixed(1)}%</span>
             </div>
           );
         })}
@@ -189,13 +183,13 @@ function CatalystMatrix({ note, ticker }: { note: string; ticker: string }) {
 
 export default function Overview({ fund }: { fund: FundData; onUpgrade?: () => void }) {
   return (
-    <div className="flex flex-none flex-col gap-6 px-5 pb-12 pt-6">
+    <div className="flex flex-none flex-col gap-4 px-5 pb-10 pt-4">
       <PriceChart fund={fund} />
-      <div className="grid grid-cols-1 items-stretch gap-6 lg:grid-cols-12">
+      <div className="grid grid-cols-1 items-stretch gap-4 lg:grid-cols-12">
         <div className="min-w-0 lg:col-span-8"><SectorBreakdown fund={fund} /></div>
         <div className="min-w-0 lg:col-span-4"><TopHoldings fund={fund} /></div>
       </div>
-      <div className="grid grid-cols-1 items-stretch gap-6 lg:grid-cols-12">
+      <div className="grid grid-cols-1 items-stretch gap-4 lg:grid-cols-12">
         <div className="min-w-0 lg:col-span-8"><GeoAllocation fund={fund} /></div>
         <div className="min-w-0 lg:col-span-4"><CatalystMatrix note={fund.aiNote} ticker={fund.tic} /></div>
       </div>

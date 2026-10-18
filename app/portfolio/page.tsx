@@ -11,6 +11,9 @@ import ChartsTab from "@/components/deep-view/ChartsTab";
 import { buildPortfolioFund, type PItem } from "@/lib/portfolio-fund";
 import { useSnapshot } from "@/lib/market-snapshot";
 import { useHistory, useLiveQuotes, yahooOf, type PTf } from "@/lib/portfolio-live";
+
+/** portfolio chart rail — the history hook supports up to 3Y */
+const PF_CHART_TFS: (ChartTf & PTf)[] = ["1D", "1W", "1M", "3M", "YTD", "1Y", "3Y"];
 import PortfolioFlows from "@/components/PortfolioFlows";
 import ResizableSplit from "@/components/ResizableSplit";
 import PortfolioPies from "@/components/PortfolioPies";
@@ -169,7 +172,7 @@ export default function PortfolioPage() {
   const [importing, setImporting] = useState(false);
   const [view, setView] = useState<View>("overview");
   /** Deep view: chart (+ capital flow) timeframe and the positions-table timeframe */
-  const [chartTf, setChartTf] = useState<ChartTf>("1Y");
+  const [chartTf, setChartTf] = useState<ChartTf & PTf>("1Y");
   const [pfTab, setPfTab] = useState<"OV" | "MAP" | "SEAS" | "NEWS" | "AN" | "TOOLS">("OV");
   const [tableTf, setTableTf] = useState<PTf>("1D");
   /** Second phase of the transition: the card grows a beat after the bottom cards start falling. */
@@ -655,8 +658,8 @@ export default function PortfolioPage() {
 
             {isExpanded && pfTab !== "OV" ? (
               <div onClick={(e) => e.stopPropagation()} className="flex min-w-0 flex-col gap-3">
-                {pfTab === "MAP" && <><SectorOverlap positions={livePos} /><CompositionMap fund={pfFund} /></>}
-                {pfTab === "SEAS" && <ChartsTab fund={pfFund} />}
+                {pfTab === "MAP" && <><SectorOverlap positions={livePos} /><CompositionMap fund={pfFund} main={chartMain} /></>}
+                {pfTab === "SEAS" && <ChartsTab fund={pfFund} main={chartMain} />}
                 {pfTab === "NEWS" && <LookThroughFeed items={pItems} />}
                 {pfTab === "AN" && (
                   <section className="flex flex-col gap-2 border border-white/[0.05] bg-[var(--oasis-bg)] p-3">
@@ -677,7 +680,7 @@ export default function PortfolioPage() {
                   left={() => (
                     <div className="flex h-full min-h-[420px] flex-col gap-2 rounded-sm border border-white/[0.06] bg-[var(--oasis-bg)] p-3">
                       <span className="font-mono text-[10px] font-semibold tracking-[0.14em] text-zinc-300">PERFORMANCE</span>
-                      <InfernoChart main={chartMain} pinned={chartPinned} picker={chartPicker} tf={chartTf} onTfChange={setChartTf} valueScale={usdVal.total ?? MODEL_BALANCE} />
+                      <InfernoChart main={chartMain} pinned={chartPinned} picker={chartPicker} tf={chartTf} onTfChange={(t) => setChartTf(t as ChartTf & PTf)} tfs={PF_CHART_TFS} valueScale={usdVal.total ?? MODEL_BALANCE} />
                     </div>
                   )}
                   right={(h) => (
@@ -692,7 +695,7 @@ export default function PortfolioPage() {
             <motion.div layout="position" className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1.45fr)_minmax(0,1fr)]">
               <div onClick={(e) => e.stopPropagation()} className="min-w-0">
                 <div className="flex h-[max(260px,calc(100dvh-735px))] flex-col rounded-sm border border-white/[0.06] bg-[var(--oasis-bg)] p-3">
-                  <InfernoChart main={chartMain} pinned={chartPinned} picker={chartPicker} tf={chartTf} onTfChange={setChartTf} valueScale={usdVal.total ?? MODEL_BALANCE} />
+                  <InfernoChart main={chartMain} pinned={chartPinned} picker={chartPicker} tf={chartTf} onTfChange={(t) => setChartTf(t as ChartTf & PTf)} tfs={PF_CHART_TFS} valueScale={usdVal.total ?? MODEL_BALANCE} />
                 </div>
               </div>
               <div className="flex min-w-0 flex-col gap-2.5">
