@@ -2,10 +2,24 @@
 
 _Generowany automatycznie z historii git. Zmiany oddalone o mniej niż godzinę = jedna sesja._
 
+## środa, 21 października 2026
+
+### Sesja #22 · 01:36–01:36 · 1 zmian · AdisonInferno
+
+- `01:36` Chart grids, portfolio HOLDINGS drill-down, composition UX, 3-hourly price store
+
+## wtorek, 20 października 2026
+
+### Sesja #21 · 14:14–14:14 · 1 zmian · AdisonInferno
+
+- `14:14` ETF tab routing + Performance Drivers (holding return attribution)
+
 ## poniedziałek, 19 października 2026
 
-### Sesja #20 · 00:38–01:05 · 2 zmian · AdisonInferno
+### Sesja #20 · 00:38–01:48 · 4 zmian · AdisonInferno
 
+- `01:48` Dismissible risk notes: ETF overlap in portfolio, concentration in ETF views
+- `01:05` Dziennik zmian
 - `01:05` Charts: measure tool, candles, standard timeframes, compare asset; zero-scroll deep view; SPOT data
 - `00:38` Dziennik zmian
 
