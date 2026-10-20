@@ -12,12 +12,16 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { SegRail } from "@/components/InfernoChart";
-import { PERIOD_LABEL, useHoldingReturns, type RetPeriod } from "./useHoldingReturns";
+import { PERIOD_LABEL, useHoldingReturns } from "./useHoldingReturns";
+import ChartGrid, { GRID_TFS, type GridTf } from "@/components/ChartGrid";
 
 export interface AttribHolding { tic: string; name: string; /** weight in the fund, % */ w: number; /** grouping (sector) for the cumulative view */ group?: string }
 
-const PERIODS = ["1D", "1W", "1M", "YTD", "1Y"] as const satisfies readonly RetPeriod[];
-type P = (typeof PERIODS)[number];
+/* one timeline for the attribution AND the chart grid below it */
+const PERIODS = GRID_TFS;
+type P = GridTf;
+/** grid = the fewest holdings whose |contribution| adds up to ≥ 70% of the total move (4…10 charts) */
+const MOVE_SHARE = 0.7, GRID_MIN = 4, GRID_MAX = 10;
 const CARD = "oasis-glass border border-white/[0.05] bg-[var(--oasis-panel)]";
 const LABEL = "font-mono text-[10px] font-bold tracking-[0.16em] text-zinc-500";
 
@@ -75,7 +79,17 @@ export default function HoldingAttribution({ holdings, etfSym, etfLabel, totalPo
     for (const x of known) { const g = groups.get(x.group ?? "Other") ?? { c: 0, w: 0, n: 0 }; g.c += x.c; g.w += x.w; g.n++; groups.set(x.group ?? "Other", g); }
     const byGroup = [...groups].map(([g, v]) => ({ g, ...v })).sort((a, b) => a.c - b.c);
     const max = Math.max(0.0001, ...known.map((x) => Math.abs(x.c)));
-    return { known, missing, sum, coveredW, listedW, detractors, contributors, drag, lift, byGroup, max };
+    // the movers: biggest |contribution| first until they explain ≥ 70% of the gross move
+    const gross = known.reduce((t, x) => t + Math.abs(x.c), 0);
+    const ranked = [...known].sort((a, b) => Math.abs(b.c) - Math.abs(a.c));
+    const movers: typeof known = [];
+    let acc = 0;
+    for (const x of ranked) {
+      if (movers.length >= GRID_MAX || (movers.length >= GRID_MIN && acc >= gross * MOVE_SHARE)) break;
+      movers.push(x); acc += Math.abs(x.c);
+    }
+    const moverShare = gross ? acc / gross : 0;
+    return { known, missing, sum, coveredW, listedW, detractors, contributors, drag, lift, byGroup, max, movers, moverShare };
   }, [holdings, ret]);
 
   const etfRet = etfSym ? ret[etfSym.toUpperCase()] ?? null : null;
@@ -89,7 +103,7 @@ export default function HoldingAttribution({ holdings, etfSym, etfLabel, totalPo
         <span className="font-mono text-[11px] font-bold tracking-[0.16em] text-zinc-200" title="Contribution = weight × return, in percentage points of the fund's return">
           [ PERFORMANCE DRIVERS · {etfLabel} ]
         </span>
-        <SegRail items={PERIODS} value={period} onChange={setPeriod} width={PERIODS.length * 48} />
+        <SegRail items={PERIODS} value={period} onChange={setPeriod} width={PERIODS.length * 42} />
       </div>
 
       {/* summary: what the fund did vs what the tracked holdings explain */}
@@ -149,6 +163,16 @@ export default function HoldingAttribution({ holdings, etfSym, etfLabel, totalPo
               <span className={`text-right font-semibold ${tone(g.c)}`}>{pp(g.c)}</span>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* price charts of the holdings that make the move — same timeline as everything above */}
+      {!compact && m.movers.length > 0 && state !== "loading" && (
+        <div className="h-[520px] min-h-0">
+          <ChartGrid tf={period} onTf={setPeriod} minCell={300}
+            title={`WHAT MOVED ${etfLabel} · ${period}`}
+            hint={`${m.movers.length} holdings = ${(m.moverShare * 100).toFixed(0)}% of the move (gross |contribution|)`}
+            items={m.movers.map((x) => ({ sym: x.tic, label: x.tic, sub: x.name, href: `/stock/${x.tic}`, note: `${x.w.toFixed(2)}% wt · ${pp(x.c)}` }))} />
         </div>
       )}
 

@@ -22,7 +22,7 @@ const RANGE: Record<Exclude<RetPeriod, "1D">, string> = { "1W": "1mo", "2W": "1m
 const DAYS: Record<Exclude<RetPeriod, "1D" | "YTD">, number> = { "1W": 7, "2W": 14, "1M": 30, "3M": 91, "6M": 182, "1Y": 365, "3Y": 1096, "5Y": 1826 };
 const DAY = 86400;
 
-export type Series = { t: number[]; c: number[] } | null;
+export type Series = { t: number[]; c: number[]; o?: number[]; h?: number[]; l?: number[] } | null;
 const cache = new Map<string, Series>(); // `${range}:${SYM}`
 
 async function loadSeries(syms: string[], range: string): Promise<boolean> {
@@ -62,11 +62,12 @@ export function periodReturn(s: Series, p: Exclude<RetPeriod, "1D">): number | n
 }
 
 /** The bars a period's return is measured over (for sparklines that must match the number). */
-export function periodWindow(s: Series, p: RetPeriod): { t: number[]; c: number[] } | null {
+export function periodWindow(s: Series, p: RetPeriod): NonNullable<Series> | null {
   if (!s || s.c.length < 2) return null;
   if (p === "1D") return s;
   const k = startIndex(s, p);
-  return k == null ? null : { t: s.t.slice(k), c: s.c.slice(k) };
+  // OHLC (when the feed has it) is cropped along with the closes so candles stay available
+  return k == null ? null : { t: s.t.slice(k), c: s.c.slice(k), o: s.o?.slice(k), h: s.h?.slice(k), l: s.l?.slice(k) };
 }
 
 export type RetState = "loading" | "ready" | "error";

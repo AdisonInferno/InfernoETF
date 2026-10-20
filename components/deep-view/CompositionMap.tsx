@@ -1,5 +1,7 @@
 "use client";
 
+import { buildFund } from "./buildFund";
+import { ConcentrationNotice } from "@/components/RiskNotice";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
@@ -55,10 +57,43 @@ function useBoxSize<T extends HTMLElement>() {
 
 const SECTOR_HDR = 17;
 
-function HoldingsMap({ x, mode }: { x: Explorer; mode: Mode }) {
+/** Hover card for a tile: compact, glowing, follows the pointer and flips at the edges so it never leaves the map. */
+function TileTip({ x, tic, px, py, W, H }: { x: Explorer; tic: string; px: number; py: number; W: number; H: number }) {
+  const it = x.all.find((r) => r.tic === tic);
+  if (!it) return null;
+  const rank = x.all.findIndex((r) => r.tic === tic) + 1;
+  const m = x.ret.market;
+  const rel = it.r != null && m?.r != null ? it.r - m.r : null;
+  const CW = 232, CH = 128;
+  const left = px + 16 + CW > W ? Math.max(4, px - CW - 12) : px + 16;
+  const top = py + 16 + CH > H ? Math.max(4, py - CH - 10) : py + 16;
+  return (
+    <div className="pointer-events-none absolute z-[20] w-[232px] rounded-sm border border-oasis/50 bg-[var(--oasis-panel)]/95 px-3 py-2.5 font-mono tabular-nums shadow-[0_0_22px_-4px_color-mix(in_srgb,var(--oasis-accent)_55%,transparent),inset_0_0_0_1px_rgba(255,255,255,0.03)] backdrop-blur-sm"
+      style={{ left, top }}>
+      <div className="flex items-baseline justify-between gap-2">
+        <span className="text-[15px] font-bold text-white">{it.tic}</span>
+        <span className="text-[9.5px] tracking-[0.1em] text-zinc-500">#{rank} BY WEIGHT</span>
+      </div>
+      <div className="truncate font-sans text-[11.5px] text-zinc-300">{it.name}</div>
+      <div className="mb-1.5 text-[9.5px] tracking-[0.06em] text-oasis">{it.parent.toUpperCase()} › {it.sub}</div>
+      <div className="grid grid-cols-2 gap-x-3 gap-y-0.5 border-t border-white/[0.06] pt-1.5 text-[10.5px]">
+        <span className="text-zinc-500">WEIGHT</span><span className="text-right font-semibold text-zinc-100">{it.w.toFixed(2)}%</span>
+        <span className="text-zinc-500">{x.ret.period} RETURN</span><span className="text-right font-semibold"><RetCell v={it.r} state={x.ret.state} /></span>
+        {m && <><span className="text-zinc-500">VS {m.label}</span><span className={`text-right ${rel == null ? "text-zinc-600" : rel >= 0 ? "text-emerald-400" : "text-rose-400"}`}>{rel == null ? "—" : `${rel >= 0 ? "+" : "−"}${Math.abs(rel).toFixed(2)} pp`}</span></>}
+      </div>
+    </div>
+  );
+}
+
+function HoldingsMap({ x, mode, drillOnly = false }: { x: Explorer; mode: Mode; /** portfolio drill-down: only the zoomed ETF's holdings */ drillOnly?: boolean }) {
   const [ref, { w: W, h: H }] = useBoxSize<HTMLDivElement>();
+  const [tip, setTip] = useState<{ tic: string; px: number; py: number } | null>(null);
+  const track = (tic: string) => (e: React.MouseEvent) => {
+    const b = e.currentTarget.parentElement?.closest("[data-map]")?.getBoundingClientRect();
+    if (b) setTip({ tic, px: e.clientX - b.left, py: e.clientY - b.top });
+  };
   const sc = RET_SCALE[x.ret.period];
-  const items = useMemo(() => x.all.filter((r) => r.w > 0), [x.all]);
+  const items = useMemo(() => x.all.filter((r) => r.w > 0 && (!drillOnly || x.inFilter(r))), [x, drillOnly]);
   const maxW = items[0]?.w ?? 1;
 
   /* sectors first (squarified by total weight), holdings squarified inside each sector box */
@@ -75,7 +110,7 @@ function HoldingsMap({ x, mode }: { x: Explorer; mode: Mode }) {
   }, [items, W, H]);
 
   return (
-    <div ref={ref} className="relative h-full overflow-hidden rounded-sm">
+    <div ref={ref} data-map className="relative h-full overflow-hidden rounded-sm" onMouseLeave={() => { setTip(null); x.setHover(null); }}>
       {layout.map((s) => {
         const c = rgbOf(s.parent);
         const dimSec = !s.rs.some((r) => x.inFilter(r));
@@ -93,7 +128,7 @@ function HoldingsMap({ x, mode }: { x: Explorer; mode: Mode }) {
             )}
             {s.tiles.map(({ item: it, x: tx, y: ty, w, h }) => {
               const m = Math.min(w, h), big = w > 120 && h > 60, fs = Math.max(9, Math.min(34, m / 3.6));
-              const sel = x.selected === it.tic, dim = !x.inFilter(it);
+              const sel = x.selected === it.tic, dim = !x.inFilter(it), hov = x.hover === it.tic;
               const v = it.r;
               const bg = mode === "COMPOSITION"
                 ? `rgba(${c},${(0.22 + (0.5 * it.w) / maxW).toFixed(3)})`
@@ -105,13 +140,16 @@ function HoldingsMap({ x, mode }: { x: Explorer; mode: Mode }) {
                   type="button"
                   onClick={() => x.select(it.tic)}
                   aria-pressed={sel}
-                  title={`${it.tic} · ${it.name}\n${it.parent} › ${it.sub}\nWeight ${it.w.toFixed(2)}% of the fund\n${x.ret.period} return: ${v == null ? (x.ret.state === "loading" ? "loading…" : "N/A (no price history)") : fp(v)}`}
+                  aria-label={`${it.tic} · ${it.name} · weight ${it.w.toFixed(2)}%${v != null ? ` · ${x.ret.period} ${fp(v)}` : ""}`}
+                  onMouseEnter={(e) => { x.setHover(it.tic); track(it.tic)(e); }}
+                  onMouseMove={track(it.tic)}
                   className="on-color absolute box-border overflow-hidden border border-[var(--oasis-panel)] text-left text-white transition-[filter,opacity] duration-200 hover:z-[2] hover:brightness-[1.18] focus-visible:z-[2] focus-visible:outline focus-visible:outline-1 focus-visible:outline-white"
                   style={{
                     left: tx, top: ty, width: w, height: h, background: bg, padding: `${big ? 5 : 2}px ${big ? 8 : 4}px`,
                     opacity: dim ? 0.22 : 1,
-                    boxShadow: sel ? "inset 0 0 0 2px var(--oasis-accent), 0 0 10px color-mix(in srgb, var(--oasis-accent) 40%, transparent)" : undefined,
-                    zIndex: sel ? 4 : undefined,
+                    boxShadow: sel ? "inset 0 0 0 2px var(--oasis-accent), 0 0 10px color-mix(in srgb, var(--oasis-accent) 40%, transparent)"
+                      : hov ? "inset 0 0 0 1px rgba(255,255,255,0.7)" : undefined,
+                    zIndex: sel ? 4 : hov ? 3 : undefined, filter: hov && !sel ? "brightness(1.18)" : undefined,
                   }}
                 >
                   <div className="whitespace-nowrap font-display font-semibold leading-[1.05]" style={{ fontSize: fs, opacity: w < 24 || h < 14 ? 0 : 1 }}>{it.tic}</div>
@@ -122,7 +160,60 @@ function HoldingsMap({ x, mode }: { x: Explorer; mode: Mode }) {
           </div>
         );
       })}
+      {tip && <TileTip x={x} tic={tip.tic} px={tip.px} py={tip.py} W={W} H={H} />}
     </div>
+  );
+}
+
+/* ── Portfolio level: one tile per position (ETF or stock); click / wheel-up on an ETF zooms into its holdings ── */
+
+export interface MapPosition { tic: string; name: string; w: number; kind: "etf" | "stock"; sym: string }
+
+function PositionsMap({ x, mode, positions, onDrill }: { x: Explorer; mode: Mode; positions: MapPosition[]; onDrill: (tic: string) => void }) {
+  const [ref, { w: W, h: H }] = useBoxSize<HTMLDivElement>();
+  const sc = RET_SCALE[x.ret.period];
+  const tiles = useMemo(() => {
+    const ps = positions.filter((p) => p.w > 0).sort((a, b) => b.w - a.w);
+    return ps.length ? squarify(ps, (p) => p.w, 0, 0, W, H) : [];
+  }, [positions, W, H]);
+  return (
+    <div ref={ref} className="relative h-full overflow-hidden rounded-sm">
+      {tiles.map(({ item: p, x: tx, y: ty, w, h }) => {
+        const r = x.ret.of(p.sym);
+        const m = Math.min(w, h), fs = Math.max(10, Math.min(36, m / 3.4));
+        const bg = mode === "PERFORMANCE"
+          ? (x.ret.state === "loading" ? "#1c1c20" : r == null ? NA_BG : retColor(r, sc))
+          : p.kind === "etf" ? "rgba(56,189,248,0.28)" : "rgba(168,85,247,0.28)";
+        const isEtf = p.kind === "etf";
+        return (
+          <button key={p.tic} type="button"
+            onClick={() => (isEtf ? onDrill(p.tic) : x.select(p.tic))}
+            onWheel={(e) => { if (isEtf && e.deltaY < 0) onDrill(p.tic); }}
+            title={`${p.tic} · ${p.name}\n${p.w.toFixed(2)}% of the portfolio${r != null ? `\n${x.ret.period}: ${fp(r)}` : ""}${isEtf ? "\nClick or scroll up to see what it holds" : ""}`}
+            className="on-color group absolute box-border overflow-hidden border border-[var(--oasis-panel)] p-2 text-left text-white transition-[filter] hover:z-[2] hover:brightness-125"
+            style={{ left: tx, top: ty, width: w, height: h, background: bg }}>
+            <div className="font-display font-semibold leading-none" style={{ fontSize: fs }}>{p.tic}</div>
+            <div className="mt-1 font-mono text-[11px] font-bold opacity-90">{mode === "PERFORMANCE" ? (r == null ? "N/A" : fp(r)) : `${p.w.toFixed(1)}%`}</div>
+            {h > 70 && w > 110 && <div className="mt-0.5 truncate font-sans text-[10.5px] opacity-70">{p.name}</div>}
+            {isEtf && h > 50 && <span className="absolute bottom-1.5 right-2 font-mono text-[9px] font-bold tracking-[0.12em] opacity-0 transition-opacity group-hover:opacity-80">ZOOM IN ⊕</span>}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+/** The fund vs the market over the selected period — big enough to read at a glance */
+function ReturnSummary({ x }: { x: Explorer }) {
+  const f = x.ret.fund, m = x.ret.market;
+  if (!f && !m) return null;
+  const rel = f?.r != null && m?.r != null ? f.r - m.r : null;
+  return (
+    <span className="flex flex-none items-baseline gap-3 font-mono tabular-nums" title={`Price return over the ${PERIOD_LABEL[x.ret.period]} window`}>
+      {f && <span className="flex items-baseline gap-1.5"><span className="text-[10px] font-bold tracking-[0.12em] text-zinc-400">{f.label} {x.ret.period}</span><RetCell v={f.r} state={x.ret.state} className="text-[15px] font-bold" /></span>}
+      {m && <span className="flex items-baseline gap-1.5"><span className="text-[10px] tracking-[0.1em] text-zinc-500">{m.label}</span><RetCell v={m.r} state={x.ret.state} className="text-[12px] font-semibold" /></span>}
+      {rel != null && <span className={`text-[11px] font-semibold ${rel >= 0 ? "text-emerald-400" : "text-rose-400"}`}>{rel >= 0 ? "+" : "−"}{Math.abs(rel).toFixed(1)} pp vs market</span>}
+    </span>
   );
 }
 
@@ -306,13 +397,33 @@ function SelectionBar({ x, onShowChart }: { x: Explorer; onShowChart: () => void
 
 /** `main` = the line the holdings are compared against (default: the ETF itself; the portfolio passes its basket) */
 /** `fill`: fit the parent's height with no scrolling (ETF deep view); without it the workspace uses fixed heights (portfolio page) */
-export default function CompositionMap({ fund, main, fill = false, notice }: { fund: FundData; main?: MainDef; fill?: boolean; /** risk note shown under the toolbar */ notice?: ReactNode }) {
+export default function CompositionMap({ fund, main, fill = false, concentration = false, positions }: {
+  fund: FundData; main?: MainDef; fill?: boolean;
+  /** show the (dismissible) concentration box next to the selection bar */
+  concentration?: boolean;
+  /** portfolio: the map starts with one tile per position and zooms into an ETF's holdings */
+  positions?: MapPosition[];
+}) {
   const [mode, setMode] = useState<Mode>("COMPOSITION");
   const [period, setPeriod] = useState<CompPeriod>("1Y");
-  const tickers = useMemo(() => fund.holdings.filter((h) => h.w > 0).map((h) => h.tic), [fund.holdings]);
+  /* the fund itself + the market (S&P 500 via SPY) ride along in the same request, so all numbers share one window */
+  const fundSym = main ? main.sym : fund.tic;
+  const tickers = useMemo(() => [...fund.holdings.filter((h) => h.w > 0).map((h) => h.tic), ...(positions ?? []).map((p) => p.sym), ...(fundSym ? [fundSym] : []), "SPY"], [fund.holdings, fundSym, positions]);
+  /* holdings of each portfolio ETF — the drill-down filter for map + table */
+  const members = useMemo(() => {
+    if (!positions) return undefined;
+    const out: Record<string, Set<string>> = {};
+    for (const p of positions) if (p.kind === "etf") out[p.tic] = new Set((buildFund(p.tic)?.holdings ?? []).map((h) => (h.tic === "GOOG" ? "GOOGL" : h.tic)));
+    return out;
+  }, [positions]);
   const { ret: rets, state } = useHoldingReturns(tickers, period);
-  const ret = useMemo(() => ({ period, state, of: (tic: string) => rets[tic.toUpperCase()] ?? null }), [period, state, rets]);
-  const x = useHoldingsExplorer(fund, ret);
+  const ret = useMemo(() => ({
+    period, state, setPeriod, of: (tic: string) => rets[tic.toUpperCase()] ?? null,
+    fund: fundSym ? { label: main?.label ?? fund.tic, r: rets[fundSym.toUpperCase()] ?? null } : undefined,
+    market: fundSym === "SPY" ? undefined : { label: "S&P 500", r: rets.SPY ?? null },
+  }), [period, state, rets, fundSym, main?.label, fund.tic]);
+  const x = useHoldingsExplorer(fund, ret, members);
+  const drill = positions && x.filter.startsWith("etf:") ? x.filter.slice(4) : null;
   const [open, setOpen] = useState({ map: true, table: true, chart: false });
   const flip = (id: keyof typeof open) => setOpen((o) => ({ ...o, [id]: !o[id] }));
   const showChart = () => setOpen((o) => ({ ...o, chart: true }));
@@ -332,12 +443,15 @@ export default function CompositionMap({ fund, main, fill = false, notice }: { f
           <span className="font-mono text-[9.5px] font-bold tracking-[0.14em] text-zinc-500" title="Period for the table's return column, the performance colours and the Relative Performance chart">RETURN PERIOD</span>
           <SegRail items={RET_PERIODS} value={period} onChange={setPeriod} width={RET_PERIODS.length * 42} />
         </span>
-        <span className="ml-auto"><Coverage fund={fund} /></span>
+        <span className="ml-auto flex flex-wrap items-baseline gap-x-5 gap-y-1"><ReturnSummary x={x} /><Coverage fund={fund} /></span>
         <div className="w-full border-t border-white/[0.05] pt-1.5"><Legend x={x} mode={mode} /></div>
       </div>
 
-      {notice}
-      <SelectionBar x={x} onShowChart={showChart} />
+      {/* risk box (half) · selected holding (half) — one row above the map and the table */}
+      <div className={`grid flex-none gap-2 ${concentration ? "lg:grid-cols-2" : ""}`}>
+        {concentration && <ConcentrationNotice fund={fund} signals={x.alert} />}
+        <SelectionBar x={x} onShowChart={showChart} />
+      </div>
       {x.filter !== "ALL" && (
         <div className="flex flex-none items-center gap-2 font-mono text-[10.5px]">
           <span className="text-zinc-500">FILTERED TO</span>
@@ -349,8 +463,13 @@ export default function CompositionMap({ fund, main, fill = false, notice }: { f
       {/* Map (primary) | holdings table */}
       <div className={`flex gap-3 max-lg:h-auto max-lg:flex-col ${fill ? "min-h-[520px] lg:min-h-0 lg:flex-1" : "h-[calc(100dvh-360px)] min-h-[520px] flex-none"}`}>
         <div className="flex min-w-0 max-lg:h-[460px]" style={{ flex: open.map ? "1.4 1 0px" : "0 0 40px" }}>
-          <Panel title="MAP" meta={mode === "COMPOSITION" ? "BY SECTOR" : `${period} RETURN`} weight={1} axis="x" expanded={open.map} onToggle={() => flip("map")}>
-            <div className="h-full p-2"><HoldingsMap x={x} mode={mode} /></div>
+          <Panel title="MAP" meta={positions ? (drill ? `PORTFOLIO › ${drill}` : "YOUR POSITIONS · CLICK AN ETF TO ZOOM IN") : mode === "COMPOSITION" ? "BY SECTOR" : `${period} RETURN`} weight={1} axis="x" expanded={open.map} onToggle={() => flip("map")}
+            tools={drill ? <button type="button" onClick={() => x.setFilter("ALL")} className="rounded-sm border border-oasis/40 px-2 py-0.5 font-mono text-[10px] font-bold tracking-[0.1em] text-oasis hover:bg-oasis-muted">← PORTFOLIO</button> : undefined}>
+            <div className="h-full p-2" onWheel={(e) => { if (drill && e.deltaY > 0) x.setFilter("ALL"); }}>
+              {positions && !drill
+                ? <PositionsMap x={x} mode={mode} positions={positions} onDrill={(t) => x.setFilter(`etf:${t}`)} />
+                : <HoldingsMap x={x} mode={mode} drillOnly={!!drill} />}
+            </div>
           </Panel>
         </div>
         <div className="flex min-w-0 max-lg:h-[460px]" style={{ flex: open.table ? "1 1 0px" : "0 0 40px" }}>

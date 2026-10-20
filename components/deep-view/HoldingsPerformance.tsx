@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import InfernoChart, { type MainDef } from "@/components/InfernoChart";
 import { SUB_PARENT } from "@/lib/fund-profiles";
 import type { FundData } from "./types";
-import { RET_PERIODS, type CompPeriod, type RetState } from "./useHoldingReturns";
+import { PERIOD_LABEL, RET_PERIODS, type CompPeriod, type RetState } from "./useHoldingReturns";
 
 /* ─────────────────────────────────────────────────────────────
    Holdings Explorer  (COMPOSITION MAP tab)
@@ -27,7 +27,9 @@ const HEAD: [string, SortKey, "left" | "right"][] = [
   ["TICKER", "tic", "left"], ["COMPANY NAME", "name", "left"], ["SECTOR", "sub", "left"],
   ["WEIGHT", "w", "left"], ["MARKET CAP", "cap", "right"], ["RETURN", "r", "right"],
 ];
-const GRID = "grid grid-cols-[26px_56px_minmax(0,1.6fr)_minmax(0,1fr)_minmax(92px,1fr)_66px_76px] items-center gap-2.5 px-3";
+const GRID = "grid items-center gap-2.5 px-3";
+/** columns: plot box · ticker · name · sub-sector (wide enough for the longest one — never cut to "…") · weight · cap · return */
+const colsFor = (subCh: number) => ({ gridTemplateColumns: `26px 56px minmax(120px,1.4fr) ${subCh}ch minmax(92px,1fr) 66px 78px` });
 
 const LEVEL_STYLE = {
   CRITICAL: { box: "border-[#ff6a00] bg-[#ff6a00]/[0.06]", icon: "text-[#ff6a00]", text: "text-[#ffb27a]", label: "text-[#ff8a3d]" },
@@ -38,11 +40,19 @@ const LEVEL_STYLE = {
 export interface Row { rank: number; tic: string; name: string; w: number; sub: string; parent: string; cap: number; r: number | null }
 /** "ALL" · "sector:<parent>" · "sub:<sub-sector>" */
 export type SectorFilter = string;
-export interface RetInfo { period: CompPeriod; of: (tic: string) => number | null; state: RetState }
+export interface RetInfo {
+  period: CompPeriod; of: (tic: string) => number | null; state: RetState;
+  /** change the period from the table header menu (same state as the toolbar rail) */
+  setPeriod?: (p: CompPeriod) => void;
+  /** the fund's own return and the market (S&P 500) over the same window */
+  fund?: { label: string; r: number | null };
+  market?: { label: string; r: number | null };
+}
 
 /* ── State ─────────────────────────────────────────────────── */
 
-export function useHoldingsExplorer(fund: FundData, ret: RetInfo) {
+/** `members`: holdings of each portfolio ETF (portfolio map drill-down) — enables the "etf:<TICKER>" filter */
+export function useHoldingsExplorer(fund: FundData, ret: RetInfo, members?: Record<string, Set<string>>) {
   const parentOf = useMemo(() => (sub: string) => fund.sectorParent[sub] ?? SUB_PARENT[sub] ?? "Other", [fund]);
   const base = useMemo<Omit<Row, "r">[]>(() => fund.holdings.map((h, i) => {
     const m = fund.holdingMeta[h.tic] ?? { sector: "Other", capB: 0 };
@@ -55,6 +65,8 @@ export function useHoldingsExplorer(fund: FundData, ret: RetInfo) {
   const [limitHit, setLimitHit] = useState(false);
   /** the one selected holding — shared by the treemap, the table and the detail bar */
   const [selected, setSelected] = useState<string | null>(null);
+  /** holding under the pointer — in the map or the table; both highlight it */
+  const [hover, setHover] = useState<string | null>(null);
 
   const [q, setQ] = useState("");
   const [filter, setFilter] = useState<SectorFilter>("ALL");
@@ -83,7 +95,7 @@ export function useHoldingsExplorer(fund: FundData, ret: RetInfo) {
   fund.sectors.forEach(([n, v]) => { const p = fund.sectorParent[n] ?? "Other"; parentShare[p] = (parentShare[p] ?? 0) + v; });
   const [topParent, topParentPct] = Object.entries(parentShare).sort((a, b) => b[1] - a[1])[0];
   const chips = [`SECTOR SKEW: ${topParentPct.toFixed(0)}% ${topParent}`, `SUB-INDUSTRY: ${fund.sectors[0][1].toFixed(0)}% ${fund.sectors[0][0]}`];
-  const level = top5 >= 40 ? "CRITICAL" : top5 >= 22 ? "ELEVATED" : "LOW";
+  const level: "CRITICAL" | "ELEVATED" | "LOW" = top5 >= 40 ? "CRITICAL" : top5 >= 22 ? "ELEVATED" : "LOW";
   const singleAsset = base.filter((x) => x.w >= 1).length === 1;
   const levelText =
     singleAsset ? "This is a single-asset fund: its price tracks the underlying directly."
@@ -95,9 +107,10 @@ export function useHoldingsExplorer(fund: FundData, ret: RetInfo) {
   /* Filter shared by map + table */
   const parents = useMemo(() => Array.from(new Set(base.map((x) => x.parent))), [base]);
   const subs = useMemo(() => Array.from(new Set(base.map((x) => x.sub))), [base]);
-  const inFilter = useMemo(() => (r: { sub: string; parent: string }) =>
-    filter === "ALL" || filter === `sector:${r.parent}` || filter === `sub:${r.sub}`, [filter]);
-  const filterLabel = filter === "ALL" ? "ALL SECTORS" : filter.slice(filter.indexOf(":") + 1).toUpperCase();
+  const inFilter = useMemo(() => (r: { tic?: string; sub: string; parent: string }) =>
+    filter === "ALL" || filter === `sector:${r.parent}` || filter === `sub:${r.sub}`
+    || (filter.startsWith("etf:") && !!r.tic && !!members?.[filter.slice(4)]?.has(r.tic)), [filter, members]);
+  const filterLabel = filter === "ALL" ? "ALL SECTORS" : filter.startsWith("etf:") ? `IN ${filter.slice(4)}` : filter.slice(filter.indexOf(":") + 1).toUpperCase();
 
   /* Table */
   const rows = useMemo(() => {
@@ -111,7 +124,9 @@ export function useHoldingsExplorer(fund: FundData, ret: RetInfo) {
       });
   }, [all, q, inFilter, sortKey, dir]);
   const maxW = base[0]?.w ?? 1;
-  const sortBy = (k: SortKey) => {
+  const subCh = Math.min(20, Math.max(9, ...base.map((r) => (r.sub ?? "").length + 1)));
+  const sortBy = (k: SortKey, force?: 1 | -1) => {
+    if (force) { setSortKey(k); setDir(force); return; }
     if (k === sortKey) setDir((d) => (d === 1 ? -1 : 1));
     else { setSortKey(k); setDir(k === "w" || k === "cap" || k === "r" ? -1 : 1); }
   };
@@ -128,13 +143,54 @@ export function useHoldingsExplorer(fund: FundData, ret: RetInfo) {
   const selectedRow = all.find((r) => r.tic === selected) ?? null;
 
   return {
-    fund, all, rows, ret, parents, subs, maxW, shown, plotted, limitHit, toggle, plot, clearAll,
+    fund, all, rows, ret, parents, subs, maxW, subCh, shown, plotted, limitHit, toggle, plot, clearAll, hover, setHover,
     selected, selectedRow, select, q, setQ, filter, setFilter, inFilter, filterLabel, sortKey, dir, sortBy, exportCsv,
     alert: { level, levelText, top5, chips, ls },
   };
 }
 
 export type Explorer = ReturnType<typeof useHoldingsExplorer>;
+
+/** RETURN column header: click → choose the period (same state as the toolbar rail), sort, and see the fund vs the market */
+function ReturnHeader({ x }: { x: Explorer }) {
+  const [open, setOpen] = useState(false);
+  const on = x.sortKey === "r";
+  const m = x.ret.market, f = x.ret.fund;
+  return (
+    <span className="relative flex justify-end">
+      <button type="button" onClick={() => setOpen((o) => !o)} aria-expanded={open} aria-haspopup="menu" title="Choose the return period"
+        className={`flex items-center gap-1 whitespace-nowrap rounded-xs px-1 hover:bg-white/[0.06] hover:text-white ${on ? "text-emerald-400" : ""} ${open ? "bg-white/[0.08] text-white" : ""}`}>
+        {x.ret.period} RETURN{on ? (x.dir > 0 ? " ▲" : " ▼") : ""} <span className="text-[8px] text-zinc-500">▾</span>
+      </button>
+      {open && <button type="button" aria-label="Close" onClick={() => setOpen(false)} className="fixed inset-0 z-[4] cursor-default" />}
+      {open && (
+        <div role="menu" className="absolute right-0 top-[calc(100%+6px)] z-[5] w-[230px] rounded-sm border border-oasis/40 bg-[var(--oasis-panel)] p-2 font-mono text-[10.5px] normal-case tracking-normal shadow-[0_0_18px_-4px_color-mix(in_srgb,var(--oasis-accent)_45%,transparent)]">
+          <div className="mb-1 text-[9px] font-bold tracking-[0.14em] text-zinc-500">RETURN PERIOD</div>
+          <div className="grid grid-cols-5 gap-1">
+            {RET_PERIODS.map((p) => (
+              <button key={p} type="button" role="menuitemradio" aria-checked={p === x.ret.period} disabled={!x.ret.setPeriod}
+                onClick={() => { x.ret.setPeriod?.(p); setOpen(false); }}
+                className={`h-6 rounded-xs border text-[10px] font-bold ${p === x.ret.period ? "oasis-on" : "border-white/[0.06] text-zinc-400 hover:text-white"}`}>{p}</button>
+            ))}
+          </div>
+          <div className="mt-2 mb-1 text-[9px] font-bold tracking-[0.14em] text-zinc-500">SORT</div>
+          <div className="flex gap-1">
+            {([[-1, "HIGH → LOW"], [1, "LOW → HIGH"]] as const).map(([d, l]) => (
+              <button key={d} type="button" onClick={() => { x.sortBy("r", d); setOpen(false); }}
+                className={`h-6 flex-1 rounded-xs border text-[10px] font-bold ${on && x.dir === d ? "oasis-on" : "border-white/[0.06] text-zinc-400 hover:text-white"}`}>{l}</button>
+            ))}
+          </div>
+          {(f || m) && (
+            <div className="mt-2 flex flex-col gap-0.5 border-t border-white/[0.06] pt-1.5 text-[10.5px]">
+              {f && <span className="flex justify-between"><span className="text-zinc-400">{f.label} · {PERIOD_LABEL[x.ret.period]}</span><RetCell v={f.r} state={x.ret.state} /></span>}
+              {m && <span className="flex justify-between"><span className="text-zinc-400">{m.label}</span><RetCell v={m.r} state={x.ret.state} /></span>}
+            </div>
+          )}
+        </div>
+      )}
+    </span>
+  );
+}
 
 /** Return cell text: loading / failed request / no data for this holding / value */
 export function RetCell({ v, state, className = "" }: { v: number | null; state: RetState; className?: string }) {
@@ -163,14 +219,7 @@ export function ExplorerTable({ x }: { x: Explorer }) {
           <span className="text-[11px] font-bold text-zinc-500">Q</span>
           <input type="text" value={x.q} onChange={(e) => x.setQ(e.target.value)} placeholder={`Search ${x.all.length} holdings...`} className="min-w-0 flex-1 border-0 bg-transparent font-mono text-[11.5px] text-neutral-200 outline-none" />
         </label>
-        <span className={`flex h-7 min-w-0 items-center gap-2 border px-2.5 text-[10.5px] ${a.ls.box}`} title={a.levelText}>
-          <span className={a.ls.icon}>{a.level === "LOW" ? "✓" : "⚠"}</span>
-          <span className={`whitespace-nowrap font-bold tracking-[0.08em] ${a.ls.label}`}>{a.level} CONCENTRATION</span>
-          <span className={`whitespace-nowrap ${a.ls.text}`}>TOP 5 = <span className="font-bold text-white">{a.top5.toFixed(1)}%</span></span>
-        </span>
-        {a.chips.map((c) => (
-          <span key={c} className="flex h-7 items-center whitespace-nowrap border border-amber-500/60 bg-amber-500/[0.07] px-2.5 text-[10.5px] font-bold tracking-[0.08em] text-amber-500">⚠ {c}</span>
-        ))}
+        {a.level === "LOW" && <span className={`flex h-7 items-center gap-2 border px-2.5 text-[10.5px] ${a.ls.box}`} title={a.levelText}><span className={a.ls.icon}>✓</span><span className={`font-bold tracking-[0.08em] ${a.ls.label}`}>DIVERSIFIED</span></span>}
         <span className="ml-auto flex items-center gap-2">
           <label className="relative flex h-7 items-center whitespace-nowrap rounded-sm border border-white/[0.06] bg-[var(--oasis-bg)] pl-2.5 pr-7 text-[10.5px] font-bold tracking-[0.08em] text-zinc-300 hover:border-zinc-700">
             <span>[ FILTER: {x.filterLabel} ]</span>
@@ -187,19 +236,19 @@ export function ExplorerTable({ x }: { x: Explorer }) {
 
       {/* Table — inner scroll */}
       <div className="min-h-0 flex-1 overflow-auto overscroll-contain rounded-sm border border-white/[0.06] bg-[var(--oasis-bg)]/40 [scrollbar-color:#27272a_transparent] [scrollbar-width:thin]">
-        <div className="min-w-[580px]">
-          <div className={`sticky top-0 z-[2] h-8 border-b border-white/[0.06] bg-[var(--oasis-panel)] text-[9.5px] font-bold tracking-[0.14em] text-zinc-500 ${GRID}`}>
+        <div className="min-w-[640px]">
+          <div className={`sticky top-0 z-[3] h-8 border-b border-white/[0.06] bg-[var(--oasis-panel)] text-[9.5px] font-bold tracking-[0.14em] text-zinc-500 ${GRID}`} style={colsFor(x.subCh)}>
             <span className="text-center" title="Plot on the Relative Performance chart">◫</span>
-            {HEAD.map(([l, k, al]) => (
+            {HEAD.map(([l, k, al]) => k === "r" ? <ReturnHeader key={k} x={x} /> : (
               <button key={k} type="button" onClick={() => x.sortBy(k)} className={`whitespace-nowrap hover:text-white ${al === "right" ? "text-right" : "text-left"} ${x.sortKey === k ? "text-emerald-400" : ""}`}>
-                {k === "r" ? `${x.ret.period} ${l}` : l}{x.sortKey === k ? (x.dir > 0 ? " ▲" : " ▼") : ""}
+                {l}{x.sortKey === k ? (x.dir > 0 ? " ▲" : " ▼") : ""}
               </button>
             ))}
           </div>
           {x.rows.map((r) => {
             const c = x.plotted.get(r.tic), on = c !== undefined;
             const full = !on && x.plotted.size >= MAX_LINES;
-            const sel = x.selected === r.tic;
+            const sel = x.selected === r.tic, hov = x.hover === r.tic;
             return (
               <div
                 key={r.tic}
@@ -208,13 +257,15 @@ export function ExplorerTable({ x }: { x: Explorer }) {
                 aria-selected={sel}
                 tabIndex={0}
                 onClick={() => x.select(r.tic)}
+                onMouseEnter={() => x.setHover(r.tic)}
+                onMouseLeave={() => x.setHover(null)}
                 onKeyDown={(e) => {
                   if (e.key === "Enter") { e.preventDefault(); x.select(r.tic); }
                   if (e.key === " ") { e.preventDefault(); x.toggle(r.tic); }
                 }}
                 title="Click to select (highlights it on the map) · Space or ☐ to plot"
-                className={`h-[30px] cursor-pointer border-b border-white/[0.06] text-[11.5px] transition-colors last:border-b-0 hover:bg-white/[0.03] focus-visible:bg-white/[0.04] focus-visible:outline-none ${sel ? "bg-oasis-muted" : on ? "bg-white/[0.015]" : ""} ${GRID}`}
-                style={sel ? { boxShadow: "inset 3px 0 0 var(--oasis-accent)" } : on ? { boxShadow: `inset 2px 0 0 ${c}` } : undefined}
+                className={`h-[30px] cursor-pointer border-b border-white/[0.06] text-[11.5px] transition-colors last:border-b-0 focus-visible:bg-white/[0.04] focus-visible:outline-none ${sel ? "bg-oasis-muted" : hov ? "bg-white/[0.06]" : on ? "bg-white/[0.015]" : ""} ${GRID}`}
+                style={{ ...colsFor(x.subCh), ...(sel ? { boxShadow: "inset 3px 0 0 var(--oasis-accent)" } : on ? { boxShadow: `inset 2px 0 0 ${c}` } : {}) }}
               >
                 <span className="flex justify-center">
                   <button
@@ -236,7 +287,7 @@ export function ExplorerTable({ x }: { x: Explorer }) {
                 </span>
                 <span className="font-bold" style={{ color: on ? c : "var(--color-white)" }}>{r.tic}</span>
                 <span className="truncate font-display text-xs text-zinc-300">{r.name}</span>
-                <span className="truncate text-[10.5px] tracking-[0.04em] text-zinc-400" title={`${r.parent} › ${r.sub}`}>{r.sub}</span>
+                <span className="line-clamp-2 text-[10px] leading-[1.15] tracking-[0.02em] text-zinc-400">{r.sub}</span>
                 <span className="flex min-w-0 items-center gap-2">
                   <span className="w-[46px] flex-none text-right font-semibold text-neutral-100">{r.w.toFixed(2)}%</span>
                   <span className="h-[3px] flex-1 bg-white/[0.06]">
@@ -244,7 +295,9 @@ export function ExplorerTable({ x }: { x: Explorer }) {
                   </span>
                 </span>
                 <span className="text-right text-zinc-300">{capF(r.cap)}</span>
-                <RetCell v={r.r} state={x.ret.state} className="text-right font-semibold" />
+                <span className="text-right" title={r.r != null && x.ret.market?.r != null ? `${x.ret.period}: ${signed(r.r)} vs ${x.ret.market.label} ${signed(x.ret.market.r)} → ${signed(r.r - x.ret.market.r)} relative` : undefined}>
+                  <RetCell v={r.r} state={x.ret.state} className="font-semibold" />
+                </span>
               </div>
             );
           })}

@@ -58,20 +58,32 @@ export function OverlapNotice({ positions }: { positions: Position[] }) {
   );
 }
 
-export function ConcentrationNotice({ fund }: { fund: FundData }) {
+/** concentration signals from the Composition Map explorer (level + skew chips) — shown inside the same box */
+export interface ConcentrationSignals { level: "LOW" | "ELEVATED" | "CRITICAL"; top5: number; chips: string[]; levelText: string }
+
+export function ConcentrationNotice({ fund, signals }: { fund: FundData; signals?: ConcentrationSignals }) {
   const c = useMemo(() => {
     const hs = fund.holdings.filter((h) => h.w > 0);
     const top5 = hs.slice(0, 5).reduce((t, h) => t + h.w, 0);
     const top1 = hs[0];
     return { top5, top1, names: hs.slice(0, 3).map((h) => h.tic) };
   }, [fund.holdings]);
-  if (!c.top1 || (c.top5 < TOP5_PCT && c.top1.w < TOP1_PCT)) return null;
+  const flagged = !!c.top1 && (c.top5 >= TOP5_PCT || c.top1.w >= TOP1_PCT || (signals != null && signals.level !== "LOW"));
+  if (!flagged || !c.top1) return null;
   return (
     <Bubble id={`conc.${fund.tic}.${Math.round(c.top5 / 5)}`} title={`HIGH CONCENTRATION · ${fund.tic}`}
       foot={`From the fund's tracked holdings · ${fund.positions} positions in total.`}>
       The top 5 holdings make up <span className="font-semibold text-amber-300">{fmt(c.top5)}</span> of the fund
       {c.top1.w >= TOP1_PCT && <> — <span className="font-mono font-bold text-white">{c.top1.tic}</span> alone is <span className="font-semibold text-amber-300">{fmt(c.top1.w)}</span></>}.
       {" "}Returns depend heavily on a few companies ({c.names.join(", ")}).
+      {signals && (
+        <span className="mt-1.5 flex flex-wrap gap-1.5 font-mono text-[10px] font-bold tracking-[0.06em]">
+          <span title={signals.levelText} className={`rounded-xs border px-1.5 py-0.5 ${signals.level === "CRITICAL" ? "border-[#ff6a00]/70 text-[#ff8a3d]" : signals.level === "ELEVATED" ? "border-amber-500/60 text-amber-400" : "border-emerald-400/50 text-emerald-400"}`}>
+            {signals.level === "LOW" ? "✓" : "⚠"} {signals.level} · TOP 5 = {signals.top5.toFixed(1)}%
+          </span>
+          {signals.chips.map((ch) => <span key={ch} className="rounded-xs border border-amber-500/50 px-1.5 py-0.5 text-amber-400">⚠ {ch}</span>)}
+        </span>
+      )}
     </Bubble>
   );
 }

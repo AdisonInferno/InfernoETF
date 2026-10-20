@@ -1,5 +1,6 @@
 "use client";
 
+import ChartGrid, { type GridTf } from "@/components/ChartGrid";
 import { OverlapNotice } from "@/components/RiskNotice";
 import { currencyOf, formatMarketValue } from "@/lib/format";
 import Link from "next/link";
@@ -235,6 +236,22 @@ export default function PortfolioPage() {
   /* The portfolio as one look-through "fund" for the Composition Map / Charts / News tabs */
   const pItems = useMemo<PItem[]>(() => livePos.map(({ asset: a, weight }) => ({ ticker: a.ticker, name: a.name, weight, kind: a.kind, sector: a.sector, ytd: a.ytd, chg1d: a.chg1d })), [livePos]);
   const pfFund = useMemo(() => buildPortfolioFund(pItems), [pItems]);
+  /* HOLDINGS tab: map positions (portfolio level of the treemap) + the positions that make ≥70% of the portfolio */
+  const mapPositions = useMemo(() => livePos.map(({ asset: a, weight }) => ({ tic: a.ticker, name: a.name, w: weight, kind: a.kind, sym: symOf[a.ticker] ?? a.ticker })), [livePos, symOf]);
+  const [gridTf, setGridTf] = useState<GridTf>("1Y");
+  const { coreItems, coreShare } = useMemo(() => {
+    const ps = [...livePos].sort((a, b) => b.weight - a.weight);
+    const out: typeof ps = [];
+    let acc = 0;
+    for (const p of ps) { if (out.length >= 10 || (out.length >= 4 && acc >= 70)) break; out.push(p); acc += p.weight; }
+    return {
+      coreShare: acc,
+      coreItems: out.map((p) => {
+        const sym = symOf[p.asset.ticker] ?? p.asset.ticker;
+        return { sym, label: p.asset.ticker, sub: p.asset.name, note: `${p.weight.toFixed(1)}% of portfolio`, href: p.asset.kind === "etf" ? `/etf/${p.asset.ticker}` : `/stock/${p.asset.ticker}${sym !== p.asset.ticker ? `?y=${sym}` : ""}` };
+      }),
+    };
+  }, [livePos, symOf]);
   /* Risk telemetry (1Y path vs SPY) + today's attribution */
   const riskHist = useHistory(isExpanded ? assets : [], symOf, "1Y");
   const risk = useMemo(() => riskStats(riskHist.data?.series, Object.fromEntries(livePos.map((p) => [p.asset.ticker, p.weight]))), [riskHist.data, livePos]);
@@ -656,7 +673,7 @@ export default function PortfolioPage() {
             {/* Deep view tabs — same as an ETF's deep view */}
             {isExpanded && (
               <nav className="-mt-1 flex flex-wrap gap-x-8 border-b border-white/[0.06]" onClick={(e) => e.stopPropagation()}>
-                {([["OV", "OVERVIEW"], ["MAP", "COMPOSITION MAP"], ["SEAS", "CHARTS"], ["NEWS", "NEWS"], ["AN", "ANALYZE"], ["TOOLS", "TOOLS"]] as const).map(([k, l]) => (
+                {([["OV", "OVERVIEW"], ["MAP", "HOLDINGS"], ["SEAS", "CHARTS"], ["NEWS", "NEWS"], ["AN", "ANALYZE"], ["TOOLS", "TOOLS"]] as const).map(([k, l]) => (
                   <button key={k} type="button" onClick={() => setPfTab(k)}
                     className={`-mb-px whitespace-nowrap border-b-2 pb-2.5 pt-1 font-mono text-[13px] font-semibold uppercase tracking-[0.06em] ${pfTab === k ? "oasis-tab" : "border-transparent text-gray-500 hover:text-gray-300"}`}>
                     [ {l} ]
@@ -667,7 +684,22 @@ export default function PortfolioPage() {
 
             {isExpanded && pfTab !== "OV" ? (
               <div onClick={(e) => e.stopPropagation()} className="flex min-w-0 flex-col gap-3">
-                {pfTab === "MAP" && <><OverlapNotice positions={livePos} /><SectorOverlap positions={livePos} /><CompositionMap fund={pfFund} main={chartMain} /></>}
+                {pfTab === "MAP" && (
+                  <>
+                    <OverlapNotice positions={livePos} />
+                    {/* sector overlap | price charts of the positions making ≥70% of the portfolio — resizable like widgets */}
+                    <ResizableSplit storageKey="oasis.pf.holdings.split.v1" minPx={[340, 420]} initial={0.42}
+                      height={{ initial: 460, min: 300, max: 1100 }}
+                      left={(h) => <div style={{ height: h ?? undefined }} className="min-h-0"><SectorOverlap positions={livePos} /></div>}
+                      right={(h) => (
+                        <div style={{ height: h ?? 520 }} className="min-h-0">
+                          <ChartGrid tf={gridTf} onTf={setGridTf} minCell={260} items={coreItems}
+                            title={`CORE POSITIONS · ${gridTf}`} hint={`${coreItems.length} positions = ${coreShare.toFixed(0)}% of the portfolio`} />
+                        </div>
+                      )} />
+                    <CompositionMap fund={pfFund} main={chartMain} positions={mapPositions} />
+                  </>
+                )}
                 {pfTab === "SEAS" && <ChartsTab fund={pfFund} main={chartMain} />}
                 {pfTab === "NEWS" && <LookThroughFeed items={pItems} />}
                 {pfTab === "AN" && (

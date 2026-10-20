@@ -1,6 +1,5 @@
 "use client";
 
-import { ConcentrationNotice } from "@/components/RiskNotice";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import type { FundData, SubTab } from "./types";
@@ -104,7 +103,7 @@ export default function DeepView({ fund, onBack, onSelectAlt, initialTf }: Props
 
       <div className={`flex min-h-0 min-w-0 flex-1 flex-col ${tab === "NEWS" ? "lg:overflow-y-auto" : "lg:overflow-hidden"}`}>
         {tab === "OV" && <Overview fund={fund} initialTf={initialTf} />}
-        {tab === "MAP" && <CompositionMap fund={fund} fill notice={<ConcentrationNotice fund={fund} />} />}
+        {tab === "MAP" && <CompositionMap fund={fund} fill concentration />}
         {tab === "SEAS" && <ChartsTab fund={fund} fill />}
         {tab === "NEWS" && <div className="flex flex-none flex-col px-5 pb-12 pt-4"><EtfNewsPanel ticker={fund.tic} /></div>}
       </div>
