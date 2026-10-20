@@ -11,6 +11,7 @@
    [ IN ETFS ]    which ETFs hold it and how much · your exposure (direct + through your ETFs)
    ───────────────────────────────────────────────────────────── */
 
+import HoldingAttribution from "@/components/deep-view/HoldingAttribution";
 import { useCtrlMeasure } from "@/lib/useCtrlMeasure";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -38,8 +39,42 @@ const pct = (v: number | null | undefined, d = 1) => (v == null || !isFinite(v) 
 const tone = (v: number | null | undefined) => (v == null ? "text-zinc-500" : v > 0 ? "text-emerald-400" : v < 0 ? "text-rose-400" : "text-zinc-300");
 const chgOf = (a: number | null, b: number | null) => (a != null && b != null && b !== 0 ? ((a - b) / Math.abs(b)) * 100 : null);
 
-const TABS = [["OV", "OVERVIEW"], ["FIN", "FINANCIALS"], ["CH", "CHARTS"], ["NEWS", "NEWS"], ["ETF", "IN ETFS"]] as const;
-type Tab = (typeof TABS)[number][0];
+type Tab = "OV" | "FIN" | "COMP" | "CH" | "NEWS" | "ETF";
+/** Tabs per asset type: a fund gets its COMPOSITION (holdings + drivers) — FINANCIALS (company filings) and
+ *  IN ETFS (which funds hold it) only make sense for single stocks; an ETF is never held inside itself. */
+const STOCK_TABS: [Tab, string][] = [["OV", "OVERVIEW"], ["FIN", "FINANCIALS"], ["CH", "CHARTS"], ["NEWS", "NEWS"], ["ETF", "IN ETFS"]];
+const FUND_TABS: [Tab, string][] = [["OV", "OVERVIEW"], ["COMP", "COMPOSITION"], ["CH", "CHARTS"], ["NEWS", "NEWS"]];
+const LOADING_TABS: [Tab, string][] = [["OV", "OVERVIEW"], ["CH", "CHARTS"], ["NEWS", "NEWS"]];
+const isFundData = (d: StockData | null) => d?.quoteType === "ETF" || d?.quoteType === "MUTUALFUND";
+
+/* ═════════════ FUND COMPOSITION (ETFs outside the database, from Yahoo top holdings) ═════════════ */
+function FundComposition({ d, sym }: { d: StockData; sym: string }) {
+  const hs = d.fundHoldings.filter((h) => h.symbol && h.w > 0);
+  const max = Math.max(...hs.map((h) => h.w), 1);
+  const listed = hs.reduce((t, h) => t + h.w, 0);
+  if (!hs.length) {
+    return <p className={`${CARD} m-5 p-5 font-mono text-[12px] text-zinc-500`}>No holdings data for {d.ticker} — the data source publishes holdings only for some funds.</p>;
+  }
+  return (
+    <div className="grid grid-cols-1 gap-4 px-5 pb-12 pt-5 xl:grid-cols-12">
+      <section className={`${CARD} flex flex-col p-4 xl:col-span-4`}>
+        <span className={`${LABEL} mb-2 text-zinc-300`}>[ TOP HOLDINGS · {hs.length} · {listed.toFixed(1)}% OF FUND ]</span>
+        {hs.map((h) => (
+          <div key={h.symbol} className={`grid grid-cols-[64px_minmax(0,1fr)_minmax(0,0.8fr)_56px] items-center gap-3 border-b ${B} py-1.5 font-mono text-[12px] tabular-nums`}>
+            <Link href={`/stock/${h.symbol}`} className="font-bold text-zinc-100 hover:text-oasis">{h.symbol}</Link>
+            <span className="truncate font-sans text-[11.5px] text-zinc-400">{h.name}</span>
+            <span className="h-2 bg-white/[0.04]"><span className="block h-full bg-emerald-500/60" style={{ width: `${(h.w / max) * 100}%` }} /></span>
+            <span className="text-right font-semibold text-zinc-100">{h.w.toFixed(2)}%</span>
+          </div>
+        ))}
+        <span className="pt-2 font-mono text-[9.5px] tracking-[0.06em] text-zinc-600">SRC: YAHOO FUND PROFILE · TOP HOLDINGS ONLY</span>
+      </section>
+      <div className="min-w-0 xl:col-span-8">
+        <HoldingAttribution holdings={hs.map((h) => ({ tic: h.symbol, name: h.name, w: h.w }))} etfSym={sym} etfLabel={d.ticker} compact />
+      </div>
+    </div>
+  );
+}
 
 /** ETFs in our database that hold this stock, with its weight in each */
 function holders(ticker: string) {
@@ -514,7 +549,7 @@ function InEtfs({ d, held }: { d: StockData; held: { etf: string; name: string; 
 /* ═════════════ PAGE ═════════════ */
 export default function StockDeepView({ ticker, yahoo = ticker }: { ticker: string; /** Yahoo symbol (e.g. CDR.WA) */ yahoo?: string }) {
   const router = useRouter();
-  const [tab, setTab] = useState<Tab>("OV");
+  const [tabPick, setTab] = useState<Tab>("OV");
   const [st, setSt] = useState<{ t: string; d: StockData | null; err?: string } | null>(null);
   useEffect(() => {
     let off = false;
@@ -534,6 +569,9 @@ export default function StockDeepView({ ticker, yahoo = ticker }: { ticker: stri
   const fav = w.favorites.includes(ticker);
   const inPf = w.portfolio.find((p) => p.ticker === ticker);
   const price = live?.price ?? d?.price ?? null, chg = live?.chg1d ?? d?.chg1d ?? null;
+  const tabs = !d ? LOADING_TABS : isFundData(d) ? FUND_TABS : STOCK_TABS;
+  // a tab that does not exist for this asset type (e.g. IN ETFS on a fund) falls back to the overview
+  const tab: Tab = tabs.some(([k]) => k === tabPick) ? tabPick : "OV";
   const ccy = currencyOf(yahoo, { currency: live?.currency ?? d?.currency, exchange: d?.exchange });
   const newsItems = useMemo(() => [{ ticker, name: d?.name ?? ticker, weight: 100, kind: "stock" as const, sector: d?.industry ?? "Other" }], [ticker, d?.name, d?.industry]);
 
@@ -564,7 +602,7 @@ export default function StockDeepView({ ticker, yahoo = ticker }: { ticker: stri
           <button type="button" onClick={() => toggleFavorite(ticker)} className={`ml-auto h-7 border px-2.5 font-mono text-[10.5px] font-bold tracking-[0.1em] ${fav ? "border-amber-400/40 bg-amber-400/10 text-amber-300" : "border-white/[0.08] text-zinc-400 hover:text-white"}`}>[ {fav ? "★ SAVED" : "☆ FAVORITE"} ]</button>
         </div>
         <nav className="mt-1 flex flex-wrap gap-x-8">
-          {TABS.map(([k, l]) => (
+          {tabs.map(([k, l]) => (
             <button key={k} type="button" onClick={() => setTab(k)}
               className={`-mb-px whitespace-nowrap border-b-2 pb-2.5 pt-2 font-mono text-[13px] font-semibold uppercase tracking-[0.06em] ${tab === k ? "oasis-tab" : "border-transparent text-gray-500 hover:text-gray-300"}`}>
               [ {l} ]
@@ -579,6 +617,7 @@ export default function StockDeepView({ ticker, yahoo = ticker }: { ticker: stri
         <>
           {tab === "OV" && <Overview d={d} held={held} sym={yahoo} />}
           {tab === "FIN" && <Financials d={d} />}
+          {tab === "COMP" && <FundComposition d={d} sym={yahoo} />}
           {tab === "CH" && <Charts d={d} sym={yahoo} />}
           {tab === "NEWS" && <div className="px-5 pb-12 pt-5"><EtfNewsPanel ticker={ticker} items={newsItems} /></div>}
           {tab === "ETF" && <InEtfs d={d} held={held} />}

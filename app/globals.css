@@ -86,7 +86,8 @@
 
 
 /* Deep View entrance animation */
-@keyframes inf-take { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+/* fade only: a slide-in would briefly overflow the zero-scroll deep view and flash a scrollbar */
+@keyframes inf-take { from { opacity: 0; } to { opacity: 1; } }
 .animate-inf-take { animation: inf-take 0.28s ease-out; }
 
 html, body { background-color: var(--oasis-bg); }

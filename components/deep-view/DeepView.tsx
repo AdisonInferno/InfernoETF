@@ -14,7 +14,7 @@ import type { ChartTf } from "@/components/InfernoChart";
 import { currencyOf, formatMarketValue } from "@/lib/format";
 
 const TABS: [SubTab, string][] = [
-  ["OV", "OVERVIEW"], ["MAP", "COMPOSITION MAP"], ["SEAS", "CHARTS"], ["NEWS", "NEWS"],
+  ["OV", "OVERVIEW"], ["MAP", "COMPOSITION"], ["SEAS", "CHARTS"], ["NEWS", "NEWS"],
 ];
 
 /** header chips already shown in the Overview metric strip */

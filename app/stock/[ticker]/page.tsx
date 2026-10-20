@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
+import { DEEP_VIEW_TICKERS } from "@/components/deep-view/buildFund";
 import StockDeepView from "@/components/stock/StockDeepView";
 import { toYahoo } from "@/lib/yahoo";
 
@@ -17,5 +18,7 @@ export default async function StockPage({ params, searchParams }: Params) {
   const y = (await searchParams)?.y?.toUpperCase();
   const t = decodeURIComponent(ticker).toUpperCase();
   if (!/^[A-Z0-9.^-]{1,12}$/.test(t)) notFound();
+  // ETFs in the database have their own deep view (composition, drivers …) — an ETF never opens as a stock
+  if (DEEP_VIEW_TICKERS.includes(t)) redirect(`/etf/${t}`);
   return <StockDeepView ticker={t} yahoo={y && /^[A-Z0-9.^=-]{1,15}$/.test(y) ? y : toYahoo(t)} />;
 }

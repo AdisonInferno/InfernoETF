@@ -1,5 +1,6 @@
 "use client";
 
+import HoldingAttribution from "./HoldingAttribution";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import InfernoChart, { SegRail, at, basketSeries, type MainDef, type Raw } from "@/components/InfernoChart";
@@ -23,9 +24,10 @@ const CARD = "oasis-glass border border-white/[0.06] bg-[var(--oasis-panel)]";
 const H_LABEL = "font-display text-[10.5px] font-bold tracking-[0.18em] text-neutral-300";
 const DAY = 86400;
 
-type Group = "PERF" | "RISK" | "ANNUAL" | "INCOME" | "MARKET";
+type Group = "PERF" | "DRIVERS" | "RISK" | "ANNUAL" | "INCOME" | "MARKET";
 const GROUPS: [Group, string, string][] = [
   ["PERF", "PERFORMANCE", "Growth vs benchmark and peers, with return, CAGR, drawdown and volatility of the visible window"],
+  ["DRIVERS", "PERFORMANCE DRIVERS", "Which holdings dragged the fund down and which lifted it — contribution = weight × return"],
   ["RISK", "RISK & DRAWDOWN", "Peak-to-trough falls over time vs the S&P 500, plus the fund's risk metrics"],
   ["ANNUAL", "ANNUAL & MONTHLY", "Monthly and calendar-year returns — how consistent the results were"],
   ["INCOME", "INCOME", "Distribution yield and policy"],
@@ -88,6 +90,16 @@ function Performance({ fund, main, fill }: { fund: FundData; main: MainDef; fill
       </div>
     </div>
   );
+}
+
+/* ── PERFORMANCE DRIVERS ───────────────────────────────────── */
+
+function Drivers({ fund, main }: { fund: FundData; main: MainDef }) {
+  const holdings = useMemo(() => fund.holdings.map((h) => {
+    // group by sub-sector (e.g. "Aerospace & Defense"), the level at which a shared drag shows up
+    return { tic: h.tic, name: h.name, w: h.w, group: fund.holdingMeta[h.tic]?.sector ?? "Other" };
+  }), [fund]);
+  return <HoldingAttribution holdings={holdings} etfSym={main.sym} etfLabel={main.label} totalPositions={fund.positions} />;
 }
 
 /* ── RISK & DRAWDOWN ───────────────────────────────────────── */
@@ -440,6 +452,7 @@ export default function ChartsTab({ fund, main: mainProp, fill = false }: { fund
       {/* analysis canvas */}
       <div className={`flex min-w-0 flex-1 flex-col gap-3 p-3 ${fill ? `lg:h-full lg:min-h-0 ${g[0] === "PERF" ? "lg:overflow-hidden" : "lg:overflow-y-auto"}` : "pb-8"}`}>
         {g[0] === "PERF" && <Performance fund={fund} main={main} fill={fill} />}
+        {g[0] === "DRIVERS" && <Drivers fund={fund} main={main} />}
         {g[0] === "RISK" && <RiskDrawdown fund={fund} main={main} />}
         {g[0] === "ANNUAL" && <AnnualMonthly fund={fund} main={main} />}
         {g[0] === "INCOME" && <Income fund={fund} />}
