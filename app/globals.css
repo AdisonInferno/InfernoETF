@@ -186,3 +186,16 @@ html[data-theme="light"] .oasis-glass {
     0 8px 24px -14px rgba(0, 0, 0, 0.14);
 }
 html[data-theme="light"] ::selection { background: color-mix(in srgb, var(--oasis-accent) 25%, #ffffff); color: #1d1d1f; }
+
+/* Macro Nexus correlation network on SOFT WHITE: the graph is drawn for black (white lines, black
+   label chips), so on the light theme only: ink-coloured links ~2.6× more opaque, light label chips. */
+html[data-theme="light"] .nx-edge {
+  stroke: #1d1d1f;
+  stroke-opacity: min(1, calc(var(--nx-op, 0.15) * 2.6 + 0.06));
+}
+html[data-theme="light"] .nx-edge-neg { stroke: #e11d48; }
+html[data-theme="light"] .nx-label-bg {
+  fill: var(--oasis-panel);
+  stroke: rgba(29, 29, 31, 0.12);
+  stroke-width: 1px;
+}
