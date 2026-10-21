@@ -329,6 +329,7 @@ export default function MacroNexus() {
                   const op = focus ? (on ? 0.5 : 0.025) : onlyMine ? (mineEdge ? 0.45 : 0.015) : r > 0 ? 0.05 + 0.17 * r : 0.05;
                   return (
                     <line key={l.source + l.target} x1={a.x} y1={a.y} x2={b.x} y2={b.y}
+                      className={r < 0 && on ? "nx-edge nx-edge-neg" : "nx-edge"} style={{ "--nx-op": op } as React.CSSProperties}
                       stroke={r < 0 && on ? "#fb7185" : "#ffffff"} strokeOpacity={op} strokeWidth={1}
                       strokeDasharray={r < 0 ? "3 3" : undefined} vectorEffect="non-scaling-stroke" />
                   );
@@ -344,7 +345,7 @@ export default function MacroNexus() {
                   const dim = (focus && !(l.source === focus || l.target === focus)) || (onlyMine && !(held.has(l.source) && held.has(l.target)));
                   return (
                     <g key={"t" + l.source + l.target} opacity={dim ? 0.15 : 1} className="pointer-events-none">
-                      <rect x={x - w / 2} y={y - 6.5} width={w} height={13} fill="#030303" />
+                      <rect x={x - w / 2} y={y - 6.5} width={w} height={13} fill="#030303" className="nx-label-bg" />
                       <text x={x} y={y + 3} textAnchor="middle" fontSize={9.5} className={r < 0 ? "fill-rose-400/80" : "fill-zinc-400"}>{t}</text>
                     </g>
                   );
