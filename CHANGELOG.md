@@ -4,8 +4,10 @@ _Generowany automatycznie z historii git. Zmiany oddalone o mniej niż godzinę 
 
 ## środa, 21 października 2026
 
-### Sesja #22 · 01:36–01:36 · 1 zmian · AdisonInferno
+### Sesja #22 · 01:36–02:04 · 3 zmian · AdisonInferno
 
+- `02:04` Scanner CHARTS view: chart + list split, prominent FULL DEEP DIVE CTA; sidebar 1D/1W/1M window
+- `01:36` Dziennik zmian
 - `01:36` Chart grids, portfolio HOLDINGS drill-down, composition UX, 3-hourly price store
 
 ## wtorek, 20 października 2026
