@@ -7,6 +7,8 @@ import { QUOTE } from "@/lib/fund-profiles";
 import { useMyPortfolio } from "@/lib/my-portfolio";
 import { useSnapshot } from "@/lib/market-snapshot";
 import { SegRail } from "@/components/InfernoChart";
+import IndexesMap from "@/components/IndexesMap";
+import type { IdxTf } from "@/lib/indexes";
 import { periodWindow, rangeFor, useHoldingReturns, usePriceSeries } from "@/components/deep-view/useHoldingReturns";
 import { yahooOf } from "@/lib/portfolio-live";
 import { currencyOf, formatMarketValue } from "@/lib/format";
@@ -264,7 +266,8 @@ export default function InfernoEtfScanner() {
   /** Scrubber: the ONLY thing it changes — all timeframes are already inside every Etf.perf */
   const [tf, setTf] = useState<TfKey>("1D");
   /** Map universe: ETFs by sector, or countries by their main indices */
-  const [universe, setUniverse] = useState<"ETF" | "COUNTRIES">("ETF");
+  const [universe, setUniverse] = useState<"ETF" | "COUNTRIES" | "INDEXES">("ETF");
+  const [idxTf, setIdxTf] = useState<IdxTf>("1D");
   /* Your portfolio as its own sector (ETF view): every holding, tile size = its weight in the portfolio */
   const mine = useMyPortfolio();
   const mineSector = useMemo<Sector | null>(() => {
@@ -300,7 +303,7 @@ export default function InfernoEtfScanner() {
     return g.map((x) => ({ ...x, etfs: x.etfs.map(liveEtf) }));
   }, [universe, mineSector, liveEtf]);
   const shortOf = universe === "ETF" ? SHORT : COUNTRY_SHORT;
-  const pickUniverse = (u: "ETF" | "COUNTRIES") => { setUniverse(u); setFocus([]); setTip(null); };
+  const pickUniverse = (u: "ETF" | "COUNTRIES" | "INDEXES") => { setUniverse(u); setFocus([]); setTip(null); };
   const zoom = (t: string) => setFocus((f) => (f.length === 1 && f[0] === t ? [] : [t]));
   const compare = (t: string) => setFocus((f) => (f.includes(t) ? f.filter((x) => x !== t) : [...f, t]));
 
@@ -386,8 +389,10 @@ export default function InfernoEtfScanner() {
             <ToggleButton active={universe === "ETF"} onClick={() => pickUniverse("ETF")}>ETFs</ToggleButton>
             <ToggleButton active={universe === "COUNTRIES"} onClick={() => pickUniverse("COUNTRIES")}>COUNTRIES</ToggleButton>
           </div>
+          <ToggleButton active={universe === "INDEXES"} onClick={() => pickUniverse("INDEXES")}>INDEXES</ToggleButton>
         </div>
 
+        {universe !== "INDEXES" && (<>
         <div className="flex flex-col gap-2.5">
           <SectionLabel>SIZING</SectionLabel>
           <div className="flex gap-1.5">
@@ -411,6 +416,8 @@ export default function InfernoEtfScanner() {
             </ToggleButton>
           </div>
         </div>
+
+        </>)}
 
         {universe === "ETF" && (
         <div className="flex flex-col gap-2.5">
@@ -447,6 +454,7 @@ export default function InfernoEtfScanner() {
 
       {/* ── Main ── */}
       <main className="flex min-h-0 min-w-0 flex-col gap-3 overflow-y-auto">
+        {universe === "INDEXES" ? <IndexesMap tf={idxTf} onTfChange={setIdxTf} /> : (<>
         {/* Sector zoom / compare bar */}
         <nav aria-label="Sectors" className={`${MONO} flex flex-none flex-wrap items-center gap-1 px-1 text-[11px]`}>
           <button type="button" onClick={() => setFocus([])} aria-pressed={!focus.length}
@@ -535,6 +543,8 @@ export default function InfernoEtfScanner() {
             <span className={`${MONO} text-[11px] text-zinc-500`}>+{(1.5 * TF_SCALE[tf]).toFixed(1).replace(/\.0$/, "")}%</span>
           </div>
         </div>
+
+        </>)}
 
         {/* Macro baseline */}
         <div className="mt-1 box-border w-full flex-none rounded-sm border border-white/[0.06] bg-[var(--oasis-panel)] p-2">
