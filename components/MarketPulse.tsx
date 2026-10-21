@@ -1,5 +1,6 @@
 "use client";
 
+import { useHoldingReturns } from "@/components/deep-view/useHoldingReturns";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useMyPortfolio } from "@/lib/my-portfolio";
@@ -19,13 +20,19 @@ import { ETFS, fmtPct, type EtfRow } from "@/lib/etfs";
 
 const VOL_TURN = { Low: 0.006, Medium: 0.011, High: 0.02 } as const;
 
-/** Estimated dollar volume today, $M */
-export function estDollarVolM(e: EtfRow): number {
+/** Estimated dollar volume, $M — today by default, or summed over a window (`days` sessions, `move` = window return %).
+ *  Turnover rises with the size of the move (scaled by √days so a 1-month move isn't treated like a 1-day shock). */
+export function estDollarVolM(e: EtfRow, days = 1, move = e.chg1d): number {
   let t = VOL_TURN[e.volatility] * (e.leverage === "1x" ? 1 : 6);
   if (e.trending !== undefined) t *= 1.6 - Math.min(0.5, e.trending / 30);
-  t *= 1 + Math.min(3, Math.abs(e.chg1d) / 1.5);
-  return e.aum * 1000 * t;
+  t *= 1 + Math.min(3, Math.abs(move) / (1.5 * Math.sqrt(days)));
+  return e.aum * 1000 * t * days;
 }
+
+/* one timeframe for MOST ACTIVE + TOP MOVERS */
+type Tf = "1D" | "1W" | "1M";
+const TFS: Tf[] = ["1D", "1W", "1M"];
+const SESSIONS: Record<Tf, number> = { "1D": 1, "1W": 5, "1M": 21 };
 const fmtVol = (m: number) => (m >= 1000 ? `$${(m / 1000).toFixed(1)}B` : `$${m.toFixed(0)}M`);
 
 type Dir = "up" | "down" | "neutral";
@@ -133,11 +140,17 @@ function NewsRow({ n, onInsight, mine }: { n: News; onInsight: (id: string, i: I
 }
 
 export default function MarketPulse({ rows, all = ETFS }: { rows: EtfRow[]; /** every ETF (with live numbers) for MOST ACTIVE */ all?: EtfRow[] }) {
-  const active = [...all].map((e) => ({ e, v: estDollarVolM(e) })).sort((a, b) => b.v - a.v).slice(0, 5);
+  const [tf, setTf] = useState<Tf>("1D");
+  /* real window returns (1D = live move vs previous close; 1W / 1M from stored closes) */
+  const syms = useMemo(() => [...new Set([...all, ...rows].map((e) => e.ticker))], [all, rows]);
+  const win = useHoldingReturns(syms, tf);
+  const r = (e: EtfRow): number | null => (tf === "1D" ? e.chg1d : win.ret[e.ticker.toUpperCase()] ?? null);
+  const loading = tf !== "1D" && win.state === "loading";
+  const active = [...all].map((e) => ({ e, v: estDollarVolM(e, SESSIONS[tf], r(e) ?? e.chg1d) })).sort((a, b) => b.v - a.v).slice(0, 5);
   const maxV = active[0]?.v ?? 1;
-  const byMove = [...rows].sort((a, b) => b.chg1d - a.chg1d);
-  const up = byMove.slice(0, 3).filter((e) => e.chg1d > 0);
-  const down = byMove.slice(-3).reverse().filter((e) => e.chg1d < 0);
+  const byMove = rows.map((e) => ({ e, m: r(e) })).filter((x): x is { e: EtfRow; m: number } => x.m != null && Number.isFinite(x.m)).sort((a, b) => b.m - a.m);
+  const up = byMove.slice(0, 3).filter((x) => x.m > 0);
+  const down = byMove.slice(-3).reverse().filter((x) => x.m < 0);
 
   const [news, setNews] = useState<News[] | null>(null);
   const [nr, setNr] = useState<NRange>("d");
@@ -165,7 +178,19 @@ export default function MarketPulse({ rows, all = ETFS }: { rows: EtfRow[]; /** 
     <aside className="flex min-h-0 flex-col overflow-hidden oasis-glass border border-white/[0.06] bg-[var(--oasis-panel)]">
       <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
         {/* Most active — bar length = $ volume, colour = today's move */}
-        <H t="MOST ACTIVE" />
+        {/* timeframe for both modules below */}
+        <div className="flex items-center gap-2 border-b border-white/[0.06] px-3 py-1.5">
+          <span className="font-mono text-[9.5px] font-bold tracking-[0.14em] text-zinc-500">WINDOW</span>
+          <div role="tablist" aria-label="Most active and top movers window" className="flex rounded-[2px] border border-white/[0.06] bg-[var(--oasis-bg)] p-0.5">
+            {TFS.map((t) => (
+              <button key={t} type="button" role="tab" aria-selected={tf === t} onClick={() => setTf(t)}
+                title={t === "1D" ? "Today" : t === "1W" ? "Last 5 sessions" : "Last month"}
+                className={`h-5 min-w-9 rounded-[2px] px-2 font-mono text-[10px] font-bold tracking-[0.08em] ${tf === t ? "bg-[rgba(0,229,153,0.12)] text-[#00E599]" : "text-zinc-500 hover:text-zinc-200"}`}>{t}</button>
+            ))}
+          </div>
+          {loading && <span className="font-mono text-[9.5px] text-zinc-600">loading…</span>}
+        </div>
+        <H t={`MOST ACTIVE · ${tf}`} />
         <div className="flex flex-col gap-1 px-3 py-2">
           {active.map(({ e, v }, i) => {
             const pos = e.chg1d >= 0;
@@ -180,21 +205,22 @@ export default function MarketPulse({ rows, all = ETFS }: { rows: EtfRow[]; /** 
                     <span className="mr-1.5 text-[9px] tracking-[0.12em] text-zinc-400">VOL</span>{fmtVol(v)}
                   </span>
                 </span>
-                <Pct v={e.chg1d} />
+                {r(e) == null ? <span className="w-[70px] text-right text-zinc-600">{loading ? "···" : "N/A"}</span> : <Pct v={r(e)!} />}
               </Link>
             );
           })}
         </div>
 
         {/* Top movers in the current view */}
-        <H t="TOP MOVERS" />
+        <div className="mt-1 border-t border-white/[0.08]" />
+        <H t={`TOP MOVERS · ${tf}`} />
         <div className="py-1">
-          {[...up, ...down].map((e, i) => (
+          {[...up, ...down].map(({ e, m }, i) => (
             <Link key={e.ticker} href={`/etf/${e.ticker}`}
               className={`grid grid-cols-[48px_minmax(0,1fr)_auto] items-center gap-2 px-3 py-[5px] font-mono text-[12px] tabular-nums transition-colors duration-75 hover:bg-white/[0.03] ${i === up.length && up.length ? "border-t border-white/[0.05]" : ""}`}>
               <span className="font-bold text-zinc-100">{e.ticker}</span>
               <span className="truncate font-sans text-[11.5px] text-zinc-500">{e.name}</span>
-              <Pct v={e.chg1d} />
+              <Pct v={m} />
             </Link>
           ))}
           {!up.length && !down.length && <p className="m-0 px-3 py-2 font-mono text-[11px] text-zinc-600">No moves in this view.</p>}

@@ -639,7 +639,7 @@ export default function EtfTableScanner() {
             {hidden === "chart" ? (
               <div className="min-h-0 min-w-0 flex-1 overflow-auto pl-3.5">{fullTable}</div>
             ) : hidden === "none" ? (
-              <div className="flex min-h-0 w-[36%] min-w-[320px] max-w-[480px] flex-none flex-col pl-3.5 max-lg:w-full max-lg:max-w-none max-lg:pl-0">
+              <div className="flex min-h-0 w-[32%] min-w-[320px] max-w-[560px] flex-none flex-col pl-3.5 max-lg:w-full max-lg:max-w-none max-lg:pl-0">
                 <div className="flex flex-none items-center justify-between pb-2 font-mono text-[10px] font-semibold tracking-[0.14em] text-zinc-500">
                   <span>LIST · {activeSub ? activeSub.label : tabLabel}</span>
                   <span className="text-zinc-600">{rows.length}</span>
