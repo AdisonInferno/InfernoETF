@@ -3,7 +3,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ETFS, type EtfRow } from "@/lib/etfs";
-import { QUOTE } from "@/lib/fund-profiles";
+import { PROFILE_OF, QUOTE, SUB_PARENT } from "@/lib/fund-profiles";
 import { useMyPortfolio } from "@/lib/my-portfolio";
 import { useSnapshot } from "@/lib/market-snapshot";
 import { SegRail } from "@/components/InfernoChart";
@@ -123,6 +123,31 @@ const COUNTRY_SECTORS: Sector[] = COUNTRIES.map((c) => ({
     change1d: chg1d, price: level, note: `${c.title} · main equity index${code === "WIG20" ? " · via Beta ETF WIG20TR (total-return proxy, price in PLN)" : IX_YAHOO[code] ? "" : " · no data feed for this index"} · ytd ${ytd}% (static)`,
   })),
 }));
+/* ── STOCKS universe (US for now): every company held by the ETFs in our database, grouped by sector.
+      size = market cap ($B, from the fund files) · colour = return over the picked timeframe. ── */
+const STOCK_SECTORS: Sector[] = (() => {
+  const by = new Map<string, { name: string; sub: string; cap: number }>();
+  const usFunds = new Set(ETFS.filter((e) => e.region === "United States").map((e) => e.ticker));
+  for (const [etf, prof] of Object.entries(PROFILE_OF)) if (usFunds.has(etf)) for (const line of prof?.holdings ?? []) {
+    const [t0, name, , sub, cap] = line.split("|");
+    const t = t0 === "GOOG" ? "GOOGL" : t0;
+    if (!t || !/^[A-Z]{1,5}(\.B)?$/.test(t) || !Number(cap)) continue; // US tickers only
+    const cur = by.get(t);
+    if (!cur || Number(cap) > cur.cap) by.set(t, { name: name.replace(/ Class [AC]$/, ""), sub: sub || "Other", cap: Number(cap) });
+  }
+  const groups = new Map<string, Etf[]>();
+  for (const [t, x] of by) {
+    const sector = (SUB_PARENT[x.sub] ?? "Other").toUpperCase();
+    if (["OTHER", "CRYPTO", "COMMODITIES", "GOVT BONDS", "CASH & OTHER"].includes(sector)) continue;
+    const list = groups.get(sector) ?? [];
+    list.push({ ticker: t, sym: t, name: x.name, provider: "Other", aum: x.cap, change1d: 0, price: 0, note: `${x.sub} · cap $${x.cap >= 1000 ? (x.cap / 1000).toFixed(2) + "T" : x.cap + "B"}` });
+    groups.set(sector, list);
+  }
+  return [...groups].map(([title, etfs]) => ({ title, etfs: etfs.sort((a, b) => b.aum - a.aum).slice(0, 14) }));
+})();
+const STOCK_ABBR: Record<string, string> = { TECHNOLOGY: "TECH", "CONSUMER DISC.": "DISCR", "CONSUMER STAPLES": "STAPLES", COMMUNICATION: "COMM", FINANCIALS: "FIN", "HEALTH CARE": "HLTH", ENERGY: "ENRG", MATERIALS: "MATR", INDUSTRIALS: "IND", UTILITIES: "UTIL", "REAL ESTATE": "REIT" };
+const STOCK_SHORT: Record<string, string> = Object.fromEntries(STOCK_SECTORS.map((g) => [g.title, STOCK_ABBR[g.title] ?? g.title.slice(0, 6)]));
+
 const COUNTRY_SHORT: Record<string, string> = Object.fromEntries(COUNTRIES.map((c) => [c.title, c.short]));
 
 const MACRO: MacroEtf[] = ([
@@ -266,7 +291,10 @@ export default function InfernoEtfScanner() {
   /** Scrubber: the ONLY thing it changes — all timeframes are already inside every Etf.perf */
   const [tf, setTf] = useState<TfKey>("1D");
   /** Map universe: ETFs by sector, or countries by their main indices */
-  const [universe, setUniverse] = useState<"ETF" | "COUNTRIES" | "INDEXES">("ETF");
+  const [universe, setUniverse] = useState<"ETF" | "STOCKS" | "COUNTRIES" | "INDEXES">("ETF");
+  /** MY PORTFOLIO sector folded into a small pill under the map */
+  const [pfMin, setPfMin] = useState(false);
+  const wheelAt = useRef(0);
   const [idxTf, setIdxTf] = useState<IdxTf>("1D");
   /* Your portfolio as its own sector (ETF view): every holding, tile size = its weight in the portfolio */
   const mine = useMyPortfolio();
@@ -285,7 +313,7 @@ export default function InfernoEtfScanner() {
     };
   }, [mine]);
   /* Every symbol on screen (both universes + macro strip + my portfolio) */
-  const allSyms = useMemo(() => [...new Set([...SECTORS.flatMap((g) => g.etfs.map((e) => e.sym)), ...COUNTRY_SECTORS.flatMap((g) => g.etfs.map((e) => e.sym)), ...MACRO.map((m) => m.sym), ...(mineSector?.etfs.map((e) => e.sym) ?? [])])], [mineSector]);
+  const allSyms = useMemo(() => [...new Set([...(universe === "STOCKS" ? STOCK_SECTORS.flatMap((g) => g.etfs.map((e) => e.sym)) : []), ...SECTORS.flatMap((g) => g.etfs.map((e) => e.sym)), ...COUNTRY_SECTORS.flatMap((g) => g.etfs.map((e) => e.sym)), ...MACRO.map((m) => m.sym), ...(mineSector?.etfs.map((e) => e.sym) ?? [])])], [mineSector, universe]);
   /* Live price (+ currency) for the tooltip */
   const snap = useSnapshot(allSyms);
   const liveEtf = useCallback(<T extends Etf>(e: T): T => {
@@ -298,12 +326,20 @@ export default function InfernoEtfScanner() {
   const retOf = useCallback((e: Etf): number | null => rets.ret[e.sym.toUpperCase()] ?? null, [rets]);
   const macro = useMemo(() => MACRO.map(liveEtf), [liveEtf]);
   const groupsSrc = useMemo(() => {
-    if (universe !== "ETF") return COUNTRY_SECTORS.map((x) => ({ ...x, etfs: x.etfs.map(liveEtf) }));
-    const g = mineSector ? [mineSector, ...SECTORS] : SECTORS;
+    if (universe === "COUNTRIES") return COUNTRY_SECTORS.map((x) => ({ ...x, etfs: x.etfs.map(liveEtf) }));
+    const base = universe === "STOCKS" ? STOCK_SECTORS : SECTORS;
+    const g = mineSector && !pfMin ? [mineSector, ...base] : base;
     return g.map((x) => ({ ...x, etfs: x.etfs.map(liveEtf) }));
-  }, [universe, mineSector, liveEtf]);
-  const shortOf = universe === "ETF" ? SHORT : COUNTRY_SHORT;
-  const pickUniverse = (u: "ETF" | "COUNTRIES" | "INDEXES") => { setUniverse(u); setFocus([]); setTip(null); };
+  }, [universe, mineSector, liveEtf, pfMin]);
+  const shortOf = universe === "ETF" ? SHORT : universe === "STOCKS" ? { ...STOCK_SHORT, "MY PORTFOLIO": "★ MINE" } : COUNTRY_SHORT;
+  /* scroll the wheel over a sector: up = zoom into it, down = back to the whole map (throttled) */
+  const onSectorWheel = (title: string, dy: number, now: number) => {
+    if (now - wheelAt.current < 450 || Math.abs(dy) < 4) return;
+    wheelAt.current = now;
+    if (dy < 0 && !(focus.length === 1 && focus[0] === title)) setFocus([title]);
+    else if (dy > 0 && focus.length) setFocus([]);
+  };
+  const pickUniverse = (u: "ETF" | "STOCKS" | "COUNTRIES" | "INDEXES") => { setUniverse(u); setFocus([]); setTip(null); };
   const zoom = (t: string) => setFocus((f) => (f.length === 1 && f[0] === t ? [] : [t]));
   const compare = (t: string) => setFocus((f) => (f.includes(t) ? f.filter((x) => x !== t) : [...f, t]));
 
@@ -364,7 +400,7 @@ export default function InfernoEtfScanner() {
 
   const hoverHandlers = (etf: Etf) => ({
     // the deep view opens on the same timeframe when its chart has it
-    onClick: () => { if (universe !== "ETF") return; const q = CHART_TF.has(tf) ? `?tf=${tf}` : ""; router.push(ETFS.some((e) => e.ticker === etf.ticker) ? `/etf/${etf.ticker}${q}` : `/stock/${etf.ticker}`); },
+    onClick: (ev: React.MouseEvent) => { ev.stopPropagation(); if (universe === "COUNTRIES") return; if (universe === "STOCKS" && !ETFS.some((e) => e.ticker === etf.ticker)) { router.push(`/stock/${etf.ticker}`); return; } const q = CHART_TF.has(tf) ? `?tf=${tf}` : ""; router.push(ETFS.some((e) => e.ticker === etf.ticker) ? `/etf/${etf.ticker}${q}` : `/stock/${etf.ticker}`); },
     onMouseEnter: (e: React.MouseEvent) => setTip({ etf, x: e.clientX, y: e.clientY }),
     onMouseMove: (e: React.MouseEvent) => setTip({ etf, x: e.clientX, y: e.clientY }),
     onMouseLeave: () => setTip(null),
@@ -380,13 +416,14 @@ export default function InfernoEtfScanner() {
       {/* ── Sidebar ── */}
       <aside className="flex min-h-0 flex-col gap-5 self-stretch overflow-y-auto oasis-glass border border-white/[0.06] bg-[var(--oasis-panel)] p-3">
         <div className="flex flex-col gap-1">
-          <span className={`${MONO} text-[13px] font-semibold tracking-[0.12em] text-zinc-50`}>[ ETF MARKET MAP ]</span>
+          <span className={`${MONO} text-[13px] font-semibold tracking-[0.12em] text-zinc-50`}>[ {universe === "STOCKS" ? "STOCK" : universe === "COUNTRIES" ? "COUNTRY" : universe === "INDEXES" ? "INDEX" : "ETF"} MARKET MAP ]</span>
         </div>
 
         <div className="flex flex-col gap-2.5">
           <SectionLabel>UNIVERSE</SectionLabel>
           <div className="flex gap-1.5">
             <ToggleButton active={universe === "ETF"} onClick={() => pickUniverse("ETF")}>ETFs</ToggleButton>
+            <ToggleButton active={universe === "STOCKS"} onClick={() => pickUniverse("STOCKS")}>STOCKS</ToggleButton>
             <ToggleButton active={universe === "COUNTRIES"} onClick={() => pickUniverse("COUNTRIES")}>COUNTRIES</ToggleButton>
           </div>
           <ToggleButton active={universe === "INDEXES"} onClick={() => pickUniverse("INDEXES")}>INDEXES</ToggleButton>
@@ -397,7 +434,7 @@ export default function InfernoEtfScanner() {
           <SectionLabel>SIZING</SectionLabel>
           <div className="flex gap-1.5">
             <ToggleButton active={!equalWeight} onClick={() => setEqualWeight(false)}>
-              MKT WEIGHT
+              WEIGHT
             </ToggleButton>
             <ToggleButton active={equalWeight} onClick={() => setEqualWeight(true)}>
               EQUAL
@@ -409,7 +446,7 @@ export default function InfernoEtfScanner() {
           <SectionLabel>SORTING</SectionLabel>
           <div className="flex gap-1.5">
             <ToggleButton active={sort === "aum"} onClick={() => pickSort("aum")}>
-              AUM {sort === "aum" && dir === 1 ? "↑" : "↓"}
+              SIZE {sort === "aum" && dir === 1 ? "↑" : "↓"}
             </ToggleButton>
             <ToggleButton active={sort === "chg"} onClick={() => pickSort("chg")}>
               % CHG {sort === "chg" && dir === 1 ? "↑" : "↓"}
@@ -457,6 +494,9 @@ export default function InfernoEtfScanner() {
         {universe === "INDEXES" ? <IndexesMap tf={idxTf} onTfChange={setIdxTf} /> : (<>
         {/* Sector zoom / compare bar */}
         <nav aria-label="Sectors" className={`${MONO} flex flex-none flex-wrap items-center gap-1 px-1 text-[11px]`}>
+          {universe === "STOCKS" && (
+            <span className="mr-2 rounded-sm border border-white/[0.1] px-2 py-1 font-bold tracking-[0.12em] text-zinc-200" title="US-listed companies held by the ETFs in our database · size = market cap · colour = return">🇺🇸 US STOCKS</span>
+          )}
           <button type="button" onClick={() => setFocus([])} aria-pressed={!focus.length}
             className={`rounded-sm px-2 py-1 font-bold tracking-[0.1em] transition-colors duration-75 ${!focus.length ? "oasis-on" : "text-zinc-500 hover:bg-white/[0.05] hover:text-white"}`}>
             ALL
@@ -473,7 +513,7 @@ export default function InfernoEtfScanner() {
               </button>
             );
           })}
-          <span className="ml-auto text-[10px] tracking-[0.08em] text-zinc-600">{focus.length > 1 ? `COMPARE · ${focus.length} ${universe === "ETF" ? "SECTORS" : "COUNTRIES"}` : "RIGHT-CLICK = COMPARE"} · {count} {universe === "ETF" ? "ETF" : "INDICES"}</span>
+          <span className="ml-auto text-[10px] tracking-[0.08em] text-zinc-600">{focus.length > 1 ? `COMPARE · ${focus.length} ${universe === "COUNTRIES" ? "COUNTRIES" : "SECTORS"}` : "RIGHT-CLICK = COMPARE"} · {count} {universe === "ETF" ? "ETF" : universe === "STOCKS" ? "STOCKS" : "INDICES"}</span>
         </nav>
 
         {/* Treemap */}
@@ -482,18 +522,27 @@ export default function InfernoEtfScanner() {
             <div
               key={s.title}
               onContextMenu={(e) => { e.preventDefault(); compare(s.title); }}
+              onClick={() => zoom(s.title)}
+              onWheel={(e) => onSectorWheel(s.title, e.deltaY, e.timeStamp)}
+              title="Click or scroll up: zoom into this sector · scroll down: whole map · right-click: compare"
               onMouseEnter={() => setHoverSector(s.title)}
               onMouseLeave={() => setHoverSector(null)}
-              className={`absolute box-border overflow-hidden rounded-sm border bg-[var(--oasis-panel)] ${focus.includes(s.title) ? "border-oasis/60" : s.title === "MY PORTFOLIO" ? "border-emerald-400/40 shadow-[inset_0_0_18px_rgba(52,211,153,0.08)]" : "border-white/[0.06]"}`}
+              className={`absolute box-border cursor-zoom-in overflow-hidden rounded-sm border bg-[var(--oasis-panel)] ${focus.includes(s.title) ? "border-oasis/60" : s.title === "MY PORTFOLIO" ? "border-emerald-400/40 shadow-[inset_0_0_18px_rgba(52,211,153,0.08)]" : "border-white/[0.06]"}`}
               style={{ left: s.x, top: s.y, width: s.w, height: s.h, zIndex: hoverSector === s.title ? 5 : 1 }}
             >
               <div className="absolute inset-x-0 top-0 flex h-[34px] items-center justify-between gap-2 overflow-hidden px-3.5">
-                <button type="button" onClick={() => zoom(s.title)} title="Click: zoom · Right-click: compare"
+                <button type="button" onClick={(e) => { e.stopPropagation(); zoom(s.title); }} title="Click: zoom · Right-click: compare"
                   className={`${MONO} min-w-0 truncate text-left text-[13px] font-bold tracking-[0.1em] hover:text-white ${s.title === "MY PORTFOLIO" ? "text-emerald-300" : "text-zinc-200"}`}>
                   {s.title === "MY PORTFOLIO" ? "★ " : ""}{s.title}{focus.length === 1 && focus[0] === s.title ? "  ← ALL" : ""}
                 </button>
-                <span className={`${MONO} flex-none text-[12px] font-bold`} style={{ color: s.avg == null ? "#52525b" : trendColor(s.avg) }} title={`Average ${tf} return of the tiles with data`}>
-                  {s.avg == null ? "N/A" : fmtPct(s.avg)}
+                <span className="flex flex-none items-center gap-2">
+                  <span className={`${MONO} text-[12px] font-bold`} style={{ color: s.avg == null ? "#52525b" : trendColor(s.avg) }} title={`Average ${tf} return of the tiles with data`}>
+                    {s.avg == null ? "N/A" : fmtPct(s.avg)}
+                  </span>
+                  {s.title === "MY PORTFOLIO" && (
+                    <button type="button" onClick={(e) => { e.stopPropagation(); setPfMin(true); setFocus((f) => f.filter((x) => x !== "MY PORTFOLIO")); }} title="Minimise MY PORTFOLIO"
+                      className="flex h-5 w-5 items-center justify-center rounded-sm border border-emerald-400/40 text-[13px] leading-none text-emerald-300 hover:bg-emerald-400/10">−</button>
+                  )}
                 </span>
               </div>
 
@@ -528,6 +577,12 @@ export default function InfernoEtfScanner() {
             </div>
           ))}
 
+          {pfMin && mineSector && (
+            <button type="button" onClick={() => setPfMin(false)} title="Show MY PORTFOLIO on the map again"
+              className={`${MONO} absolute bottom-2 left-2 z-10 flex h-6 items-center gap-1.5 rounded-sm border border-emerald-400/50 bg-emerald-500/15 px-2 text-[10px] font-bold tracking-[0.12em] text-emerald-300 hover:bg-emerald-500/25`}>
+              ★ MY PORTFOLIO <span className="text-[12px] leading-none">+</span>
+            </button>
+          )}
           {sectors.length === 0 && (
             <div className="p-12 text-center text-[13px] text-zinc-500">No funds match the selected providers.</div>
           )}
