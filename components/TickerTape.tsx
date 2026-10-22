@@ -158,22 +158,12 @@ export default function TickerTape() {
         MARKETS
       </span>
       {/* stable row: values update in place; on narrow screens it scrolls sideways inside the strip */}
-      <div className="flex min-w-0 flex-1 items-stretch overflow-x-auto [scrollbar-width:none]">
+      <div className="flex min-w-0 flex-1 items-stretch overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {shown.map((it) => {
           const k = it.sym.toUpperCase();
           return <Cell key={it.id} it={it} s={snap[k] ?? (snapLoaded(k) ? null : undefined)} compact={compact} />;
         })}
         {!shown.length && <span className="flex items-center px-4 font-mono text-[10.5px] text-zinc-600">No indicators selected — use ⚙ to pick some.</span>}
-      </div>
-      <div className="flex flex-none items-center gap-0.5 border-l border-white/[0.06] px-1.5">
-        <button type="button" onClick={() => setMenu((m) => !m)} aria-expanded={menu} aria-label="Choose market indicators" title="Choose indicators"
-          className={`flex items-center justify-center rounded-xs text-zinc-500 transition-colors hover:bg-white/[0.06] hover:text-white ${compact ? "h-5 w-5" : "h-6 w-6"} ${menu ? "text-white" : ""}`}>
-          <svg viewBox="0 0 16 16" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden><path d="M2 4h12M2 8h12M2 12h12" /><circle cx="5" cy="4" r="1.4" fill="currentColor" /><circle cx="10.5" cy="8" r="1.4" fill="currentColor" /><circle cx="7" cy="12" r="1.4" fill="currentColor" /></svg>
-        </button>
-        <button type="button" onClick={() => setPref({ ...pref, collapsed: !compact })} aria-label={compact ? "Expand market strip" : "Collapse market strip"} title={compact ? "Expand (level · 1D · YTD)" : "Collapse (1D only)"}
-          className={`flex items-center justify-center rounded-xs text-zinc-500 transition-colors hover:bg-white/[0.06] hover:text-white ${compact ? "h-5 w-5" : "h-6 w-6"}`}>
-          <svg viewBox="0 0 12 12" className={`h-2.5 w-2.5 transition-transform ${compact ? "rotate-180" : ""}`} fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M2.5 7.5 6 4l3.5 3.5" /></svg>
-        </button>
       </div>
 
       {menu && <button type="button" aria-label="Close indicator menu" onClick={() => setMenu(false)} className="fixed inset-0 z-[59] cursor-default" />}

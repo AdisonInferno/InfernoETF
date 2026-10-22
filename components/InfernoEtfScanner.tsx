@@ -445,7 +445,6 @@ export default function InfernoEtfScanner() {
             <ToggleButton active={universe === "STOCKS"} onClick={() => pickUniverse("STOCKS")}>STOCKS</ToggleButton>
             <ToggleButton active={universe === "COUNTRIES"} onClick={() => pickUniverse("COUNTRIES")}>COUNTRIES</ToggleButton>
           </div>
-          <ToggleButton active={universe === "INDEXES"} onClick={() => pickUniverse("INDEXES")}>INDEXES</ToggleButton>
         </div>
 
         {universe !== "INDEXES" && (<>
