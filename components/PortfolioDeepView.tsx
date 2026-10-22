@@ -277,13 +277,14 @@ export function OpenPositions({ positions, lots, saveLot, live, fx, tf, onTfChan
         <CloseBtn onClick={onClose} title="Open positions" />
       </div>
 
-      <div className="grid grid-cols-2 gap-2 md:grid-cols-5">
+      {/* compact stat strip */}
+      <div className="flex flex-wrap gap-x-5 gap-y-1 border-y border-white/[0.05] py-1.5">
         {stats.map(([k, v, c, sub]) => (
-          <div key={k} className="rounded-sm border border-white/[0.06] bg-[var(--oasis-panel)] px-3 py-2">
-            <div className={label}>{k}</div>
-            <div className={`mt-1 font-mono text-[15px] font-semibold tabular-nums ${c}`}>{v}</div>
-            {sub && <div className={`font-mono text-[10px] tabular-nums ${k === "FEES / YEAR" ? "text-zinc-600" : c}`}>{sub}</div>}
-          </div>
+          <span key={k} className="flex items-baseline gap-1.5 font-mono">
+            <span className="text-[9px] tracking-[0.12em] text-zinc-500">{k}</span>
+            <span className={`text-[12.5px] font-semibold tabular-nums ${c}`}>{v}</span>
+            {sub && <span className={`text-[9.5px] tabular-nums ${k === "FEES / YEAR" ? "text-zinc-600" : c}`}>{sub}</span>}
+          </span>
         ))}
       </div>
 
@@ -309,8 +310,8 @@ export function OpenPositions({ positions, lots, saveLot, live, fx, tf, onTfChan
             {H("ret", `${tf} %`)}
             {H("weight", "WEIGHT")}
             {H("qty", "SHARES")}
-            {H("price", "PRICE NOW $")}
-            {H("avg", "AVG BUY $")}
+            <span className="text-right tracking-[0.12em]">PRICE NOW $</span>
+            <span className="text-right tracking-[0.12em]">AVG BUY $</span>
             <span />
           </div>
 

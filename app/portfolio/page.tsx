@@ -7,7 +7,7 @@ import Link from "next/link";
 import { AnimatePresence, LayoutGroup, motion, useReducedMotion, type Variants } from "framer-motion";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { OpenPositions, SEG_COLORS, SectorOverlap, positionUsd, useLots } from "@/components/PortfolioDeepView";
-import { LookThroughFeed, PnlAttribution, RiskTelemetry, ToolSkeleton, riskStats } from "@/components/PortfolioTelemetry";
+import { LookThroughFeed, RiskTelemetry, ToolSkeleton, riskStats } from "@/components/PortfolioTelemetry";
 import InfernoChart, { type ChartTf } from "@/components/InfernoChart";
 import CompositionMap from "@/components/deep-view/CompositionMap";
 import ChartsTab from "@/components/deep-view/ChartsTab";
@@ -257,7 +257,6 @@ export default function PortfolioPage() {
   /* Risk telemetry (1Y path vs SPY) + today's attribution */
   const riskHist = useHistory(isExpanded ? assets : [], symOf, "1Y");
   const risk = useMemo(() => riskStats(riskHist.data?.series, Object.fromEntries(livePos.map((p) => [p.asset.ticker, p.weight]))), [riskHist.data, livePos]);
-  const attribRows = useMemo(() => livePos.map((p) => ({ ticker: p.asset.ticker, name: p.asset.name, weight: p.weight, chg: live[p.asset.ticker]?.chg ?? p.asset.chg1d })), [livePos, live]);
   const byWeight = useMemo(() => [...livePos].sort((a, b) => b.weight - a.weight), [livePos]);
   const chartMain = useMemo(() => ({ id: "PF", label: "MY PORTFOLIO", color: "#34d399", basket: livePos.map((p) => ({ sym: symOf[p.asset.ticker] ?? p.asset.ticker, weight: p.weight })) }), [livePos, symOf]);
   const chartPinned = useMemo(() => [
@@ -699,7 +698,7 @@ export default function PortfolioPage() {
                             title={`CORE POSITIONS · ${gridTf}`} hint={`${coreItems.length} positions = ${coreShare.toFixed(0)}% of the portfolio`} />
                         </div>
                       )} />
-                    <CompositionMap fund={pfFund} main={chartMain} positions={mapPositions} />
+                    <CompositionMap fund={pfFund} main={chartMain} positions={mapPositions} notional={usdVal.total ?? MODEL_BALANCE} />
                   </>
                 )}
                 {pfTab === "SEAS" && <ChartsTab fund={pfFund} main={chartMain} positions={driverPositions} />}
@@ -809,8 +808,7 @@ export default function PortfolioPage() {
               {isExpanded && pfTab === "OV" && (
                 <motion.div key="deep" layout="position" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, transition: { duration: 0.15 } }}>
                   <div className="flex flex-col gap-3">
-                    <PortfolioPies positions={livePos} />
-                    <PnlAttribution rows={attribRows} />
+                    <PortfolioPies positions={livePos} symOf={symOf} />
                   </div>
                 </motion.div>
               )}

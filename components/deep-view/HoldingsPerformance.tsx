@@ -29,7 +29,8 @@ const HEAD: [string, SortKey, "left" | "right"][] = [
 ];
 const GRID = "grid items-center gap-2.5 px-3";
 /** columns: plot box · ticker · name · sub-sector (wide enough for the longest one — never cut to "…") · weight · cap · return */
-const colsFor = (subCh: number) => ({ gridTemplateColumns: `26px 56px minmax(120px,1.4fr) ${subCh}ch minmax(92px,1fr) 66px 78px` });
+const colsFor = (subCh: number, value = false) => ({ gridTemplateColumns: `26px 56px minmax(120px,1.4fr) ${subCh}ch minmax(92px,1fr)${value ? " 86px" : ""} 66px 78px` });
+const money = (v: number) => "$" + v.toLocaleString("en-US", { maximumFractionDigits: v >= 100 ? 0 : 2 });
 
 const LEVEL_STYLE = {
   CRITICAL: { box: "border-[#ff6a00] bg-[#ff6a00]/[0.06]", icon: "text-[#ff6a00]", text: "text-[#ffb27a]", label: "text-[#ff8a3d]" },
@@ -206,7 +207,7 @@ export function RetCell({ v, state, className = "" }: { v: number | null; state:
 /* ── Panel bodies ──────────────────────────────────────────── */
 
 /** Alerts + toolbar + master table. Fills its panel; only the table rows scroll. */
-export function ExplorerTable({ x }: { x: Explorer }) {
+export function ExplorerTable({ x, notional }: { x: Explorer; /** portfolio: $ value of the whole portfolio → adds a VALUE $ column */ notional?: number }) {
   const { alert: a } = x;
   const rowRefs = useRef(new Map<string, HTMLDivElement>());
   // a tile clicked in the map brings its row into view
@@ -237,12 +238,19 @@ export function ExplorerTable({ x }: { x: Explorer }) {
       {/* Table — inner scroll */}
       <div className="min-h-0 flex-1 overflow-auto overscroll-contain rounded-sm border border-white/[0.06] bg-[var(--oasis-bg)]/40 [scrollbar-color:#27272a_transparent] [scrollbar-width:thin]">
         <div className="min-w-[640px]">
-          <div className={`sticky top-0 z-[3] h-8 border-b border-white/[0.06] bg-[var(--oasis-panel)] text-[9.5px] font-bold tracking-[0.14em] text-zinc-500 ${GRID}`} style={colsFor(x.subCh)}>
+          <div className={`sticky top-0 z-[3] h-8 border-b border-white/[0.06] bg-[var(--oasis-panel)] text-[9.5px] font-bold tracking-[0.14em] text-zinc-500 ${GRID}`} style={colsFor(x.subCh, !!notional)}>
             <span className="text-center" title="Plot on the Relative Performance chart">◫</span>
             {HEAD.map(([l, k, al]) => k === "r" ? <ReturnHeader key={k} x={x} /> : (
-              <button key={k} type="button" onClick={() => x.sortBy(k)} className={`whitespace-nowrap hover:text-white ${al === "right" ? "text-right" : "text-left"} ${x.sortKey === k ? "text-emerald-400" : ""}`}>
-                {l}{x.sortKey === k ? (x.dir > 0 ? " ▲" : " ▼") : ""}
-              </button>
+              <span key={k} className="contents">
+                <button type="button" onClick={() => x.sortBy(k)} className={`whitespace-nowrap hover:text-white ${al === "right" ? "text-right" : "text-left"} ${x.sortKey === k ? "text-emerald-400" : ""}`}>
+                  {l}{x.sortKey === k ? (x.dir > 0 ? " ▲" : " ▼") : ""}
+                </button>
+                {k === "w" && notional ? (
+                  <button type="button" onClick={() => x.sortBy("w")} title="Value in your portfolio (same order as weight)" className={`whitespace-nowrap text-right hover:text-white ${x.sortKey === "w" ? "text-emerald-400" : ""}`}>
+                    VALUE ${x.sortKey === "w" ? (x.dir > 0 ? " ▲" : " ▼") : ""}
+                  </button>
+                ) : null}
+              </span>
             ))}
           </div>
           {x.rows.map((r) => {
@@ -265,7 +273,7 @@ export function ExplorerTable({ x }: { x: Explorer }) {
                 }}
                 title="Click to select (highlights it on the map) · Space or ☐ to plot"
                 className={`h-[30px] cursor-pointer border-b border-white/[0.06] text-[11.5px] transition-colors last:border-b-0 focus-visible:bg-white/[0.04] focus-visible:outline-none ${sel ? "bg-oasis-muted" : hov ? "bg-white/[0.06]" : on ? "bg-white/[0.015]" : ""} ${GRID}`}
-                style={{ ...colsFor(x.subCh), ...(sel ? { boxShadow: "inset 3px 0 0 var(--oasis-accent)" } : on ? { boxShadow: `inset 2px 0 0 ${c}` } : {}) }}
+                style={{ ...colsFor(x.subCh, !!notional), ...(sel ? { boxShadow: "inset 3px 0 0 var(--oasis-accent)" } : on ? { boxShadow: `inset 2px 0 0 ${c}` } : {}) }}
               >
                 <span className="flex justify-center">
                   <button
@@ -294,6 +302,7 @@ export function ExplorerTable({ x }: { x: Explorer }) {
                     <span className="block h-full" style={{ width: ((r.w / x.maxW) * 100).toFixed(1) + "%", background: on ? c : "#52525b" }} />
                   </span>
                 </span>
+                {notional ? <span className="text-right text-zinc-200">{money((notional * r.w) / 100)}</span> : null}
                 <span className="text-right text-zinc-300">{capF(r.cap)}</span>
                 <span className="text-right" title={r.r != null && x.ret.market?.r != null ? `${x.ret.period}: ${signed(r.r)} vs ${x.ret.market.label} ${signed(x.ret.market.r)} → ${signed(r.r - x.ret.market.r)} relative` : undefined}>
                   <RetCell v={r.r} state={x.ret.state} className="font-semibold" />
@@ -304,6 +313,15 @@ export function ExplorerTable({ x }: { x: Explorer }) {
           {x.rows.length === 0 && <div className="p-3 text-center text-[11px] tracking-[0.14em] text-zinc-600">NO MATCHING HOLDINGS</div>}
         </div>
       </div>
+      {x.ret.setPeriod && (
+        <div className="flex flex-none items-center justify-end gap-1">
+          <span className="mr-1 text-[9px] tracking-[0.12em] text-zinc-600">RETURN</span>
+          {RET_PERIODS.map((p) => (
+            <button key={p} type="button" onClick={() => x.ret.setPeriod?.(p)}
+              className={`h-6 rounded-sm px-2 text-[10px] font-bold tracking-[0.06em] ${p === x.ret.period ? "oasis-on" : "text-zinc-500 hover:text-zinc-200"}`}>{p}</button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

@@ -9,6 +9,7 @@ import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { SegRail, type MainDef } from "@/components/InfernoChart";
 import type { FundData } from "./types";
 import { SECTOR_RGB, squarify } from "./utils";
+import ResizableSplit from "@/components/ResizableSplit";
 import { ExplorerChart, ExplorerTable, RetCell, useHoldingsExplorer, type Explorer } from "./HoldingsPerformance";
 import { PERIOD_LABEL, RET_PERIODS, RET_SCALE, useHoldingReturns, type CompPeriod } from "./useHoldingReturns";
 
@@ -397,12 +398,14 @@ function SelectionBar({ x, onShowChart }: { x: Explorer; onShowChart: () => void
 
 /** `main` = the line the holdings are compared against (default: the ETF itself; the portfolio passes its basket) */
 /** `fill`: fit the parent's height with no scrolling (ETF deep view); without it the workspace uses fixed heights (portfolio page) */
-export default function CompositionMap({ fund, main, fill = false, concentration = false, positions }: {
+export default function CompositionMap({ fund, main, fill = false, concentration = false, positions, notional }: {
   fund: FundData; main?: MainDef; fill?: boolean;
   /** show the (dismissible) concentration box next to the selection bar */
   concentration?: boolean;
   /** portfolio: the map starts with one tile per position and zooms into an ETF's holdings */
   positions?: MapPosition[];
+  /** portfolio $ value → VALUE $ column in the holdings table */
+  notional?: number;
 }) {
   const [mode, setMode] = useState<Mode>("COMPOSITION");
   const [period, setPeriod] = useState<CompPeriod>("1Y");
@@ -460,6 +463,29 @@ export default function CompositionMap({ fund, main, fill = false, concentration
         </div>
       )}
 
+      {positions ? (
+        /* portfolio: map | holdings table in resizable panes (drag the corner grips) */
+        <ResizableSplit storageKey="oasis.pf.holdings.maptable.v1" minPx={[360, 520]} initial={0.5} height={{ initial: 560, min: 360, max: 1200 }}
+          left={(h) => (
+            <div className="flex min-w-0" style={{ height: h ?? 560 }}>
+          <Panel title="MAP" meta={positions ? (drill ? `PORTFOLIO › ${drill}` : "YOUR POSITIONS · CLICK AN ETF TO ZOOM IN") : mode === "COMPOSITION" ? "BY SECTOR" : `${period} RETURN`} weight={1} axis="x" expanded={open.map} onToggle={() => flip("map")}
+            tools={drill ? <button type="button" onClick={() => x.setFilter("ALL")} className="rounded-sm border border-oasis/40 px-2 py-0.5 font-mono text-[10px] font-bold tracking-[0.1em] text-oasis hover:bg-oasis-muted">← PORTFOLIO</button> : undefined}>
+            <div className="h-full p-2" onWheel={(e) => { if (drill && e.deltaY > 0) x.setFilter("ALL"); }}>
+              {positions && !drill
+                ? <PositionsMap x={x} mode={mode} positions={positions} onDrill={(t) => x.setFilter(`etf:${t}`)} />
+                : <HoldingsMap x={x} mode={mode} drillOnly={!!drill} />}
+            </div>
+          </Panel>
+            </div>
+          )}
+          right={(h) => (
+            <div className="flex min-w-0" style={{ height: h ?? 560 }}>
+          <Panel title="HOLDINGS" meta={`${x.rows.length}/${x.all.length} · Σ ${x.rows.reduce((a, r) => a + r.w, 0).toFixed(1)}%`} weight={1} axis="x" expanded={open.table} onToggle={() => flip("table")}>
+            <ExplorerTable x={x} notional={notional} />
+          </Panel>
+            </div>
+          )} />
+      ) : (<>
       {/* Map (primary) | holdings table */}
       <div className={`flex gap-3 max-lg:h-auto max-lg:flex-col ${fill ? "min-h-[520px] lg:min-h-0 lg:flex-1" : "h-[calc(100dvh-360px)] min-h-[520px] flex-none"}`}>
         <div className="flex min-w-0 max-lg:h-[460px]" style={{ flex: open.map ? "1.4 1 0px" : "0 0 40px" }}>
@@ -481,10 +507,12 @@ export default function CompositionMap({ fund, main, fill = false, concentration
             expanded={open.table}
             onToggle={() => flip("table")}
           >
-            <ExplorerTable x={x} />
+            <ExplorerTable x={x} notional={notional} />
           </Panel>
         </div>
       </div>
+
+      </>)}
 
       {/* Relative performance: contextual — collapsed until asked for (or a holding is sent to it) */}
       {/* fill: the open chart takes ~45% of the height and the map / table shrink — still no scrolling */}
