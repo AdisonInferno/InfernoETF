@@ -72,10 +72,12 @@ export async function fundNews(fund: FundData, days = 30, limit = 40): Promise<E
       held.forEach((h) => covered.add(h.tic));
       secs.forEach((x) => (perSub[x.sub] = (perSub[x.sub] ?? 0) + 1));
       company.push({ ...strip(a), holdings: held, sectors: secs, score: held.reduce((s, h) => s + h.w, 0) });
-    } else if ((a.kind === "sector" || a.kind === "company") && secs.length) {
-      // industry news, or a peer the ETF doesn't own — relevant through sector exposure
-      secs.forEach((x) => (perSub[x.sub] = (perSub[x.sub] ?? 0) + 1));
-      sector.push({ ...strip(a), holdings: [], sectors: secs, score: secs[0].pct });
+    } else if ((a.kind === "sector" || a.kind === "company") && secs.some((x) => subPct[x.sub] >= 3)) {
+      // industry news / a peer the ETF doesn't own — only when it is about the fund's OWN sub-sectors
+      // (a semiconductor ETF gets chip news, not Software / Palantir / McDonald's through "Technology")
+      const own = secs.filter((x) => subPct[x.sub] >= 3);
+      own.forEach((x) => (perSub[x.sub] = (perSub[x.sub] ?? 0) + 1));
+      sector.push({ ...strip(a), holdings: [], sectors: own, score: own[0].pct });
     } else if (a.kind === "macro") {
       macro.push({ ...strip(a), holdings: [], sectors: [], score: 0 });
     }

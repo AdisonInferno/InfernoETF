@@ -236,6 +236,8 @@ export default function PortfolioPage() {
   /* The portfolio as one look-through "fund" for the Composition Map / Charts / News tabs */
   const pItems = useMemo<PItem[]>(() => livePos.map(({ asset: a, weight }) => ({ ticker: a.ticker, name: a.name, weight, kind: a.kind, sector: a.sector, ytd: a.ytd, chg1d: a.chg1d })), [livePos]);
   const pfFund = useMemo(() => buildPortfolioFund(pItems), [pItems]);
+  /* PERFORMANCE DRIVERS: the positions you actually own (Yahoo symbol for the price, real weight) */
+  const driverPositions = useMemo(() => livePos.map(({ asset: a, weight }) => ({ tic: symOf[a.ticker] ?? a.ticker, name: `${a.ticker !== (symOf[a.ticker] ?? a.ticker) ? a.ticker + " · " : ""}${a.name}`, w: weight, group: a.kind === "etf" ? "ETFs" : "Stocks" })), [livePos, symOf]);
   /* HOLDINGS tab: map positions (portfolio level of the treemap) + the positions that make ≥70% of the portfolio */
   const mapPositions = useMemo(() => livePos.map(({ asset: a, weight }) => ({ tic: a.ticker, name: a.name, w: weight, kind: a.kind, sym: symOf[a.ticker] ?? a.ticker })), [livePos, symOf]);
   const [gridTf, setGridTf] = useState<GridTf>("1Y");
@@ -700,7 +702,7 @@ export default function PortfolioPage() {
                     <CompositionMap fund={pfFund} main={chartMain} positions={mapPositions} />
                   </>
                 )}
-                {pfTab === "SEAS" && <ChartsTab fund={pfFund} main={chartMain} />}
+                {pfTab === "SEAS" && <ChartsTab fund={pfFund} main={chartMain} positions={driverPositions} />}
                 {pfTab === "NEWS" && <LookThroughFeed items={pItems} />}
                 {pfTab === "AN" && (
                   <section className="flex flex-col gap-2 border border-white/[0.05] bg-[var(--oasis-bg)] p-3">

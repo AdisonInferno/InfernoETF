@@ -34,6 +34,8 @@ export interface MarketEvent {
   source: string;
   url: string;
   affected_tickers: string[];
+  /** industry sub-sectors the story is about (e.g. "Semiconductors") — lets an agent pull one ETF's sector news */
+  sub_sectors: string[];
   macro_category: MacroCategory;
   impact_score: number;
   volatility_flag: "HIGH" | "MEDIUM" | "LOW";
@@ -97,6 +99,7 @@ function toEvent(a: CleanArticle, now: number): MarketEvent {
     source: a.source,
     url: a.url,
     affected_tickers: a.relevant.slice(0, 6),
+    sub_sectors: a.subs.slice(0, 4),
     macro_category: category(`${a.headline} ${a.summary ?? ""}`),
     impact_score: Math.round(impact * 100) / 100,
     volatility_flag: lvl === 3 ? "HIGH" : lvl === 2 ? "MEDIUM" : "LOW",
@@ -108,9 +111,9 @@ function toEvent(a: CleanArticle, now: number): MarketEvent {
 /* ── curated fallback (clearly flagged as samples) ── */
 function samples(now: number): MarketEvent[] {
   const ago = (h: number) => new Date((now - h * 3600) * 1000).toISOString();
-  const s = (o: Omit<MarketEvent, "id" | "timeframe" | "sample" | "url" | "summary"> & { summary?: string }): MarketEvent => {
+  const s = (o: Omit<MarketEvent, "id" | "timeframe" | "sample" | "url" | "summary" | "sub_sectors"> & { summary?: string }): MarketEvent => {
     const ts = Date.parse(o.timestamp_utc) / 1000;
-    return { ...o, summary: o.summary ?? "", url: "", id: "sample-" + hashOf(o.headline), timeframe: timeframeOf(ts, now), sample: true };
+    return { ...o, sub_sectors: [], summary: o.summary ?? "", url: "", id: "sample-" + hashOf(o.headline), timeframe: timeframeOf(ts, now), sample: true };
   };
   return [
     s({ timestamp_utc: ago(2), headline: "SAMPLE · Fed officials signal patience on further rate cuts as core inflation stays sticky", source: "Sample", affected_tickers: ["TLT", "SPY", "UUP"], macro_category: "MONETARY", impact_score: -0.42, volatility_flag: "HIGH", magnitude: 6 }),
@@ -150,7 +153,7 @@ export async function marketContext(): Promise<{ events: MarketEvent[]; live: bo
   return out;
 }
 
-export interface ContextQuery { timeframe?: Timeframe; ticker?: string; minImpact?: number; category?: MacroCategory; limit?: number; order?: "impact" | "newest" }
+export interface ContextQuery { timeframe?: Timeframe; ticker?: string; subSector?: string; minImpact?: number; category?: MacroCategory; limit?: number; order?: "impact" | "newest" }
 
 /** Filtered events: timeframe = window (DAILY ≤ 1 day, WEEKLY ≤ 7, MONTHLY ≤ 30), |impact| ≥ minImpact. */
 export async function getMarketContext(q: ContextQuery = {}): Promise<{ events: MarketEvent[]; live: boolean }> {
@@ -160,6 +163,7 @@ export async function getMarketContext(q: ContextQuery = {}): Promise<{ events: 
   const t = q.ticker?.toUpperCase();
   let list = events.filter((e) => now - Date.parse(e.timestamp_utc) <= days * 864e5
     && (!t || e.affected_tickers.includes(t))
+    && (!q.subSector || e.sub_sectors.some((x) => x.toLowerCase() === q.subSector!.toLowerCase()))
     && (q.minImpact == null || Math.abs(e.impact_score) >= q.minImpact)
     && (!q.category || e.macro_category === q.category));
   // thin DAILY window (weekend, fresh install) → widen to 3 days rather than show an empty feed

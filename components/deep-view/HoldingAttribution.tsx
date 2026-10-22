@@ -169,7 +169,7 @@ export default function HoldingAttribution({ holdings, etfSym, etfLabel, totalPo
       {/* price charts of the holdings that make the move — same timeline as everything above */}
       {!compact && m.movers.length > 0 && state !== "loading" && (
         <div className="h-[520px] min-h-0">
-          <ChartGrid tf={period} onTf={setPeriod} minCell={420}
+          <ChartGrid tf={period} onTf={setPeriod} cols={3}
             title={`WHAT MOVED ${etfLabel} · ${period}`}
             hint={`top ${Math.min(6, m.movers.length)} of ${m.movers.length} holdings = ${(m.moverShare * 100).toFixed(0)}% of the move (gross |contribution|)`}
             items={m.movers.slice(0, 6).map((x) => ({ sym: x.tic, label: x.tic, sub: x.name, href: `/stock/${x.tic}`, note: `${x.w.toFixed(2)}% wt · ${pp(x.c)}` }))} />

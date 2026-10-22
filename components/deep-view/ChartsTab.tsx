@@ -1,6 +1,6 @@
 "use client";
 
-import HoldingAttribution from "./HoldingAttribution";
+import HoldingAttribution, { type AttribHolding } from "./HoldingAttribution";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import InfernoChart, { SegRail, at, basketSeries, type MainDef, type Raw } from "@/components/InfernoChart";
@@ -94,12 +94,22 @@ function Performance({ fund, main, fill }: { fund: FundData; main: MainDef; fill
 
 /* ── PERFORMANCE DRIVERS ───────────────────────────────────── */
 
-function Drivers({ fund, main }: { fund: FundData; main: MainDef }) {
+function Drivers({ fund, main, positions }: { fund: FundData; main: MainDef; positions?: AttribHolding[] }) {
   const holdings = useMemo(() => fund.holdings.map((h) => {
     // group by sub-sector (e.g. "Aerospace & Defense"), the level at which a shared drag shows up
     return { tic: h.tic, name: h.name, w: h.w, group: fund.holdingMeta[h.tic]?.sector ?? "Other" };
   }), [fund]);
-  return <HoldingAttribution holdings={holdings} etfSym={main.sym} etfLabel={main.label} totalPositions={fund.positions} />;
+  if (!positions) return <HoldingAttribution holdings={holdings} etfSym={main.sym} etfLabel={main.label} totalPositions={fund.positions} />;
+  // portfolio: what YOU own (ETFs / stocks) is the main view; the stocks inside the ETFs come below
+  return (
+    <div className="flex flex-col gap-4">
+      <HoldingAttribution holdings={positions} etfLabel={main.label} totalPositions={positions.length} />
+      <details className={`${CARD} p-3`}>
+        <summary className="cursor-pointer font-mono text-[11px] font-bold tracking-[0.14em] text-zinc-400 hover:text-white">[ + LOOK-THROUGH · STOCKS INSIDE YOUR ETFs ]</summary>
+        <div className="mt-3"><HoldingAttribution holdings={holdings} etfLabel={`${main.label} · LOOK-THROUGH`} totalPositions={fund.positions} compact /></div>
+      </details>
+    </div>
+  );
 }
 
 /* ── RISK & DRAWDOWN ───────────────────────────────────────── */
@@ -430,7 +440,7 @@ function BreadthChart() {
 
 /** `main` = the analysed line (default: the ETF itself; the portfolio passes its basket).
  *  `fill` = fit the parent's height (ETF deep view): vertical analysis rail on the left, the chart takes the rest. */
-export default function ChartsTab({ fund, main: mainProp, fill = false }: { fund: FundData; main?: MainDef; fill?: boolean }) {
+export default function ChartsTab({ fund, main: mainProp, fill = false, positions }: { fund: FundData; main?: MainDef; fill?: boolean; /** portfolio: own positions for PERFORMANCE DRIVERS */ positions?: AttribHolding[] }) {
   const [group, setGroup] = usePersisted<Group>("oasis.charts.group.v1", DEFAULT_GROUP);
   const main = useMemo<MainDef>(() => mainProp ?? { id: fund.tic, label: fund.tic, sym: fund.tic, color: "#f87171" }, [mainProp, fund.tic]);
   const g = GROUPS.find(([k]) => k === group) ?? GROUPS[0];
@@ -452,7 +462,7 @@ export default function ChartsTab({ fund, main: mainProp, fill = false }: { fund
       {/* analysis canvas */}
       <div className={`flex min-w-0 flex-1 flex-col gap-3 p-3 ${fill ? `lg:h-full lg:min-h-0 ${g[0] === "PERF" ? "lg:overflow-hidden" : "lg:overflow-y-auto"}` : "pb-8"}`}>
         {g[0] === "PERF" && <Performance fund={fund} main={main} fill={fill} />}
-        {g[0] === "DRIVERS" && <Drivers fund={fund} main={main} />}
+        {g[0] === "DRIVERS" && <Drivers fund={fund} main={main} positions={positions} />}
         {g[0] === "RISK" && <RiskDrawdown fund={fund} main={main} />}
         {g[0] === "ANNUAL" && <AnnualMonthly fund={fund} main={main} />}
         {g[0] === "INCOME" && <Income fund={fund} />}

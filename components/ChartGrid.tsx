@@ -51,7 +51,7 @@ function MiniChart({ bars }: { bars: Bars }) {
   return <div ref={box} className="absolute inset-0" />;
 }
 
-export default function ChartGrid({ items, tf, onTf, title, hint, minCell = 260 }: {
+export default function ChartGrid({ items, tf, onTf, title, hint, minCell = 260, cols }: {
   items: GridItem[];
   tf: GridTf;
   onTf: (t: GridTf) => void;
@@ -60,6 +60,8 @@ export default function ChartGrid({ items, tf, onTf, title, hint, minCell = 260 
   hint?: string;
   /** min cell width, px — the grid wraps responsively */
   minCell?: number;
+  /** fixed number of columns (overrides minCell auto-fill) */
+  cols?: number;
 }) {
   const syms = useMemo(() => items.map((i) => i.sym), [items]);
   const px = usePriceSeries(syms, rangeFor(tf));
@@ -73,7 +75,7 @@ export default function ChartGrid({ items, tf, onTf, title, hint, minCell = 260 
           {hint && <span className="truncate font-mono text-[9.5px] text-zinc-600">{hint}</span>}
         </div>
       </div>
-      <div className="grid min-h-0 flex-1 auto-rows-[minmax(180px,1fr)] gap-2" style={{ gridTemplateColumns: `repeat(auto-fill, minmax(${minCell}px, 1fr))` }}>
+      <div className="grid min-h-0 flex-1 auto-rows-[minmax(180px,1fr)] gap-2" style={{ gridTemplateColumns: cols ? `repeat(${cols}, minmax(0, 1fr))` : `repeat(auto-fill, minmax(${minCell}px, 1fr))` }}>
         {items.map((it) => {
           const bars = crop(px.series[it.sym.toUpperCase()] ?? null, tf);
           const chg = bars ? ((bars.c[bars.c.length - 1] - bars.c[0]) / bars.c[0]) * 100 : null;

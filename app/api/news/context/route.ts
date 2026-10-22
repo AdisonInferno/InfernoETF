@@ -3,7 +3,7 @@ import { getMarketContext, getMarketContextForAI, type MacroCategory, type Timef
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-/** GET /api/news/context?timeframe=DAILY|WEEKLY|MONTHLY&ticker=NVDA&minImpact=0.3&category=MONETARY&format=json|md
+/** GET /api/news/context?timeframe=DAILY|WEEKLY|MONTHLY&ticker=NVDA&subSector=Semiconductors&minImpact=0.3&category=MONETARY&format=json|md
     → structured market events (json) or the compact LLM grounding block (md). */
 export async function GET(req: Request) {
   const p = new URL(req.url).searchParams;
@@ -13,7 +13,8 @@ export async function GET(req: Request) {
   const mi = Number(p.get("minImpact"));
   const minImpact = Number.isFinite(mi) && p.has("minImpact") ? Math.max(0, Math.min(1, mi)) : undefined;
   const cat = p.get("category")?.toUpperCase() as MacroCategory | undefined;
-  const q = { timeframe, ticker, minImpact, category: cat, limit: Math.min(100, Number(p.get("limit")) || 40) };
+  const subSector = p.get("subSector")?.slice(0, 40) || undefined;
+  const q = { timeframe, ticker, subSector, minImpact, category: cat, limit: Math.min(100, Number(p.get("limit")) || 40) };
   if (p.get("format") === "md") return new Response(await getMarketContextForAI(q), { headers: { "content-type": "text/markdown; charset=utf-8" } });
   return Response.json(await getMarketContext(q));
 }
