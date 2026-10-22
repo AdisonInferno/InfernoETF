@@ -1,3 +1,4 @@
+import { getMarketContextForAI } from "@/lib/news-archive/marketContextStore";
 import { GoogleGenAI } from "@google/genai";
 
 // The SDK needs Node APIs, and every request must hit the API fresh.
@@ -49,6 +50,10 @@ export async function POST(req: Request) {
     parts: [{ text: m.content }],
   }));
 
+  // ground the assistant in this week's scored market events (live archive, or flagged samples)
+  const marketCtx = await getMarketContextForAI({ timeframe: "WEEKLY", limit: 20 }).catch(() => "");
+  const system = marketCtx ? `${SYSTEM_PROMPT}\n\n${marketCtx}\nUse these events when relevant; say when they are SAMPLE data.` : SYSTEM_PROMPT;
+
   const ai = new GoogleGenAI({ apiKey });
   const encoder = new TextEncoder();
 
@@ -58,7 +63,7 @@ export async function POST(req: Request) {
         const response = await ai.models.generateContentStream({
           model: MODEL,
           contents,
-          config: { systemInstruction: SYSTEM_PROMPT, maxOutputTokens: 2048 },
+          config: { systemInstruction: system, maxOutputTokens: 2048 },
         });
         for await (const chunk of response) {
           const text = chunk.text;

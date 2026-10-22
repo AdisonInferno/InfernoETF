@@ -155,8 +155,8 @@ export function startScheduler() {
   const box = g.__infernoNews!;
   if (box.timer || process.env.NEWS_ARCHIVE_DISABLED === "1") return;
   const tick = () => { S().nextCollectAt = now() + HOUR_MS / 1000; void collectNow(); };
-  box.kick = setTimeout(tick, 30_000); // first run 30 s after start
+  box.kick = setTimeout(tick, 5_000); // first run 5 s after start
   box.timer = setInterval(tick, HOUR_MS);
-  S().nextCollectAt = now() + 30;
-  log("SCHEDULER on · first collect in 30s, then hourly");
+  S().nextCollectAt = now() + 5;
+  log("SCHEDULER on · first collect in 5s, then hourly");
 }

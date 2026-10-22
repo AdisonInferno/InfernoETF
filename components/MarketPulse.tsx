@@ -37,7 +37,7 @@ const fmtVol = (m: number) => (m >= 1000 ? `$${(m / 1000).toFixed(1)}B` : `$${m.
 
 type Dir = "up" | "down" | "neutral";
 interface Insight { summary: string; impacts: { ticker: string; direction: Dir; why: string }[] }
-interface News { id: string; ts: number; headline: string; url: string; source: string; tickers: string[]; tone: number; impact?: 1 | 2 | 3; impactPts?: number; insight: Insight | null }
+interface News { id: string; ts: number; headline: string; url: string; source: string; tickers: string[]; tone: number; impact?: 1 | 2 | 3; impactPts?: number; category?: string; impactScore?: number; vol?: "HIGH" | "MEDIUM" | "LOW"; sample?: boolean; insight: Insight | null }
 
 const ago = (ts: number) => {
   const m = Math.max(1, Math.round((Date.now() / 1000 - ts) / 60));
@@ -74,6 +74,12 @@ function Impact({ n, pts }: { n: number; pts?: number }) {
 type NRange = "d" | "w" | "m";
 const NRANGES: [NRange, string][] = [["d", "DAILY"], ["w", "WEEKLY"], ["m", "MONTHLY"]];
 
+/** HIGH / MED / LOW expected volatility — green when the read is bullish, red when bearish, grey when neutral */
+function VolBadge({ vol, score }: { vol: "HIGH" | "MEDIUM" | "LOW"; score: number }) {
+  const c = score > 0.1 ? "border-emerald-400/40 text-emerald-300" : score < -0.1 ? "border-rose-400/40 text-rose-300" : "border-white/[0.12] text-zinc-400";
+  return <span className={`flex-none rounded-sm border px-1 text-[9px] font-bold tracking-[0.08em] ${c}`} title={`Impact score ${score >= 0 ? "+" : ""}${score.toFixed(2)} (−1 bearish … +1 bullish)`}>{vol === "MEDIUM" ? "MED" : vol}</span>;
+}
+
 function NewsRow({ n, onInsight, mine }: { n: News; onInsight: (id: string, i: Insight) => void; /** look-through weight of each ticker in MY portfolio */ mine: Record<string, number> }) {
   /** Popover anchor (viewport coords) — fixed so the scrolling rail can't clip it */
   const [hover, setHover] = useState<{ x: number; y: number } | null>(null);
@@ -96,17 +102,19 @@ function NewsRow({ n, onInsight, mine }: { n: News; onInsight: (id: string, i: I
 
   return (
     <div className="relative" onMouseEnter={load} onMouseLeave={() => setHover(null)} onFocus={load} onBlur={() => setHover(null)}>
-      <a href={n.url} target="_blank" rel="noreferrer" className="flex flex-col gap-1 border-b border-white/[0.04] px-3 py-2 hover:bg-white/[0.03]">
+      <a href={n.url || undefined} target="_blank" rel="noreferrer" className="flex flex-col gap-1 border-b border-white/[0.04] px-3 py-2 hover:bg-white/[0.03]">
         <span className="flex items-center gap-2 font-mono text-[10.5px] tracking-[0.06em]">
           <Impact n={n.impact ?? 1} pts={n.impactPts} />
-          <span className="text-zinc-400">{ago(n.ts)}</span>
+          {n.vol && <VolBadge vol={n.vol} score={n.impactScore ?? 0} />}
+          <span className="text-zinc-400" title={new Date(n.ts * 1000).toISOString().slice(0, 16).replace("T", " ") + " UTC"}>{ago(n.ts)}</span>
+          {n.category && <span className="flex-none text-[9px] tracking-[0.1em] text-zinc-500">{n.category}</span>}
           <span className="truncate text-zinc-600">{n.source.toUpperCase()}</span>
           {inPf.length > 0 && (
             <span className="flex-none rounded-sm bg-oasis-muted px-1.5 py-px text-[9.5px] font-bold tracking-[0.08em] text-oasis" title={`In your portfolio: ${inPf.map((t) => `${t} ${mine[t].toFixed(1)}%`).join(", ")}`}>★ PORTFOLIO</span>
           )}
           <span className="ml-auto flex flex-none gap-1">
             {tickers.slice(0, 3).map((t) => (
-              <span key={t} className={`rounded-sm px-1.5 py-px text-[11.5px] font-bold ${DIR_CLS[dirOf(t)]}`}>{t}</span>
+              <span key={t} className={`rounded-sm px-1.5 py-px text-[11.5px] font-bold ${DIR_CLS[dirOf(t)]}`}>[{t}]</span>
             ))}
           </span>
         </span>
@@ -143,17 +151,25 @@ function NewsRow({ n, onInsight, mine }: { n: News; onInsight: (id: string, i: I
 export function NewsFeed({ limit = 25, order = "newest" }: { limit?: number; order?: "newest" | "impact" }) {
   const [news, setNews] = useState<News[] | null>(null);
   const [nr, setNr] = useState<NRange>("d");
+  const [feed, setFeed] = useState({ live: true, collecting: false });
   /* my portfolio, look-through (ETFs opened up) → which news touch what I own */
   const myPos = useMyPortfolio();
   const mineW = useMemo(() => lookThrough(myPos), [myPos]);
   useEffect(() => {
     let off = false;
-    fetch(`/api/pulse/news?limit=${limit}&range=${nr}`)
+    const load = () => fetch(`/api/pulse/news?limit=${limit}&range=${nr}&order=${order}`)
       .then((r) => (r.ok ? r.json() : { news: [] }))
-      .then((j: { news?: News[] }) => { if (!off) setNews(j.news ?? []); })
+      .then((j: { news?: News[]; live?: boolean; collecting?: boolean }) => {
+        if (off) return;
+        setNews(j.news ?? []); setFeed({ live: j.live !== false, collecting: !!j.collecting });
+        // first start: archive still being filled → look again shortly
+        if (j.live === false) retry = setTimeout(load, 20_000);
+      })
       .catch(() => { if (!off) setNews([]); });
-    return () => { off = true; };
-  }, [nr, limit]);
+    let retry: ReturnType<typeof setTimeout> | undefined;
+    void load();
+    return () => { off = true; clearTimeout(retry); };
+  }, [nr, limit, order]);
   /* strictly newest first (UTC epoch seconds) — impact stays visible on each row, it no longer reorders the feed */
   const [scope, setScope] = useState<"all" | "mine">("all");
   const shown = useMemo(() => {
@@ -181,6 +197,11 @@ export function NewsFeed({ limit = 25, order = "newest" }: { limit?: number; ord
             ))}
             <span className="ml-auto self-center font-normal text-zinc-600">{order === "impact" ? "MOST IMPORTANT FIRST" : "NEWEST FIRST"}</span>
           </div>
+        )}
+        {!feed.live && news && news.length > 0 && (
+          <p className="m-0 mx-3 mb-1 rounded-sm border border-amber-400/20 bg-amber-400/[0.05] px-2 py-1 font-mono text-[9.5px] leading-snug text-amber-300/90">
+            SAMPLE EVENTS — {feed.collecting ? "collecting live news now, this updates by itself" : "live archive is empty; add FINNHUB_API_KEY to .env.local for full coverage"}
+          </p>
         )}
         <div className="flex flex-col">
           {news === null && Array.from({ length: 5 }, (_, i) => <div key={i} className="mx-3 my-1.5 h-9 animate-pulse rounded-sm bg-white/[0.03]" />)}
@@ -263,7 +284,6 @@ export default function MarketPulse({ rows, all = ETFS }: { rows: EtfRow[]; /** 
           {!up.length && !down.length && <p className="m-0 px-3 py-2 font-mono text-[11px] text-zinc-600">No moves in this view.</p>}
         </div>
 
-        <H t="MARKET-MOVING NEWS" sub="LIVE" />
         <NewsFeed limit={25} />
       </div>
     </aside>

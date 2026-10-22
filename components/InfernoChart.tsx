@@ -195,7 +195,7 @@ export default function InfernoChart({ main, pinned: pinnedAll = [], picker = []
   const [tfLocal, setTfLocal] = useState<ChartTf>(initialTf);
   const tf = tfProp ?? tfLocal;
   const setTf = (t: ChartTf) => { setTfLocal(t); onTfChange?.(t); };
-  const [kindPick, setKind] = useState<Kind>("LINE");
+  const [kindPick, setKind] = useState<Kind>("AREA");
   /** right axis: real price / value, % change, or indexed to 100 — the last two rebase at the first visible bar */
   const [unit, setUnit] = useState<Unit>(initialUnit);
   const [hit, setHit] = useState(0); // autocomplete: highlighted row
@@ -214,6 +214,8 @@ export default function InfernoChart({ main, pinned: pinnedAll = [], picker = []
   const hasGroup = pinnedAll.some((l) => isGroup(l.id));
   const pinned = useMemo(() => (showGroup ? pinnedAll : pinnedAll.filter((l) => !isGroup(l.id))), [pinnedAll, showGroup]);
   const lines = useMemo(() => [...pinned, ...extras.filter((e) => !pinned.some((p) => p.sym === e.sym))], [pinned, extras]);
+  /** area (soft fill) while the chart shows one instrument; as soon as other ETFs / holdings are added it turns into plain lines */
+  const comparing = extras.some((e) => !off.has(e.id)) || lines.some((l) => isGroup(l.id) && !off.has(l.id));
   const syms = useMemo(() => [...new Set([...(main.sym ? [main.sym] : []), ...(main.basket ?? []).map((b) => b.sym), ...lines.map((l) => l.sym)])].sort(), [main, lines]);
   const key = `${range}|${syms.join(",")}`;
 
@@ -310,7 +312,7 @@ export default function InfernoChart({ main, pinned: pinnedAll = [], picker = []
       return [...m].sort((a, b) => a[0] - b[0]);
     };
     // main — candles only on genuine OHLC bars (never synthesised from closes)
-    const kind: Kind = kindPick === "CANDLE" && !(mainRaw.o && mainRaw.h && mainRaw.l) ? "LINE" : kindPick;
+    const kind: Kind = kindPick === "CANDLE" && !(mainRaw.o && mainRaw.h && mainRaw.l) ? "LINE" : kindPick === "AREA" && comparing ? "LINE" : kindPick;
     const mainKey = `main:${kind}`;
     want.add(mainKey);
     let ms = map.get(mainKey);
@@ -367,7 +369,7 @@ export default function InfernoChart({ main, pinned: pinnedAll = [], picker = []
       chart.timeScale().setVisibleRange({ from: Math.max(r.t[0], from) as Time, to: end as Time });
       fitTo.current = null;
     }
-  }, [ready, mainRaw, lines, kindPick, off, main.id, main.label, main.color, unit, valueScale]);
+  }, [ready, mainRaw, lines, kindPick, comparing, off, main.id, main.label, main.color, unit, valueScale]);
 
   const pick = (t: ChartTf) => { fitTo.current = t; setTf(t); };
   // timeframe changed from outside (controlled `tf`, e.g. the Composition Map period) → zoom to it as well
@@ -442,7 +444,7 @@ export default function InfernoChart({ main, pinned: pinnedAll = [], picker = []
     return { A: { x: A.x, y: A.y }, B: { x: B.x, y: B.y }, pct, from: fmt(mainRaw.t[ia]), to: fmt(mainRaw.t[ib]), bars: ib - ia };
   })();
   const hasOhlc = !!(mainRaw?.o && mainRaw.h && mainRaw.l);
-  const kindShown: Kind = kindPick === "CANDLE" && !hasOhlc ? "LINE" : kindPick;
+  const kindShown: Kind = kindPick === "CANDLE" && !hasOhlc ? "LINE" : kindPick === "AREA" && comparing ? "LINE" : kindPick;
 
   const chip = (id: string, label: string, color: string, dashed: boolean | undefined, v: number | null, removable: boolean) => {
     const dim = off.has(id);
