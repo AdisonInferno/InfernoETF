@@ -29,6 +29,8 @@ interface Etf {
   change1d: number;
   price: number;
   note: string;
+  /** sub-sector inside the map sector (tiles are grouped by it) */
+  group?: string;
 }
 
 interface Sector {
@@ -76,7 +78,7 @@ const MAP_SECTORS: { title: string; short: string; test: (e: EtfRow) => boolean 
 const KNOWN: Provider[] = ["BlackRock", "Vanguard", "State Street", "Invesco"];
 const toEtf = (e: EtfRow): Etf => ({
   ticker: e.ticker, name: e.name, provider: (KNOWN as string[]).includes(e.issuer) ? (e.issuer as Provider) : "Other",
-  sym: e.ticker, aum: e.aum, change1d: e.chg1d, price: QUOTE[e.ticker]?.[0] ?? 0, note: `${e.sector} · ${e.issuer}`,
+  sym: e.ticker, aum: e.aum, change1d: e.chg1d, price: QUOTE[e.ticker]?.[0] ?? 0, note: `${e.sector} · ${e.issuer}`, group: e.sector,
 });
 const SECTORS: Sector[] = MAP_SECTORS.map(({ title, test }) => ({
   title,
@@ -140,10 +142,11 @@ const STOCK_SECTORS: Sector[] = (() => {
     const sector = (SUB_PARENT[x.sub] ?? "Other").toUpperCase();
     if (["OTHER", "CRYPTO", "COMMODITIES", "GOVT BONDS", "CASH & OTHER"].includes(sector)) continue;
     const list = groups.get(sector) ?? [];
-    list.push({ ticker: t, sym: t, name: x.name, provider: "Other", aum: x.cap, change1d: 0, price: 0, note: `${x.sub} · cap $${x.cap >= 1000 ? (x.cap / 1000).toFixed(2) + "T" : x.cap + "B"}` });
+    list.push({ ticker: t, sym: t, name: x.name, provider: "Other", aum: x.cap, change1d: 0, price: 0, note: `${x.sub} · cap $${x.cap >= 1000 ? (x.cap / 1000).toFixed(2) + "T" : x.cap + "B"}`, group: x.sub });
     groups.set(sector, list);
   }
-  return [...groups].map(([title, etfs]) => ({ title, etfs: etfs.sort((a, b) => b.aum - a.aum).slice(0, 14) }));
+  // more names per sector now that they are split into sub-sectors
+  return [...groups].map(([title, etfs]) => ({ title, etfs: etfs.sort((a, b) => b.aum - a.aum).slice(0, 24) }));
 })();
 const STOCK_ABBR: Record<string, string> = { TECHNOLOGY: "TECH", "CONSUMER DISC.": "DISCR", "CONSUMER STAPLES": "STAPLES", COMMUNICATION: "COMM", FINANCIALS: "FIN", "HEALTH CARE": "HLTH", ENERGY: "ENRG", MATERIALS: "MATR", INDUSTRIALS: "IND", UTILITIES: "UTIL", "REAL ESTATE": "REIT" };
 const STOCK_SHORT: Record<string, string> = Object.fromEntries(STOCK_SECTORS.map((g) => [g.title, STOCK_ABBR[g.title] ?? g.title.slice(0, 6)]));
@@ -383,11 +386,27 @@ export default function InfernoEtfScanner() {
     const laid = layoutTreemap(groups, { x: 0, y: 0, w: size.w, h: size.h }).map(({ item, x, y, w, h }) => {
       const cardW = w - SECTOR_GAP * 2;
       const cardH = h - SECTOR_GAP * 2;
-      const tiles = layoutTreemap(
-        item.rows.map((etf) => ({ etf, wt: weightOf(etf) })),
-        { x: 0, y: HEADER_H, w: cardW - 2, h: cardH - 2 - HEADER_H }
-      );
-      return { ...item, x: x + SECTOR_GAP, y: y + SECTOR_GAP, w: cardW, h: cardH, tiles };
+      const inner = { x: 0, y: HEADER_H, w: cardW - 2, h: cardH - 2 - HEADER_H };
+      /* sub-sectors: the sector card is split into inner boxes (Semiconductors | Software | …), tiles inside them */
+      const byGroup = new Map<string, Etf[]>();
+      for (const e of item.rows) { const k = e.group ?? ""; byGroup.set(k, [...(byGroup.get(k) ?? []), e]); }
+      const grouped = item.title !== "MY PORTFOLIO" && byGroup.size > 1 && !byGroup.has("") && inner.w > 120 && inner.h > 90;
+      if (!grouped) {
+        const tiles = layoutTreemap(item.rows.map((etf) => ({ etf, wt: weightOf(etf) })), inner);
+        return { ...item, x: x + SECTOR_GAP, y: y + SECTOR_GAP, w: cardW, h: cardH, tiles, subs: [] as (Rect & { name: string; avg: number | null })[] };
+      }
+      const subsIn = [...byGroup].map(([name, rows]) => {
+        const k = rows.map(retOf).filter((v): v is number => v != null);
+        return { name, rows, wt: rows.reduce((a, e) => a + weightOf(e), 0), size: rows.reduce((a, e) => a + e.aum, 0), avg: k.length ? k.reduce((a, v) => a + v, 0) / k.length : null };
+      }).sort(sort === "aum" ? (p, q) => (q.size - p.size) * -dir : (p, q) => ((q.avg ?? -Infinity) - (p.avg ?? -Infinity)) * -dir);
+      const subRects = layoutTreemap(subsIn, inner);
+      const SUBH = 14;
+      const tiles = subRects.flatMap(({ item: sg, x: sx, y: sy, w: sw, h: sh }) => {
+        const head = sh > 44 && sw > 50 ? SUBH : 0;
+        return layoutTreemap(sg.rows.map((etf) => ({ etf, wt: weightOf(etf) })), { x: sx + 1, y: sy + head + 1, w: Math.max(1, sw - 2), h: Math.max(1, sh - head - 2) });
+      });
+      const subs = subRects.map(({ item: sg, x: sx, y: sy, w: sw, h: sh }) => ({ name: sh > 44 && sw > 50 ? sg.name : "", avg: sg.avg, x: sx, y: sy, w: sw, h: sh }));
+      return { ...item, x: x + SECTOR_GAP, y: y + SECTOR_GAP, w: cardW, h: cardH, tiles, subs };
     });
 
     return { sectors: laid, count: groups.reduce((n, g) => n + g.rows.length, 0) };
@@ -546,6 +565,16 @@ export default function InfernoEtfScanner() {
                 </span>
               </div>
 
+              {s.subs.map((g) => (
+                <div key={g.name + g.x + g.y} className="pointer-events-none absolute box-border border border-white/[0.14]" style={{ left: g.x, top: g.y, width: g.w, height: g.h }}>
+                  {g.name && (
+                    <span className={`${MONO} absolute inset-x-1 top-0 flex h-[14px] items-center justify-between gap-1 overflow-hidden whitespace-nowrap text-[9px] font-semibold uppercase tracking-[0.08em] text-zinc-400`}>
+                      <span className="truncate">{g.name}</span>
+                      {g.avg != null && g.w > 110 && <span style={{ color: trendColor(g.avg) }}>{fmtPct(g.avg)}</span>}
+                    </span>
+                  )}
+                </div>
+              ))}
               {s.tiles.map(({ item: { etf }, x, y, w, h }) => {
                 const m = Math.min(w, h);
                 const r = retOf(etf);

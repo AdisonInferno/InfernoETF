@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useState } from "react";
 import EtfTableScanner from "@/components/EtfTableScanner";
 import InfernoEtfScanner from "@/components/InfernoEtfScanner";
@@ -28,13 +27,6 @@ export default function ScannerShell() {
         <div className="inline-flex items-center gap-1 rounded-sm border border-white/[0.06] bg-[var(--oasis-panel)] p-1">
           {tab("table", "[ TABLE ]")}
           {tab("map", "[ MARKET MAP ]")}
-          <Link
-            href="/chat"
-            title="Query terminal"
-            className="ml-0.5 rounded-sm border border-white/[0.06] px-2 py-1 font-mono text-[10px] font-bold tracking-[0.1em] text-zinc-400 transition-colors hover:text-white"
-          >
-            [ QUERY ]
-          </Link>
         </div>
       </div>
       <div className="relative min-h-0 flex-1">
