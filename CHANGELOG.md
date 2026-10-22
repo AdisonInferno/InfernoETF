@@ -4,8 +4,10 @@ _Generowany automatycznie z historii git. Zmiany oddalone o mniej niż godzinę 
 
 ## czwartek, 22 października 2026
 
-### Sesja #27 · 23:28–23:32 · 2 zmian · AdisonInferno
+### Sesja #27 · 23:28–23:37 · 4 zmian · AdisonInferno
 
+- `23:37` Market map: sectors split into sub-sector boxes (stocks and ETFs), up to 24 stocks per sector; remove [ QUERY ] button from the scanner
+- `23:32` Dziennik zmian
 - `23:32` Portfolio deep view: SECTORS/STOCKS centre labels, compact sector table, PnL attribution + sector change (weighted look-through) with timeframe; compact open-positions stats; holdings table VALUE $ column, bottom return rail, resizable map|table
 - `23:28` Dziennik zmian
 
