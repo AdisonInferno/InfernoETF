@@ -139,6 +139,63 @@ function NewsRow({ n, onInsight, mine }: { n: News; onInsight: (id: string, i: I
   );
 }
 
+/** Market-moving headlines (DAILY / WEEKLY / MONTHLY, 1-3 impact bars). Scanner rail = newest first; NEWS page = most important first. */
+export function NewsFeed({ limit = 25, order = "newest" }: { limit?: number; order?: "newest" | "impact" }) {
+  const [news, setNews] = useState<News[] | null>(null);
+  const [nr, setNr] = useState<NRange>("d");
+  /* my portfolio, look-through (ETFs opened up) → which news touch what I own */
+  const myPos = useMyPortfolio();
+  const mineW = useMemo(() => lookThrough(myPos), [myPos]);
+  useEffect(() => {
+    let off = false;
+    fetch(`/api/pulse/news?limit=${limit}&range=${nr}`)
+      .then((r) => (r.ok ? r.json() : { news: [] }))
+      .then((j: { news?: News[] }) => { if (!off) setNews(j.news ?? []); })
+      .catch(() => { if (!off) setNews([]); });
+    return () => { off = true; };
+  }, [nr, limit]);
+  /* strictly newest first (UTC epoch seconds) — impact stays visible on each row, it no longer reorders the feed */
+  const [scope, setScope] = useState<"all" | "mine">("all");
+  const shown = useMemo(() => {
+    if (!news) return null;
+    const list = scope === "mine" ? news.filter((n) => n.tickers.some((t) => (mineW[t] ?? 0) > 0)) : news;
+    return order === "impact" ? [...list].sort((a, b) => (b.impactPts ?? 0) - (a.impactPts ?? 0) || b.ts - a.ts) : [...list].sort((a, b) => b.ts - a.ts);
+  }, [news, scope, mineW, order]);
+  const setInsight = (id: string, i: Insight) => setNews((l) => l?.map((n) => (n.id === id ? { ...n, insight: i } : n)) ?? l);
+  return (
+    <>
+        <H t="MARKET-MOVING NEWS" sub="LIVE" />
+        <div className="grid grid-cols-3 gap-1.5 px-3 py-2">
+          {NRANGES.map(([k, l]) => (
+            <button key={k} type="button" onClick={() => { if (k !== nr) { setNews(null); setNr(k); } }}
+              className={`h-6 rounded-full border font-mono text-[9.5px] font-bold tracking-[0.12em] transition-colors ${nr === k ? "oasis-on" : "border-white/[0.08] text-zinc-500 hover:text-zinc-200"}`}>
+              {l}
+            </button>
+          ))}
+        </div>
+        {myPos.length > 0 && (
+          <div className="flex gap-1.5 px-3 pb-2 font-mono text-[9.5px] font-bold tracking-[0.12em]">
+            {([["all", "ALL"], ["mine", "MY HOLDINGS"]] as const).map(([k, l]) => (
+              <button key={k} type="button" onClick={() => setScope(k)} aria-pressed={scope === k}
+                className={`h-5 rounded-sm border px-2 ${scope === k ? "oasis-on" : "border-white/[0.08] text-zinc-500 hover:text-zinc-200"}`}>{l}</button>
+            ))}
+            <span className="ml-auto self-center font-normal text-zinc-600">{order === "impact" ? "MOST IMPORTANT FIRST" : "NEWEST FIRST"}</span>
+          </div>
+        )}
+        <div className="flex flex-col">
+          {news === null && Array.from({ length: 5 }, (_, i) => <div key={i} className="mx-3 my-1.5 h-9 animate-pulse rounded-sm bg-white/[0.03]" />)}
+          {shown?.map((n) => <NewsRow key={n.id} n={n} onInsight={setInsight} mine={mineW} />)}
+          {news && news.length > 0 && shown?.length === 0 && <p className="m-0 px-3 py-3 font-mono text-[11px] text-zinc-600">No headlines about your holdings in this window.</p>}
+          {news?.length === 0 && (
+            <p className="m-0 px-3 py-3 font-mono text-[11px] leading-relaxed text-zinc-600">
+              No headlines yet — the news collector fills this once it runs (needs FINNHUB_API_KEY).
+            </p>
+          )}
+        </div>
+    </>
+  );
+}
+
 export default function MarketPulse({ rows, all = ETFS }: { rows: EtfRow[]; /** every ETF (with live numbers) for MOST ACTIVE */ all?: EtfRow[] }) {
   const [tf, setTf] = useState<Tf>("1D");
   /* real window returns (1D = live move vs previous close; 1W / 1M from stored closes) */
@@ -152,27 +209,7 @@ export default function MarketPulse({ rows, all = ETFS }: { rows: EtfRow[]; /** 
   const up = byMove.slice(0, 3).filter((x) => x.m > 0);
   const down = byMove.slice(-3).reverse().filter((x) => x.m < 0);
 
-  const [news, setNews] = useState<News[] | null>(null);
-  const [nr, setNr] = useState<NRange>("d");
-  /* my portfolio, look-through (ETFs opened up) → which news touch what I own */
-  const myPos = useMyPortfolio();
-  const mineW = useMemo(() => lookThrough(myPos), [myPos]);
-  useEffect(() => {
-    let off = false;
-    fetch(`/api/pulse/news?limit=25&range=${nr}`)
-      .then((r) => (r.ok ? r.json() : { news: [] }))
-      .then((j: { news?: News[] }) => { if (!off) setNews(j.news ?? []); })
-      .catch(() => { if (!off) setNews([]); });
-    return () => { off = true; };
-  }, [nr]);
-  /* strictly newest first (UTC epoch seconds) — impact stays visible on each row, it no longer reorders the feed */
-  const [scope, setScope] = useState<"all" | "mine">("all");
-  const shown = useMemo(() => {
-    if (!news) return null;
-    const list = scope === "mine" ? news.filter((n) => n.tickers.some((t) => (mineW[t] ?? 0) > 0)) : news;
-    return [...list].sort((a, b) => b.ts - a.ts);
-  }, [news, scope, mineW]);
-  const setInsight = (id: string, i: Insight) => setNews((l) => l?.map((n) => (n.id === id ? { ...n, insight: i } : n)) ?? l);
+
 
   return (
     <aside className="flex min-h-0 flex-col overflow-hidden oasis-glass border border-white/[0.06] bg-[var(--oasis-panel)]">
@@ -226,35 +263,8 @@ export default function MarketPulse({ rows, all = ETFS }: { rows: EtfRow[]; /** 
           {!up.length && !down.length && <p className="m-0 px-3 py-2 font-mono text-[11px] text-zinc-600">No moves in this view.</p>}
         </div>
 
-        {/* News */}
         <H t="MARKET-MOVING NEWS" sub="LIVE" />
-        <div className="grid grid-cols-3 gap-1.5 px-3 py-2">
-          {NRANGES.map(([k, l]) => (
-            <button key={k} type="button" onClick={() => { if (k !== nr) { setNews(null); setNr(k); } }}
-              className={`h-6 rounded-full border font-mono text-[9.5px] font-bold tracking-[0.12em] transition-colors ${nr === k ? "oasis-on" : "border-white/[0.08] text-zinc-500 hover:text-zinc-200"}`}>
-              {l}
-            </button>
-          ))}
-        </div>
-        {myPos.length > 0 && (
-          <div className="flex gap-1.5 px-3 pb-2 font-mono text-[9.5px] font-bold tracking-[0.12em]">
-            {([["all", "ALL"], ["mine", "MY HOLDINGS"]] as const).map(([k, l]) => (
-              <button key={k} type="button" onClick={() => setScope(k)} aria-pressed={scope === k}
-                className={`h-5 rounded-sm border px-2 ${scope === k ? "oasis-on" : "border-white/[0.08] text-zinc-500 hover:text-zinc-200"}`}>{l}</button>
-            ))}
-            <span className="ml-auto self-center font-normal text-zinc-600">NEWEST FIRST</span>
-          </div>
-        )}
-        <div className="flex flex-col">
-          {news === null && Array.from({ length: 5 }, (_, i) => <div key={i} className="mx-3 my-1.5 h-9 animate-pulse rounded-sm bg-white/[0.03]" />)}
-          {shown?.map((n) => <NewsRow key={n.id} n={n} onInsight={setInsight} mine={mineW} />)}
-          {news && news.length > 0 && shown?.length === 0 && <p className="m-0 px-3 py-3 font-mono text-[11px] text-zinc-600">No headlines about your holdings in this window.</p>}
-          {news?.length === 0 && (
-            <p className="m-0 px-3 py-3 font-mono text-[11px] leading-relaxed text-zinc-600">
-              No headlines yet — the news collector fills this once it runs (needs FINNHUB_API_KEY).
-            </p>
-          )}
-        </div>
+        <NewsFeed limit={25} />
       </div>
     </aside>
   );

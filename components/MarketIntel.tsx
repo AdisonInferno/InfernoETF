@@ -7,6 +7,8 @@ import AwaitedEvents from "@/components/AwaitedEvents";
 import { LookThroughFeed } from "@/components/PortfolioTelemetry";
 import { useMyPortfolio } from "@/lib/my-portfolio";
 import NewsCharts, { proxiesFor } from "@/components/NewsCharts";
+import EarningsPanel from "@/components/EarningsPanel";
+import { NewsFeed } from "@/components/MarketPulse";
 
 /** [ CHART ▾ ] toggle used on every news card */
 function ChartBtn({ open, onClick }: { open: boolean; onClick: () => void }) {
@@ -193,8 +195,12 @@ function FilingsPanel({ filings: sectorFilings, error: sectorError, loading: sec
     const rank = (f: Filing) => (insights[f.accession]?.importance ?? 0) * 10 + (FORM_W[f.form] ?? 1);
     if (sort === "weight") list.sort((a, b) => rank(b) - rank(a) || b.acceptedAt.localeCompare(a.acceptedAt));
     else list.sort((a, b) => b.acceptedAt.localeCompare(a.acceptedAt));
-    return list;
-  }, [filings, insights, sort]);
+    // one card per company (its most important / newest filing), few at once
+    const seen = new Set<string>();
+    return list.filter((f) => (pick ? true : !seen.has(f.ticker) && !!seen.add(f.ticker)));
+  }, [filings, insights, sort, pick]);
+  const [more, setMore] = useState(false);
+  const visible = rows.slice(0, more ? 12 : 5);
 
   return (
     <section className={`${card} flex min-w-0 flex-col gap-3 p-4`}>
@@ -211,7 +217,7 @@ function FilingsPanel({ filings: sectorFilings, error: sectorError, loading: sec
       <PickBar options={picks} value={pick} onChange={setPick} placeholder="Any ticker…" upper />
       {loading && [0, 1, 2].map((i) => <div key={i} className="h-[74px] animate-pulse rounded-sm bg-white/[0.03]" />)}
       {error && <p className="m-0 text-[11px] text-amber-400">⚠ SEC unavailable ({error}). Check SEC_USER_AGENT in .env.local.</p>}
-      {!loading && rows.map((f) => {
+      {!loading && visible.map((f) => {
         const ins = insights[f.accession];
         const a = ARROW[ins?.direction ?? "neutral"];
         return (
@@ -239,6 +245,9 @@ function FilingsPanel({ filings: sectorFilings, error: sectorError, loading: sec
           </div>
         );
       })}
+      {!loading && rows.length > 5 && (
+        <button type="button" onClick={() => setMore((v) => !v)} className="self-start font-mono text-[10.5px] tracking-[0.12em] text-zinc-500 hover:text-white">{more ? "[ SHOW LESS ]" : `[ + ${Math.min(12, rows.length) - 5} MORE COMPANIES ]`}</button>
+      )}
       {!loading && !error && rows.length === 0 && <p className="m-0 text-[11px] text-zinc-600">{pick ? `No SEC filings for ${pick} (not an SEC-registered ticker?).` : "No SEC filers tracked for this sector in this region."}</p>}
     </section>
   );
@@ -291,6 +300,15 @@ function CommoditiesPanel({ items: sectorItems, loading: sectorLoading, ready, p
   );
 }
 
+function H2({ t, right }: { t: string; right?: React.ReactNode }) {
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/[0.06] pb-2">
+      <h2 className="m-0 font-mono text-[13px] font-bold tracking-[0.16em] text-zinc-100">[ {t} ]</h2>
+      {right}
+    </div>
+  );
+}
+
 export default function MarketIntel() {
   const [openMacro, setOpenMacro] = useState<string | null>(null);
   const [region, setRegion] = useState<Region>("global");
@@ -316,95 +334,106 @@ export default function MarketIntel() {
   const d = state.data;
   const filings = useMemo(() => (loading ? [] : d?.filings.filings ?? []), [loading, d]);
 
+  const NAV: [string, string][] = [["news", "NEWS"], ["filings", "SEC FILINGS"], ["earnings", "EARNINGS"], ["commodities", "COMMODITIES"], ["macro", "MACRO"], ["calendar", "CALENDAR"]];
+  const go = (id: string) => document.getElementById(`mn-${id}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+
   return (
-    <div className="flex flex-col gap-4 font-mono">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="m-0 font-display text-[22px] font-semibold tracking-[0.04em] text-zinc-50">MARKET NEWS</h1>
-          <p className="m-0 mt-1 text-[11px] tracking-[0.06em] text-zinc-500">[ FILINGS ] [ COMMODITIES ] [ MACRO ]</p>
-        </div>
-        <Link href="/news/archive" className="text-[10.5px] font-bold tracking-[0.12em] text-zinc-500 hover:text-white">[ NEWS ARCHIVE → ]</Link>
-      </div>
-
-      <div className="grid grid-cols-4 gap-2" role="tablist" aria-label="Region">
-        {REGIONS.map(([id, l]) => (
-          <button key={id} type="button" role="tab" aria-selected={region === id} onClick={() => setRegion(id)}
-            className={`h-10 rounded-sm border text-[12px] font-bold tracking-[0.18em] transition-colors ${region === id ? "oasis-on" : "border-white/[0.06] bg-[var(--oasis-panel)] text-zinc-500 hover:text-zinc-200"}`}>
-            {l}
-          </button>
+    <div className="grid grid-cols-1 gap-4 font-mono lg:grid-cols-[190px_minmax(0,1fr)]">
+      {/* left rail: jump to a section (the page also scrolls straight through all of them) */}
+      <nav className="flex flex-col gap-1 self-start lg:sticky lg:top-0" aria-label="News sections">
+        <span className="px-2 pb-2 font-display text-[18px] font-semibold tracking-[0.04em] text-zinc-50">MARKET NEWS</span>
+        {NAV.map(([id, l]) => (
+          <button key={id} type="button" onClick={() => go(id)} className="rounded-sm px-2 py-2 text-left text-[11px] font-bold tracking-[0.16em] text-zinc-400 hover:bg-white/[0.04] hover:text-white">{l}</button>
         ))}
-      </div>
-      {state.error && !loading && <p className="m-0 text-[11px] text-rose-400">⚠ {state.error}</p>}
+        <Link href="/news/archive" className="mt-2 px-2 text-[10.5px] font-bold tracking-[0.12em] text-zinc-500 hover:text-white">[ NEWS ARCHIVE → ]</Link>
+      </nav>
 
-      {/* Sector switch */}
-      <div className="flex items-center gap-3 border-y border-white/[0.06] py-2.5">
-        <div className="flex rounded-sm border border-white/[0.06] bg-[var(--oasis-panel)] p-0.5" role="tablist" aria-label="News focus">
-          {SECTORS.map(([id, l]) => (
-            <button key={id} type="button" role="tab" aria-selected={!mine && sector === id} onClick={() => { setSector(id); setMine(false); }}
-              className={`h-8 rounded-sm px-4 text-[11px] font-bold tracking-[0.16em] ${!mine && sector === id ? "oasis-on" : "text-zinc-500 hover:text-zinc-200"}`}>
-              {l}
-            </button>
-          ))}
-          <button type="button" role="tab" aria-selected={mine} onClick={() => setMine(true)}
-            className={`h-8 rounded-sm px-4 text-[11px] font-bold tracking-[0.16em] ${mine ? "bg-emerald-500/[0.12] text-emerald-300" : "text-zinc-500 hover:text-zinc-200"}`}>
-            PORTFOLIO
-          </button>
-        </div>
-              </div>
-
-      {/* Three pillars */}
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
-        {mine ? (
-          <div className="min-w-0 xl:col-span-2">
-            {myItems.length ? <LookThroughFeed items={myItems} /> : (
-              <p className={`${card} m-0 p-4 text-[11.5px] text-zinc-500`}>No portfolio yet — build or import one on the <Link href="/portfolio" className="text-zinc-200 underline">PORTFOLIO</Link> page.</p>
-            )}
-          </div>
-        ) : (<>
-        <FilingsPanel key={`f-${key}`} filings={filings} error={loading ? undefined : d?.filings.error} loading={loading} picks={d?.picks?.filers ?? []} />
-
-        <CommoditiesPanel key={`c-${key}`} items={d?.commodities.items ?? []} loading={loading} ready={!!d} picks={d?.picks?.commodities ?? []} />
-        </>)}
-
-        <div className="flex min-w-0 flex-col gap-4">
-        <section className={`${card} flex min-w-0 flex-col gap-3 p-4`}>
-          <div className="flex items-baseline justify-between">
-            <h2 className="m-0 font-mono text-[12px] font-bold tracking-[0.16em] text-zinc-200">[ MACRO ]</h2>
-            <span className={label}>ALL SECTORS</span>
-          </div>
-          {loading && [0, 1, 2].map((i) => <div key={i} className="h-[58px] animate-pulse rounded-sm bg-white/[0.03]" />)}
-          {!loading && d?.macro.calendar.events.slice(0, 5).map((e) => (
-            <div key={`${e.source}-${e.code}-${e.at}`} className="flex flex-col gap-1.5 rounded-sm border border-white/[0.06] bg-[var(--oasis-bg)] px-3.5 py-3">
-              <div className="flex items-center justify-between gap-3">
-                <span className={`rounded-sm px-2 py-0.5 text-[11px] font-bold ${BADGE[e.source] ?? "bg-white/[0.06] text-zinc-300"}`}>{e.source} · {e.code}</span>
-                <span className="text-[10.5px] text-zinc-500">{when(e.at, e.allDay)}</span>
-              </div>
-              <span className="font-sans text-[13px] text-zinc-200">{e.title}</span>
-            </div>
-          ))}
-          {!loading && d && d.macro.news.length > 0 && (
-            <div className="flex flex-col gap-2 border-t border-white/[0.06] pt-3">
-              <span className={label}>MACRO NEWS</span>
-              {[...d.macro.news].sort((a, b) => b.ts - a.ts).map((n) => (
-                <div key={n.id} className="flex flex-col gap-1.5">
-                  <div className="flex items-start gap-3 text-[12.5px]">
-                    <span className="w-[52px] flex-none pt-0.5 text-[10px] text-zinc-600">{when(n.ts * 1000).replace(/ \d\d:\d\d$/, "")}</span>
-                    <a href={n.url || undefined} target="_blank" rel="noreferrer" className="line-clamp-2 min-w-0 flex-1 font-sans text-zinc-300 hover:text-white">{n.headline}</a>
-                    <ChartBtn open={openMacro === n.id} onClick={() => setOpenMacro((o) => (o === n.id ? null : n.id))} />
-                  </div>
-                  {openMacro === n.id && <NewsCharts symbols={[...(n.tickers ?? []), "SPY", "TLT", "UUP"]} ts={n.ts} />}
-                </div>
+      <div className="flex min-w-0 flex-col gap-8">
+        <section id="mn-news" className="flex scroll-mt-2 flex-col gap-3">
+          <H2 t="NEWS" right={myItems.length > 0 ? (
+            <div className="flex rounded-sm border border-white/[0.06] p-0.5">
+              {([[false, "MARKET"], [true, "MY PORTFOLIO"]] as const).map(([k, l]) => (
+                <button key={l} type="button" onClick={() => setMine(k)} className={`h-7 rounded-sm px-3 text-[10.5px] font-bold tracking-[0.14em] ${mine === k ? "oasis-on" : "text-zinc-500 hover:text-zinc-200"}`}>{l}</button>
               ))}
             </div>
-          )}
-          {!loading && d && d.macro.calendar.missing.length > 0 && (
-            <p className="m-0 text-[10.5px] text-amber-400/80">Add {d.macro.calendar.missing.join(" + ")} to .env.local for the full calendar.</p>
+          ) : undefined} />
+          {mine && myItems.length ? <LookThroughFeed items={myItems} /> : (
+            <div className={`${card} flex max-h-[560px] flex-col overflow-y-auto`}><NewsFeed limit={30} order="impact" /></div>
           )}
         </section>
 
-        <AwaitedEvents />
-        <EventCalendar />
-        </div>
+        <section id="mn-filings" className="flex scroll-mt-2 flex-col gap-3">
+          <H2 t="SEC FILINGS" right={
+            <div className="flex flex-wrap gap-2">
+              <div className="flex rounded-sm border border-white/[0.06] p-0.5" role="tablist" aria-label="Region">
+                {REGIONS.map(([id, l]) => (
+                  <button key={id} type="button" role="tab" aria-selected={region === id} onClick={() => setRegion(id)}
+                    className={`h-7 rounded-sm px-3 text-[10.5px] font-bold tracking-[0.14em] ${region === id ? "oasis-on" : "text-zinc-500 hover:text-zinc-200"}`}>{l}</button>
+                ))}
+              </div>
+              <div className="flex rounded-sm border border-white/[0.06] p-0.5" role="tablist" aria-label="Sector">
+                {SECTORS.map(([id, l]) => (
+                  <button key={id} type="button" role="tab" aria-selected={sector === id} onClick={() => setSector(id)}
+                    className={`h-7 rounded-sm px-3 text-[10.5px] font-bold tracking-[0.14em] ${sector === id ? "oasis-on" : "text-zinc-500 hover:text-zinc-200"}`}>{l}</button>
+                ))}
+              </div>
+            </div>
+          } />
+          {state.error && !loading && <p className="m-0 text-[11px] text-rose-400">⚠ {state.error}</p>}
+          <FilingsPanel key={`f-${key}`} filings={filings} error={loading ? undefined : d?.filings.error} loading={loading} picks={d?.picks?.filers ?? []} />
+        </section>
+
+        <section id="mn-earnings" className="flex scroll-mt-2 flex-col gap-3">
+          <H2 t="EARNINGS" />
+          <EarningsPanel />
+        </section>
+
+        <section id="mn-commodities" className="flex scroll-mt-2 flex-col gap-3">
+          <H2 t="COMMODITIES" />
+          <CommoditiesPanel key={`c-${key}`} items={d?.commodities.items ?? []} loading={loading} ready={!!d} picks={d?.picks?.commodities ?? []} />
+        </section>
+
+        <section id="mn-macro" className="flex scroll-mt-2 flex-col gap-3">
+          <H2 t="MACRO" />
+          <div className={`${card} flex min-w-0 flex-col gap-3 p-4`}>
+            {loading && [0, 1, 2].map((i) => <div key={i} className="h-[58px] animate-pulse rounded-sm bg-white/[0.03]" />)}
+            {!loading && d?.macro.calendar.events.slice(0, 5).map((e) => (
+              <div key={`${e.source}-${e.code}-${e.at}`} className="flex flex-col gap-1.5 rounded-sm border border-white/[0.06] bg-[var(--oasis-bg)] px-3.5 py-3">
+                <div className="flex items-center justify-between gap-3">
+                  <span className={`rounded-sm px-2 py-0.5 text-[11px] font-bold ${BADGE[e.source] ?? "bg-white/[0.06] text-zinc-300"}`}>{e.source} · {e.code}</span>
+                  <span className="text-[10.5px] text-zinc-500">{when(e.at, e.allDay)}</span>
+                </div>
+                <span className="font-sans text-[13px] text-zinc-200">{e.title}</span>
+              </div>
+            ))}
+            {!loading && d && d.macro.news.length > 0 && (
+              <div className="flex flex-col gap-2 border-t border-white/[0.06] pt-3">
+                <span className={label}>MACRO NEWS</span>
+                {d.macro.news.map((n) => (
+                  <div key={n.id} className="flex flex-col gap-1.5">
+                    <div className="flex items-start gap-3 text-[12.5px]">
+                      <span className="w-[52px] flex-none pt-0.5 text-[10px] text-zinc-600">{when(n.ts * 1000).replace(/ \d\d:\d\d$/, "")}</span>
+                      <a href={n.url || undefined} target="_blank" rel="noreferrer" className="line-clamp-2 min-w-0 flex-1 font-sans text-zinc-300 hover:text-white">{n.headline}</a>
+                      <ChartBtn open={openMacro === n.id} onClick={() => setOpenMacro((o) => (o === n.id ? null : n.id))} />
+                    </div>
+                    {openMacro === n.id && <NewsCharts symbols={[...(n.tickers ?? []), "SPY", "TLT", "UUP"]} ts={n.ts} />}
+                  </div>
+                ))}
+              </div>
+            )}
+            {!loading && d && d.macro.calendar.missing.length > 0 && (
+              <p className="m-0 text-[10.5px] text-amber-400/80">Add {d.macro.calendar.missing.join(" + ")} to .env.local for the full calendar.</p>
+            )}
+          </div>
+        </section>
+
+        <section id="mn-calendar" className="flex scroll-mt-2 flex-col gap-3">
+          <H2 t="CALENDAR" />
+          <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+            <AwaitedEvents />
+            <EventCalendar />
+          </div>
+        </section>
       </div>
     </div>
   );

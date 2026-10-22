@@ -54,6 +54,25 @@ function exposure(): Map<string, Exp> {
 const clamp01 = (v: number) => Math.max(0, Math.min(1, v));
 const fmtCap = (b: number) => (b >= 1000 ? `$${(b / 1000).toFixed(1)}T` : `$${Math.round(b)}B`);
 
+/** Market impact of one company's earnings (0–100, same formula as the awaited list) + its profile from our ETF data */
+export function earningsImpact(ticker: string): { score: number; capB: number; etfs: string[]; name: string | null; sub: string | null } | null {
+  const ex = exposure();
+  const x = ex.get(ticker);
+  if (!x) return null;
+  const maxReach = Math.max(1, ...[...ex.values()].map((v) => v.etfs.length));
+  const size = clamp01(Math.log10(Math.max(1, x.capB)) / Math.log10(4500));
+  const score = Math.round(100 * (0.55 * size ** 2 + 0.25 * clamp01(x.spw / 6) + 0.2 * clamp01(x.etfs.length / maxReach)));
+  let name: string | null = null, sub: string | null = null;
+  for (const prof of Object.values(PROFILE_OF)) {
+    const line = prof?.holdings?.find((l) => l.startsWith(ticker + "|"));
+    if (line) { const p = line.split("|"); name = p[1]; sub = p[3]; break; }
+  }
+  return { score, capB: x.capB, etfs: [...x.etfs].sort((a, b) => b[1] - a[1]).slice(0, 4).map(([t]) => t), name, sub };
+}
+
+/** Every ticker held by an ETF in our database */
+export const trackedTickers = () => new Set(exposure().keys());
+
 export function rankAwaited(events: CalEvent[], limit = 10): Awaited[] {
   const ex = exposure();
   const maxReach = Math.max(1, ...[...ex.values()].map((x) => x.etfs.length));
