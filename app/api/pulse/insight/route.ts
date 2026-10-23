@@ -11,7 +11,7 @@ export async function GET(req: Request) {
   const a = (await queryArchive({ from: 0, limit: 100000 })).find((x) => x.id === id);
   if (!a) return Response.json({ error: "Not found" }, { status: 404 });
   try {
-    return Response.json(await insightFor({ id: a.id, headline: a.headline, summary: a.summary, source: a.source, tickers: a.relevant.slice(0, 3) }));
+    return Response.json(await insightFor({ id: a.id, headline: a.headline, summary: a.summary, source: a.source, tickers: a.relevant.slice(0, 3), url: a.url }));
   } catch (e) {
     const msg = e instanceof Error ? e.message : "AI error";
     return Response.json({ error: /429|RESOURCE_EXHAUSTED/.test(msg) ? "Dzienny limit Gemini wyczerpany" : msg.slice(0, 200) }, { status: 502 });

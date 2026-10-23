@@ -153,7 +153,9 @@ export async function marketContext(): Promise<{ events: MarketEvent[]; live: bo
   return out;
 }
 
-export interface ContextQuery { timeframe?: Timeframe; ticker?: string; subSector?: string; minImpact?: number; category?: MacroCategory; limit?: number; order?: "impact" | "newest" }
+export interface ContextQuery { timeframe?: Timeframe; ticker?: string; subSector?: string; minImpact?: number; category?: MacroCategory; limit?: number; order?: "impact" | "newest";
+  /** windows don't overlap: WEEKLY = 1–7 days ago, MONTHLY = 7–30 days ago (so the three tabs show different news) */
+  exclusive?: boolean }
 
 /** Filtered events: timeframe = window (DAILY ≤ 1 day, WEEKLY ≤ 7, MONTHLY ≤ 30), |impact| ≥ minImpact. */
 export async function getMarketContext(q: ContextQuery = {}): Promise<{ events: MarketEvent[]; live: boolean }> {
@@ -161,7 +163,8 @@ export async function getMarketContext(q: ContextQuery = {}): Promise<{ events: 
   const now = Date.now();
   const days = DAYS[q.timeframe ?? "MONTHLY"];
   const t = q.ticker?.toUpperCase();
-  let list = events.filter((e) => now - Date.parse(e.timestamp_utc) <= days * 864e5
+  const minAge = q.exclusive ? (q.timeframe === "WEEKLY" ? 1 : q.timeframe === "MONTHLY" ? 7 : 0) * 864e5 : 0;
+  let list = events.filter((e) => now - Date.parse(e.timestamp_utc) <= days * 864e5 && now - Date.parse(e.timestamp_utc) > minAge
     && (!t || e.affected_tickers.includes(t))
     && (!q.subSector || e.sub_sectors.some((x) => x.toLowerCase() === q.subSector!.toLowerCase()))
     && (q.minImpact == null || Math.abs(e.impact_score) >= q.minImpact)

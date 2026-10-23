@@ -8,7 +8,7 @@
 
 import { promises as fs } from "node:fs";
 import path from "node:path";
-import { ARCHIVE_DIR, saveArticles, type ArchivedArticle } from "./store";
+import { ARCHIVE_DIR, archiveStats, saveArticles, type ArchivedArticle } from "./store";
 import { finnhubCompany, finnhubGeneral, hasFinnhub, newsUniverse, yahooLatest } from "./sources";
 
 export interface JobState {
@@ -149,12 +149,30 @@ async function runBackfill(days: number) {
   }
 }
 
+/* ── Fresh install: the archive only knows the last day or two, so WEEKLY / MONTHLY looked the same as DAILY.
+      After a collect, if the archive covers < 25 days and Finnhub is configured, backfill 30 days once
+      (resumable — the progress file means it never re-downloads what it already has). ── */
+let autoTried = false;
+async function autoBackfill() {
+  if (autoTried || !hasFinnhub() || S().running) return;
+  autoTried = true;
+  const st = await archiveStats().catch(() => null);
+  const oldest = st?.oldest ?? now();
+  if (now() - oldest < 25 * 86400) {
+    log("AUTO-BACKFILL · archive covers < 25 days → fetching the last 30 days once");
+    startBackfill(30);
+  }
+}
+
 /* ── Hourly scheduler (called from instrumentation.ts) ── */
 
 export function startScheduler() {
   const box = g.__infernoNews!;
   if (box.timer || process.env.NEWS_ARCHIVE_DISABLED === "1") return;
-  const tick = () => { S().nextCollectAt = now() + HOUR_MS / 1000; void collectNow(); };
+  const tick = () => {
+    S().nextCollectAt = now() + HOUR_MS / 1000;
+    void collectNow().then(() => autoBackfill()).catch(() => {});
+  };
   box.kick = setTimeout(tick, 5_000); // first run 5 s after start
   box.timer = setInterval(tick, HOUR_MS);
   S().nextCollectAt = now() + 5;

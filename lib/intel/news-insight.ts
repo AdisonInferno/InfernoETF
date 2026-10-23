@@ -7,7 +7,21 @@ import path from "node:path";
 import { GoogleGenAI, Type } from "@google/genai";
 
 export type Dir = "up" | "down" | "neutral";
-export interface NewsInsight { summary: string; impacts: { ticker: string; direction: Dir; why: string }[]; model: string; at: number }
+export interface NewsInsight {
+  summary: string;
+  impacts: { ticker: string; direction: Dir; why: string }[];
+  model: string; at: number;
+  /** v2 — deeper read */
+  v?: 2;
+  whyItMatters?: string;
+  keyPoints?: string[];
+  etfs?: { ticker: string; direction: Dir }[];
+  sectors?: string[];
+  horizon?: "days" | "weeks" | "months";
+  confidence?: "low" | "medium" | "high";
+  /** read the full article page, not only the provider's 2-line summary */
+  fullText?: boolean;
+}
 
 const FILE = path.join(process.cwd(), "data", "intel", "news-insights.json");
 type G = typeof globalThis & { __infernoNewsIns?: Promise<Record<string, NewsInsight>> };
@@ -23,18 +37,35 @@ async function save(db: Record<string, NewsInsight>) {
 }
 
 export async function cachedInsight(id: string): Promise<NewsInsight | null> {
-  return (await load())[id] ?? null;
+  const x = (await load())[id];
+  return x?.v === 2 ? x : null;
 }
 export async function cachedMany(ids: string[]): Promise<Record<string, NewsInsight>> {
   const db = await load();
-  return Object.fromEntries(ids.filter((i) => db[i]).map((i) => [i, db[i]]));
+  return Object.fromEntries(ids.filter((i) => db[i]?.v === 2).map((i) => [i, db[i]]));
+}
+
+/** Best effort: the article page as plain text (≤ 6 000 chars). Paywalls / blocked sites → null, the summary is used. */
+async function articleText(url: string): Promise<string | null> {
+  if (!/^https?:\/\//.test(url)) return null;
+  try {
+    const r = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) OASIS-terminal", Accept: "text/html" }, redirect: "follow", signal: AbortSignal.timeout(7000) });
+    if (!r.ok || !(r.headers.get("content-type") ?? "").includes("html")) return null;
+    const html = (await r.text()).slice(0, 600_000);
+    const body = html
+      .replace(/<(script|style|noscript|svg|nav|footer|header|aside|form)[\s\S]*?<\/\1>/gi, " ")
+      .match(/<p[\s>][\s\S]*?<\/p>/gi)?.map((p) => p.replace(/<[^>]+>/g, " ").replace(/&nbsp;/g, " ").replace(/&amp;/g, "&").replace(/&#39;|&rsquo;/g, "'").replace(/&quot;|&ldquo;|&rdquo;/g, '"').replace(/\s+/g, " ").trim())
+      .filter((t) => t.length > 60).join("\n") ?? "";
+    return body.length > 400 ? body.slice(0, 6000) : null;
+  } catch { return null; }
 }
 
 const MODELS = () => [...new Set([process.env.GEMINI_MODEL ?? "gemini-3.5-flash", "gemini-3.5-flash", "gemini-3.5-flash-lite", "gemini-2.5-flash"])];
 
-export async function insightFor(a: { id: string; headline: string; summary: string; source: string; tickers: string[] }): Promise<NewsInsight> {
+export async function insightFor(a: { id: string; headline: string; summary: string; source: string; tickers: string[]; url?: string }): Promise<NewsInsight> {
   const db = await load();
-  if (db[a.id]) return db[a.id];
+  if (db[a.id]?.v === 2) return db[a.id];
+  const full = a.url ? await articleText(a.url) : null;
   const key = process.env.GEMINI_API_KEY;
   if (!key) throw new Error("Brak GEMINI_API_KEY");
   const ai = new GoogleGenAI({ apiKey: key });
@@ -43,30 +74,47 @@ export async function insightFor(a: { id: string; headline: string; summary: str
     try {
       const res = await ai.models.generateContent({
         model,
-        contents: `HEADLINE: ${a.headline}\nSOURCE: ${a.source}\nTEXT: ${a.summary.slice(0, 1500)}\nTICKERS: ${a.tickers.join(", ") || "(none tagged — pick the 1–3 most affected US-listed tickers or ETFs)"}`,
+        contents: `HEADLINE: ${a.headline}\nSOURCE: ${a.source}\nSUMMARY: ${a.summary.slice(0, 1500)}\n${full ? `ARTICLE TEXT:\n${full}\n` : ""}TICKERS: ${a.tickers.join(", ") || "(none tagged — pick the 1–3 most affected US-listed tickers or ETFs)"}`,
         config: {
           systemInstruction:
-            "You are a sell-side equity analyst. Using ONLY the given text, write a 1–2 sentence summary of what happened and why it matters for investors (max 220 characters). " +
-            "For each ticker, judge the likely direct impact on that company's stock: up, down or neutral, with a reason of max 70 characters. Do not invent numbers.",
+            "You are a sell-side equity analyst. Using ONLY the given text: " +
+            "summary = 1–2 sentences on what happened (max 240 chars). whyItMatters = 1–2 sentences on why investors should care (max 240 chars). " +
+            "keyPoints = 2–4 short facts from the text, with the numbers it states (each max 110 chars). " +
+            "impacts = for each ticker the likely direct stock impact up/down/neutral with a reason (max 80 chars). " +
+            "etfs = 1–3 US ETFs most exposed (ticker + direction). sectors = 1–2 sectors affected. horizon = days, weeks or months. " +
+            "confidence = low if the text is thin or speculative. Never invent numbers that are not in the text.",
           temperature: 0.1,
           responseMimeType: "application/json",
           responseSchema: {
             type: Type.OBJECT,
             properties: {
               summary: { type: Type.STRING },
+              whyItMatters: { type: Type.STRING },
+              keyPoints: { type: Type.ARRAY, items: { type: Type.STRING } },
+              etfs: { type: Type.ARRAY, items: { type: Type.OBJECT, properties: { ticker: { type: Type.STRING }, direction: { type: Type.STRING, enum: ["up", "down", "neutral"] } }, required: ["ticker", "direction"] } },
+              sectors: { type: Type.ARRAY, items: { type: Type.STRING } },
+              horizon: { type: Type.STRING, enum: ["days", "weeks", "months"] },
+              confidence: { type: Type.STRING, enum: ["low", "medium", "high"] },
               impacts: { type: Type.ARRAY, items: { type: Type.OBJECT, properties: {
                 ticker: { type: Type.STRING }, direction: { type: Type.STRING, enum: ["up", "down", "neutral"] }, why: { type: Type.STRING },
               }, required: ["ticker", "direction", "why"] } },
             },
-            required: ["summary", "impacts"],
+            required: ["summary", "impacts", "whyItMatters", "keyPoints"],
           },
         },
       });
-      const j = JSON.parse(res.text ?? "{}") as { summary?: string; impacts?: NewsInsight["impacts"] };
+      const j = JSON.parse(res.text ?? "{}") as Partial<NewsInsight>;
+      const dir = (d: unknown): Dir => (["up", "down", "neutral"].includes(String(d)) ? d as Dir : "neutral");
       const out: NewsInsight = {
-        summary: String(j.summary ?? "").slice(0, 300),
-        impacts: (j.impacts ?? []).slice(0, 4).map((x) => ({ ticker: String(x.ticker).toUpperCase().slice(0, 8), direction: (["up", "down", "neutral"].includes(x.direction) ? x.direction : "neutral") as Dir, why: String(x.why ?? "").slice(0, 90) })),
-        model, at: Math.floor(Date.now() / 1000),
+        summary: String(j.summary ?? "").slice(0, 320),
+        impacts: (j.impacts ?? []).slice(0, 4).map((x) => ({ ticker: String(x.ticker).toUpperCase().slice(0, 8), direction: dir(x.direction), why: String(x.why ?? "").slice(0, 110) })),
+        model, at: Math.floor(Date.now() / 1000), v: 2, fullText: !!full,
+        whyItMatters: String(j.whyItMatters ?? "").slice(0, 300),
+        keyPoints: (j.keyPoints ?? []).slice(0, 4).map((k) => String(k).slice(0, 140)),
+        etfs: (j.etfs ?? []).slice(0, 3).map((x) => ({ ticker: String(x.ticker).toUpperCase().slice(0, 8), direction: dir(x.direction) })),
+        sectors: (j.sectors ?? []).slice(0, 2).map((x) => String(x).slice(0, 40)),
+        horizon: (["days", "weeks", "months"].includes(String(j.horizon)) ? j.horizon : undefined),
+        confidence: (["low", "medium", "high"].includes(String(j.confidence)) ? j.confidence : undefined),
       };
       db[a.id] = out;
       await save(db);

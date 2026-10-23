@@ -32,11 +32,13 @@ export function estDollarVolM(e: EtfRow, days = 1, move = e.chg1d): number {
 /* one timeframe for MOST ACTIVE + TOP MOVERS */
 type Tf = "1D" | "1W" | "1M";
 const TFS: Tf[] = ["1D", "1W", "1M"];
-const SESSIONS: Record<Tf, number> = { "1D": 1, "1W": 5, "1M": 21 };
-const fmtVol = (m: number) => (m >= 1000 ? `$${(m / 1000).toFixed(1)}B` : `$${m.toFixed(0)}M`);
 
 type Dir = "up" | "down" | "neutral";
-interface Insight { summary: string; impacts: { ticker: string; direction: Dir; why: string }[] }
+interface Insight {
+  summary: string; impacts: { ticker: string; direction: Dir; why: string }[];
+  whyItMatters?: string; keyPoints?: string[]; etfs?: { ticker: string; direction: Dir }[]; sectors?: string[];
+  horizon?: string; confidence?: string; fullText?: boolean;
+}
 interface News { id: string; ts: number; headline: string; url: string; source: string; tickers: string[]; tone: number; impact?: 1 | 2 | 3; impactPts?: number; category?: string; impactScore?: number; vol?: "HIGH" | "MEDIUM" | "LOW"; sample?: boolean; insight: Insight | null }
 
 const ago = (ts: number) => {
@@ -72,7 +74,7 @@ function Impact({ n, pts }: { n: number; pts?: number }) {
 }
 
 type NRange = "d" | "w" | "m";
-const NRANGES: [NRange, string][] = [["d", "DAILY"], ["w", "WEEKLY"], ["m", "MONTHLY"]];
+const NRANGES: [NRange, string][] = [["d", "DAILY · 24H"], ["w", "WEEKLY · 1–7D"], ["m", "MONTHLY · 7–30D"]];
 
 /** HIGH / MED / LOW expected volatility — green when the read is bullish, red when bearish, grey when neutral */
 function VolBadge({ vol, score }: { vol: "HIGH" | "MEDIUM" | "LOW"; score: number }) {
@@ -121,11 +123,17 @@ function NewsRow({ n, onInsight, mine }: { n: News; onInsight: (id: string, i: I
         <span className="truncate text-[13px] leading-snug text-zinc-200" title={n.headline}>{n.headline}</span>
       </a>
       {hover && (
-        <div className="pointer-events-none fixed z-[100] w-[340px] rounded-sm border border-white/[0.1] bg-[var(--oasis-panel)] p-3 font-mono" style={{ left: Math.max(8, hover.x - 348), top: hover.y }}>
+        <div className="pointer-events-none fixed z-[100] w-[400px] rounded-sm border border-white/[0.1] bg-[var(--oasis-panel)] p-3 font-mono" style={{ left: Math.max(8, hover.x - 408), top: Math.max(8, Math.min(hover.y, window.innerHeight - 380)) }}>
           <div className="mb-1.5 text-[9.5px] font-bold tracking-[0.14em] text-zinc-500">[ AI OVERSIGHT ]</div>
           {n.insight ? (
             <>
               <p className="m-0 font-sans text-[12.5px] leading-snug text-zinc-200">{n.insight.summary}</p>
+              {n.insight.whyItMatters && <p className="m-0 mt-1.5 font-sans text-[11.5px] leading-snug text-zinc-400"><span className="font-mono text-[9px] tracking-[0.12em] text-oasis">WHY IT MATTERS · </span>{n.insight.whyItMatters}</p>}
+              {!!n.insight.keyPoints?.length && (
+                <ul className="m-0 mt-1.5 flex list-none flex-col gap-0.5 p-0">
+                  {n.insight.keyPoints.map((k) => <li key={k} className="flex gap-1.5 font-sans text-[11px] leading-snug text-zinc-300"><span className="text-zinc-600">›</span>{k}</li>)}
+                </ul>
+              )}
               <div className="mt-2 flex flex-col gap-1">
                 {n.insight.impacts.map((x) => (
                   <span key={x.ticker} className="flex items-baseline gap-2 text-[11px]">
@@ -134,7 +142,15 @@ function NewsRow({ n, onInsight, mine }: { n: News; onInsight: (id: string, i: I
                   </span>
                 ))}
               </div>
-              <div className="mt-2 text-[9px] tracking-[0.06em] text-zinc-600">LLM READ OF HEADLINE · CACHED · VERIFY BEFORE TRADING</div>
+              {(!!n.insight.etfs?.length || !!n.insight.sectors?.length || n.insight.horizon) && (
+                <div className="mt-2 flex flex-wrap items-center gap-1.5 text-[10px]">
+                  {n.insight.etfs?.map((x) => <span key={x.ticker} className={`rounded-sm px-1.5 font-bold ${DIR_CLS[x.direction]}`}>ETF {x.ticker}</span>)}
+                  {n.insight.sectors?.map((x) => <span key={x} className="rounded-sm border border-white/[0.1] px-1.5 text-zinc-400">{x}</span>)}
+                  {n.insight.horizon && <span className="text-zinc-500">HORIZON: {n.insight.horizon.toUpperCase()}</span>}
+                  {n.insight.confidence && <span className={n.insight.confidence === "low" ? "text-amber-400/80" : "text-zinc-500"}>CONF: {n.insight.confidence.toUpperCase()}</span>}
+                </div>
+              )}
+              <div className="mt-2 text-[9px] tracking-[0.06em] text-zinc-600">{n.insight.fullText ? "LLM READ OF THE FULL ARTICLE" : "LLM READ OF HEADLINE + SUMMARY"} · CACHED · VERIFY BEFORE TRADING</div>
             </>
           ) : state.error ? (
             <p className="m-0 text-[11px] text-amber-400">⚠ {state.error}</p>
@@ -148,10 +164,12 @@ function NewsRow({ n, onInsight, mine }: { n: News; onInsight: (id: string, i: I
 }
 
 /** Market-moving headlines (DAILY / WEEKLY / MONTHLY, 1-3 impact bars). Scanner rail = newest first; NEWS page = most important first. */
-export function NewsFeed({ limit = 25, order = "newest" }: { limit?: number; order?: "newest" | "impact" }) {
+export function NewsFeed({ limit = 25, order: order0 = "impact" }: { limit?: number; order?: "newest" | "impact" }) {
   const [news, setNews] = useState<News[] | null>(null);
   const [nr, setNr] = useState<NRange>("d");
-  const [feed, setFeed] = useState({ live: true, collecting: false });
+  /** sort: most market impact first, or newest first */
+  const [order, setOrder] = useState<"newest" | "impact">(order0);
+  const [feed, setFeed] = useState({ live: true, collecting: false, coverage: 30, backfilling: false });
   /* my portfolio, look-through (ETFs opened up) → which news touch what I own */
   const myPos = useMyPortfolio();
   const mineW = useMemo(() => lookThrough(myPos), [myPos]);
@@ -159,9 +177,9 @@ export function NewsFeed({ limit = 25, order = "newest" }: { limit?: number; ord
     let off = false;
     const load = () => fetch(`/api/pulse/news?limit=${limit}&range=${nr}&order=${order}`)
       .then((r) => (r.ok ? r.json() : { news: [] }))
-      .then((j: { news?: News[]; live?: boolean; collecting?: boolean }) => {
+      .then((j: { news?: News[]; live?: boolean; collecting?: boolean; coverageDays?: number; backfilling?: boolean }) => {
         if (off) return;
-        setNews(j.news ?? []); setFeed({ live: j.live !== false, collecting: !!j.collecting });
+        setNews(j.news ?? []); setFeed({ live: j.live !== false, collecting: !!j.collecting, coverage: j.coverageDays ?? 30, backfilling: !!j.backfilling });
         // first start: archive still being filled → look again shortly
         if (j.live === false) retry = setTimeout(load, 20_000);
       })
@@ -189,14 +207,23 @@ export function NewsFeed({ limit = 25, order = "newest" }: { limit?: number; ord
             </button>
           ))}
         </div>
-        {myPos.length > 0 && (
-          <div className="flex gap-1.5 px-3 pb-2 font-mono text-[9.5px] font-bold tracking-[0.12em]">
-            {([["all", "ALL"], ["mine", "MY HOLDINGS"]] as const).map(([k, l]) => (
-              <button key={k} type="button" onClick={() => setScope(k)} aria-pressed={scope === k}
-                className={`h-5 rounded-sm border px-2 ${scope === k ? "oasis-on" : "border-white/[0.08] text-zinc-500 hover:text-zinc-200"}`}>{l}</button>
+        <div className="flex flex-wrap gap-1.5 px-3 pb-2 font-mono text-[9.5px] font-bold tracking-[0.12em]">
+          {myPos.length > 0 && ([["all", "ALL"], ["mine", "MY HOLDINGS"]] as const).map(([k, l]) => (
+            <button key={k} type="button" onClick={() => setScope(k)} aria-pressed={scope === k}
+              className={`h-5 rounded-sm border px-2 ${scope === k ? "oasis-on" : "border-white/[0.08] text-zinc-500 hover:text-zinc-200"}`}>{l}</button>
+          ))}
+          <span className="ml-auto flex rounded-sm border border-white/[0.08] p-px" role="group" aria-label="Sort news">
+            {([["impact", "IMPORTANT"], ["newest", "NEWEST"]] as const).map(([k, l]) => (
+              <button key={k} type="button" onClick={() => { if (k !== order) { setNews(null); setOrder(k); } }} aria-pressed={order === k}
+                title={k === "impact" ? "Biggest market impact first" : "Most recent first"}
+                className={`h-[18px] rounded-sm px-2 ${order === k ? "oasis-on" : "text-zinc-500 hover:text-zinc-200"}`}>{l}</button>
             ))}
-            <span className="ml-auto self-center font-normal text-zinc-600">{order === "impact" ? "MOST IMPORTANT FIRST" : "NEWEST FIRST"}</span>
-          </div>
+          </span>
+        </div>
+        {feed.live && nr !== "d" && feed.coverage < (nr === "w" ? 6 : 25) && (
+          <p className="m-0 mx-3 mb-1 rounded-sm border border-white/[0.08] px-2 py-1 font-mono text-[9.5px] leading-snug text-zinc-400">
+            Archive covers only the last {feed.coverage.toFixed(1)} days{feed.backfilling ? " — downloading older news now, this fills in by itself" : " — older news is downloaded automatically when FINNHUB_API_KEY is set"}.
+          </p>
         )}
         {!feed.live && news && news.length > 0 && (
           <p className="m-0 mx-3 mb-1 rounded-sm border border-amber-400/20 bg-amber-400/[0.05] px-2 py-1 font-mono text-[9.5px] leading-snug text-amber-300/90">
@@ -224,8 +251,6 @@ export default function MarketPulse({ rows, all = ETFS }: { rows: EtfRow[]; /** 
   const win = useHoldingReturns(syms, tf);
   const r = (e: EtfRow): number | null => (tf === "1D" ? e.chg1d : win.ret[e.ticker.toUpperCase()] ?? null);
   const loading = tf !== "1D" && win.state === "loading";
-  const active = [...all].map((e) => ({ e, v: estDollarVolM(e, SESSIONS[tf], r(e) ?? e.chg1d) })).sort((a, b) => b.v - a.v).slice(0, 5);
-  const maxV = active[0]?.v ?? 1;
   const byMove = rows.map((e) => ({ e, m: r(e) })).filter((x): x is { e: EtfRow; m: number } => x.m != null && Number.isFinite(x.m)).sort((a, b) => b.m - a.m);
   const up = byMove.slice(0, 3).filter((x) => x.m > 0);
   const down = byMove.slice(-3).reverse().filter((x) => x.m < 0);
@@ -248,29 +273,7 @@ export default function MarketPulse({ rows, all = ETFS }: { rows: EtfRow[]; /** 
           </div>
           {loading && <span className="font-mono text-[9.5px] text-zinc-600">loading…</span>}
         </div>
-        <H t={`MOST ACTIVE · ${tf}`} />
-        <div className="flex flex-col gap-1 px-3 py-2">
-          {active.map(({ e, v }, i) => {
-            const pos = e.chg1d >= 0;
-            return (
-              <Link key={e.ticker} href={`/etf/${e.ticker}`} className="grid grid-cols-[12px_48px_minmax(0,1fr)_70px] items-center gap-2 font-mono text-[12px] tabular-nums transition-colors duration-75 hover:bg-white/[0.03]">
-                <span className="text-[10px] text-zinc-600">{i + 1}</span>
-                <span className="font-bold text-zinc-100">{e.ticker}</span>
-                <span className="relative h-[20px] min-w-0">
-                  <span className={`absolute inset-y-0 left-0 rounded-sm ${pos ? "bg-emerald-500/25" : "bg-rose-500/25"}`} style={{ width: `${Math.max(42, (v / maxV) * 100)}%` }} />
-                  <span className={`absolute inset-y-0 left-0 w-[2px] ${pos ? "bg-emerald-400" : "bg-rose-400"}`} />
-                  <span className="relative flex h-full items-center whitespace-nowrap pl-2 text-[10.5px] text-zinc-200">
-                    <span className="mr-1.5 text-[9px] tracking-[0.12em] text-zinc-400">VOL</span>{fmtVol(v)}
-                  </span>
-                </span>
-                {r(e) == null ? <span className="w-[70px] text-right text-zinc-600">{loading ? "···" : "N/A"}</span> : <Pct v={r(e)!} />}
-              </Link>
-            );
-          })}
-        </div>
-
         {/* Top movers in the current view */}
-        <div className="mt-1 border-t border-white/[0.08]" />
         <H t={`TOP MOVERS · ${tf}`} />
         <div className="py-1">
           {[...up, ...down].map(({ e, m }, i) => (
