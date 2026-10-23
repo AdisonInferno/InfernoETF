@@ -14,14 +14,38 @@ import { ETFS } from "@/lib/etfs";
 export interface BoardPosition { ticker: string; name: string; weight: number; sym: string; href: string }
 
 const KEY = "oasis.pf.chartboard.v1";
-type Layout = 1 | 4 | 6 | 9;
-const LAYOUTS: [Layout, string, number][] = [[1, "1", 1], [4, "2×2", 2], [6, "3×2", 3], [9, "3×3", 3]];
+type Layout = "1" | "2x2" | "3x2" | "3x3" | "rows" | "cols";
+/** id · title · columns · charts shown · icon grid [cols, rows] */
+const LAYOUTS: { id: Layout; title: string; cols: number; n: number; icon: [number, number] }[] = [
+  { id: "1", title: "One large chart", cols: 1, n: 1, icon: [1, 1] },
+  { id: "rows", title: "Stacked rows (3 wide charts, one under another)", cols: 1, n: 3, icon: [1, 3] },
+  { id: "cols", title: "Side by side (3 tall charts)", cols: 3, n: 3, icon: [3, 1] },
+  { id: "2x2", title: "Grid 2 × 2", cols: 2, n: 4, icon: [2, 2] },
+  { id: "3x2", title: "Grid 3 × 2", cols: 3, n: 6, icon: [3, 2] },
+  { id: "3x3", title: "Grid 3 × 3", cols: 3, n: 9, icon: [3, 3] },
+];
+const layoutOf = (id: unknown) => LAYOUTS.find((l) => l.id === id) ?? LAYOUTS[5];
+
+/** little picture of a layout: cols × rows boxes */
+function LayoutIcon({ c, r }: { c: number; r: number }) {
+  const W = 22, H = 16, g = 1.5;
+  const w = (W - g * (c - 1)) / c, h = (H - g * (r - 1)) / r;
+  return (
+    <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} aria-hidden>
+      {Array.from({ length: c * r }, (_, i) => <rect key={i} x={(i % c) * (w + g)} y={Math.floor(i / c) * (h + g)} width={w} height={h} rx={1} fill="currentColor" opacity={0.85} />)}
+    </svg>
+  );
+}
 
 interface Saved { syms: string[]; layout: Layout; tf: GridTf; custom: boolean }
 
-export default function PortfolioChartBoard({ positions, onClose }: { positions: BoardPosition[]; onClose: () => void }) {
-  const top9 = useMemo(() => [...positions].sort((a, b) => b.weight - a.weight).slice(0, 9).map((p) => p.sym), [positions]);
-  const [st, setSt] = useState<Saved>({ syms: top9, layout: 9, tf: "1Y", custom: false });
+export default function PortfolioChartBoard({ positions, extra = [], onClose }: { positions: BoardPosition[]; /** look-through holdings (stocks inside your ETFs) — fill the board when you hold < 9 positions */ extra?: BoardPosition[]; onClose: () => void }) {
+  const top9 = useMemo(() => {
+    const own = [...positions].sort((a, b) => b.weight - a.weight).map((p) => p.sym);
+    const fill = [...extra].sort((a, b) => b.weight - a.weight).map((p) => p.sym).filter((s) => !own.includes(s));
+    return [...own, ...fill].slice(0, 9);
+  }, [positions, extra]);
+  const [st, setSt] = useState<Saved>({ syms: top9, layout: "3x3", tf: "1Y", custom: false });
   const [focus, setFocus] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
   const [q, setQ] = useState("");
@@ -33,7 +57,7 @@ export default function PortfolioChartBoard({ positions, onClose }: { positions:
       if (raw) {
         const j = JSON.parse(raw) as Saved;
         // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time restore from browser storage
-        if (Array.isArray(j.syms)) setSt({ ...j, syms: j.custom ? j.syms : top9 });
+        if (Array.isArray(j.syms)) setSt({ ...j, layout: layoutOf(j.layout).id, syms: j.custom ? j.syms : top9 });
       }
     } catch { /* ignore */ }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- restore once
@@ -46,14 +70,18 @@ export default function PortfolioChartBoard({ positions, onClose }: { positions:
   }, [focus, onClose]);
 
   const bySym = useMemo(() => Object.fromEntries(positions.map((p) => [p.sym, p])), [positions]);
+  const exBySym = useMemo(() => Object.fromEntries(extra.map((p) => [p.sym, p])), [extra]);
   const itemOf = (sym: string): GridItem => {
     const p = bySym[sym];
     if (p) return { sym, label: p.ticker, sub: p.name, note: `${p.weight.toFixed(1)}% of the portfolio`, href: p.href };
+    const x = exBySym[sym];
+    if (x) return { sym, label: x.ticker, sub: x.name, note: `${x.weight.toFixed(1)}% of the portfolio · inside your ETFs`, href: x.href };
     const e = ETFS.find((x) => x.ticker === sym);
     return { sym, label: sym, sub: e?.name ?? "not in the portfolio", href: e ? `/etf/${sym}` : `/stock/${sym}` };
   };
-  const shown = focus ? [focus] : st.syms.slice(0, st.layout);
-  const cols = focus ? 1 : LAYOUTS.find((l) => l[0] === st.layout)![2];
+  const L = layoutOf(st.layout);
+  const shown = focus ? [focus] : st.syms.slice(0, L.n);
+  const cols = focus ? 1 : L.cols;
 
   const remove = (sym: string) => { save({ ...st, syms: st.syms.filter((s) => s !== sym), custom: true }); if (focus === sym) setFocus(null); };
   const add = (sym: string) => {
@@ -68,8 +96,10 @@ export default function PortfolioChartBoard({ positions, onClose }: { positions:
       .map((p) => ({ sym: p.sym, label: p.ticker, sub: `${p.weight.toFixed(1)}% · ${p.name}`, mine: true }));
     const etf = n ? ETFS.filter((e) => !st.syms.includes(e.ticker) && (e.ticker.toLowerCase().startsWith(n) || e.name.toLowerCase().includes(n))).slice(0, 8)
       .map((e) => ({ sym: e.ticker, label: e.ticker, sub: e.name, mine: false })) : [];
-    return [...pos, ...etf];
-  }, [q, positions, st.syms]);
+    const inside = extra.filter((p) => !st.syms.includes(p.sym) && (!n || p.ticker.toLowerCase().includes(n) || p.name.toLowerCase().includes(n))).slice(0, n ? 8 : 6)
+      .map((p) => ({ sym: p.sym, label: p.ticker, sub: `${p.weight.toFixed(1)}% · ${p.name} · inside your ETFs`, mine: true }));
+    return [...pos, ...inside, ...etf];
+  }, [q, positions, extra, st.syms]);
 
   const chip = (on: boolean) => `h-7 rounded-sm px-2.5 font-mono text-[10.5px] font-bold tracking-[0.1em] ${on ? "oasis-on" : "text-zinc-500 hover:text-zinc-200"}`;
 
@@ -77,17 +107,23 @@ export default function PortfolioChartBoard({ positions, onClose }: { positions:
     <div className="fixed inset-0 z-[150] flex flex-col bg-black/80 p-3 backdrop-blur-[2px]" onClick={onClose}>
       <div onClick={(e) => e.stopPropagation()} className="flex min-h-0 flex-1 flex-col gap-2 rounded-sm border border-white/[0.08] bg-[var(--oasis-bg)] p-2">
         <div className="min-h-0 flex-1">
-          <ChartGrid items={shown.map(itemOf)} tf={st.tf} onTf={(tf) => save({ ...st, tf })} cols={cols} rowMin={focus ? 400 : 150}
-            title={focus ? `PORTFOLIO CHARTS · ${itemOf(focus).label}` : `PORTFOLIO CHARTS · TOP ${Math.min(st.layout, st.syms.length)} BY WEIGHT`}
+          <ChartGrid items={shown.map(itemOf)} tf={st.tf} onTf={(tf) => save({ ...st, tf })} cols={cols} rowMin={focus ? 400 : L.id === "rows" ? 200 : 150}
+            title={focus ? `PORTFOLIO CHARTS · ${itemOf(focus).label}` : `PORTFOLIO CHARTS · TOP ${Math.min(L.n, st.syms.length)} BY WEIGHT`}
             hint={focus ? "Esc or ⤡ = back to the grid · pick another chart in the strip below" : "⤢ = show one large · × = remove · + below = add a chart"}
             onRemove={remove} onFocus={focus ? undefined : setFocus}
             tools={<>
               {focus ? <button type="button" onClick={() => setFocus(null)} className={chip(false)}>[ ⤡ GRID ]</button> : (
                 <div className="flex rounded-sm border border-white/[0.06] p-0.5" title="Layout">
-                  {LAYOUTS.map(([n, l]) => <button key={n} type="button" onClick={() => n === 1 ? setFocus(st.syms[0] ?? null) : save({ ...st, layout: n })} className={chip(!focus && st.layout === n)}>{l}</button>)}
+                  {LAYOUTS.map((l) => (
+                    <button key={l.id} type="button" title={l.title} aria-label={l.title}
+                      onClick={() => l.id === "1" ? setFocus(st.syms[0] ?? null) : save({ ...st, layout: l.id })}
+                      className={`flex h-7 w-9 items-center justify-center rounded-sm ${!focus && st.layout === l.id ? "oasis-on" : "text-zinc-500 hover:text-zinc-200"}`}>
+                      <LayoutIcon c={l.icon[0]} r={l.icon[1]} />
+                    </button>
+                  ))}
                 </div>
               )}
-              <button type="button" onClick={() => { save({ syms: top9, layout: 9, tf: st.tf, custom: false }); setFocus(null); }} className={chip(false)} title="Back to the 9 largest positions">[ RESET TOP 9 ]</button>
+              <button type="button" onClick={() => { save({ syms: top9, layout: "3x3", tf: st.tf, custom: false }); setFocus(null); }} className={chip(false)} title="Back to the 9 largest positions">[ RESET TOP 9 ]</button>
               <button type="button" onClick={onClose} aria-label="Close" className="px-2 text-[18px] leading-none text-zinc-500 hover:text-white">×</button>
             </>} />
         </div>
@@ -96,7 +132,7 @@ export default function PortfolioChartBoard({ positions, onClose }: { positions:
         <div className="relative flex flex-none flex-wrap items-center gap-1.5 border-t border-white/[0.06] px-1 pt-2 font-mono">
           <span className="mr-1 text-[9.5px] tracking-[0.14em] text-zinc-600">ON THE BOARD</span>
           {st.syms.map((s, i) => {
-            const it = itemOf(s), on = focus === s, hidden = !focus && i >= st.layout;
+            const it = itemOf(s), on = focus === s, hidden = !focus && i >= L.n;
             return (
               <span key={s} className={`flex h-7 items-center gap-1.5 rounded-sm border px-2 text-[11px] ${on ? "oasis-on" : hidden ? "border-white/[0.05] text-zinc-600" : "border-white/[0.1] text-zinc-300"}`}>
                 <button type="button" onClick={() => setFocus(s)} title={hidden ? "Not in the current layout — click to show it large" : "Show large"} className="font-bold hover:text-white">{it.label}</button>

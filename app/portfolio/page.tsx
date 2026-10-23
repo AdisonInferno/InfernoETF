@@ -1,4 +1,6 @@
 "use client";
+import { lookThrough } from "@/lib/portfolio";
+import { PROFILE_OF } from "@/lib/fund-profiles";
 
 import ChartGrid, { type GridTf } from "@/components/ChartGrid";
 import { currencyOf, formatMarketValue } from "@/lib/format";
@@ -242,6 +244,14 @@ export default function PortfolioPage() {
     const sym = symOf[a.ticker] ?? a.ticker;
     return { ticker: a.ticker, name: a.name, weight, sym, href: a.kind === "etf" ? `/etf/${a.ticker}` : `/stock/${a.ticker}${sym !== a.ticker ? `?y=${sym}` : ""}` };
   }), [livePos, symOf]);
+  /* stocks inside the ETFs (look-through) — fill the chart board when there are fewer than 9 positions */
+  const boardExtra = useMemo(() => {
+    const own = new Set(livePos.map((p) => p.asset.ticker));
+    const names: Record<string, string> = {};
+    for (const prof of Object.values(PROFILE_OF)) for (const l of prof?.holdings ?? []) { const [t, n] = l.split("|"); names[t] ??= n; }
+    return Object.entries(lookThrough(livePos)).filter(([t, w]) => !own.has(t) && w > 0).sort((a, b) => b[1] - a[1]).slice(0, 20)
+      .map(([t, w]) => ({ ticker: t, name: names[t] ?? t, weight: w, sym: t, href: `/stock/${t}` }));
+  }, [livePos]);
   /* PERFORMANCE DRIVERS: the positions you actually own (Yahoo symbol for the price, real weight) */
   const driverPositions = useMemo(() => livePos.map(({ asset: a, weight }) => ({ tic: symOf[a.ticker] ?? a.ticker, name: `${a.ticker !== (symOf[a.ticker] ?? a.ticker) ? a.ticker + " · " : ""}${a.name}`, w: weight, group: a.kind === "etf" ? "ETFs" : "Stocks" })), [livePos, symOf]);
   /* HOLDINGS tab: map positions (portfolio level of the treemap) + the positions that make ≥70% of the portfolio */
@@ -565,7 +575,7 @@ export default function PortfolioPage() {
     // falling cards are clipped by <main> while its scroll is locked during the transition.
     <div className={`relative mx-auto flex min-h-full w-full max-w-[3200px] flex-none flex-col gap-3 overflow-x-clip bg-[var(--oasis-bg)] px-3 min-[1800px]:px-6 pb-5 pt-3 ${cockpit ? "xl:h-full xl:min-h-0 xl:gap-2 xl:overflow-hidden xl:pb-3 xl:pt-2" : ""}`}>
       {/* XTB import over an existing portfolio: replaces positions after review */}
-      {chartsOpen && <PortfolioChartBoard positions={boardPositions} onClose={() => setChartsOpen(false)} />}
+      {chartsOpen && <PortfolioChartBoard positions={boardPositions} extra={boardExtra} onClose={() => setChartsOpen(false)} />}
       {importing && showMine && (
         <div className="fixed inset-0 z-[80] overflow-y-auto bg-[var(--oasis-bg)]/85 p-4" onClick={() => setImporting(false)}>
           <div className="mx-auto mt-10 max-w-[1500px]" onClick={(e) => e.stopPropagation()}>
