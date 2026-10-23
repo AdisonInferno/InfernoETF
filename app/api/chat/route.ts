@@ -1,4 +1,5 @@
 import { getMarketContextForAI } from "@/lib/news-archive/marketContextStore";
+import { getEarningsContextForAI } from "@/lib/intel/earnings";
 import { GoogleGenAI } from "@google/genai";
 
 // The SDK needs Node APIs, and every request must hit the API fresh.
@@ -51,8 +52,13 @@ export async function POST(req: Request) {
   }));
 
   // ground the assistant in this week's scored market events (live archive, or flagged samples)
-  const marketCtx = await getMarketContextForAI({ timeframe: "WEEKLY", limit: 20 }).catch(() => "");
-  const system = marketCtx ? `${SYSTEM_PROMPT}\n\n${marketCtx}\nUse these events when relevant; say when they are SAMPLE data.` : SYSTEM_PROMPT;
+  // two separate blocks: news events and earnings results — never merged into one list
+  const [marketCtx, earnCtx] = await Promise.all([
+    getMarketContextForAI({ timeframe: "WEEKLY", limit: 20 }).catch(() => ""),
+    getEarningsContextForAI(15).catch(() => ""),
+  ]);
+  const blocks = [marketCtx && `${marketCtx}\n(NEWS — headlines; say when they are SAMPLE data)`, earnCtx && `${earnCtx}\n(EARNINGS — reported results and estimates; do not treat as news headlines)`].filter(Boolean);
+  const system = blocks.length ? `${SYSTEM_PROMPT}\n\n${blocks.join("\n\n")}` : SYSTEM_PROMPT;
 
   const ai = new GoogleGenAI({ apiKey });
   const encoder = new TextEncoder();

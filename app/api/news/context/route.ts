@@ -1,3 +1,4 @@
+import { earningsBoard, getEarningsContextForAI, toEarningsRecord } from "@/lib/intel/earnings";
 import { getMarketContext, getMarketContextForAI, type MacroCategory, type Timeframe } from "@/lib/news-archive/marketContextStore";
 
 export const runtime = "nodejs";
@@ -7,6 +8,12 @@ export const dynamic = "force-dynamic";
     → structured market events (json) or the compact LLM grounding block (md). */
 export async function GET(req: Request) {
   const p = new URL(req.url).searchParams;
+  // kind=earnings → the separate earnings file / block (never mixed with news)
+  if (p.get("kind") === "earnings") {
+    if (p.get("format") === "md") return new Response(await getEarningsContextForAI(40), { headers: { "content-type": "text/markdown; charset=utf-8" } });
+    const { rows, error } = await earningsBoard(14, 21);
+    return Response.json({ kind: "EARNINGS", error, earnings: rows.map(toEarningsRecord) });
+  }
   const tf = p.get("timeframe")?.toUpperCase();
   const timeframe = (["DAILY", "WEEKLY", "MONTHLY"].includes(tf ?? "") ? tf : "WEEKLY") as Timeframe;
   const ticker = p.get("ticker")?.toUpperCase().slice(0, 10) || undefined;

@@ -4,6 +4,8 @@
  *   · REPORTED rows also get the stock's price reaction: last close before the release → first close after it
  *     (before-open release → that day's close; after-close release → next day's close). */
 
+import { promises as fs } from "node:fs";
+import path from "node:path";
 import { getSeries } from "@/lib/price-store";
 import { SUB_PARENT } from "@/lib/fund-profiles";
 import { earningsImpact, trackedTickers } from "./awaited";
@@ -74,5 +76,44 @@ export async function earningsBoard(back = 14, fwd = 21): Promise<{ rows: EarnRo
   const rep = rows.filter((r) => r.reported).sort((a, b) => b.impact - a.impact).slice(0, 24);
   await Promise.all(rep.map(async (r) => { r.reaction = await reactionOf(r.ticker, r.date, r.hour).catch(() => null); }));
   cache.set(ck, { at: Date.now(), v: rows });
+  void saveEarningsFile(rows);
   return { rows };
+}
+
+/* ── separate AI file: data/earnings-context.json — structured results only (never mixed with news) ── */
+const FILE = path.join(process.cwd(), "data", "earnings-context.json");
+const surprise = (a: number | null, e: number | null) => (a != null && e ? Math.round((a / Math.abs(e) - Math.sign(e)) * 1000) / 10 : null);
+const verdict = (s: number | null) => (s == null ? null : s > 0.5 ? "BEAT" : s < -0.5 ? "MISS" : "IN LINE");
+
+export function toEarningsRecord(r: EarnRow) {
+  const eps = surprise(r.epsActual, r.epsEstimate), rev = surprise(r.revActual, r.revEstimate);
+  return {
+    ticker: r.ticker, company: r.name, sector: r.sector, sub_sector: r.subSector,
+    report_date: r.date, timing: r.hour === "bmo" ? "BEFORE_OPEN" : r.hour === "amc" ? "AFTER_CLOSE" : "UNSPECIFIED",
+    fiscal_quarter: r.quarter && r.year ? `Q${r.quarter} ${r.year}` : null,
+    status: r.reported ? "REPORTED" : "UPCOMING",
+    eps_actual: r.epsActual, eps_estimate: r.epsEstimate, eps_surprise_pct: eps, eps_verdict: verdict(eps),
+    revenue_actual: r.revActual, revenue_estimate: r.revEstimate, revenue_surprise_pct: rev, revenue_verdict: verdict(rev),
+    stock_reaction_pct: r.reaction == null ? null : Math.round(r.reaction * 100) / 100,
+    market_impact: r.impact, market_cap_b: r.capB, etfs_most_exposed: r.etfs,
+  };
+}
+
+async function saveEarningsFile(rows: EarnRow[]) {
+  try {
+    const records = rows.map(toEarningsRecord).sort((a, b) => b.market_impact - a.market_impact);
+    await fs.mkdir(path.dirname(FILE), { recursive: true });
+    await fs.writeFile(FILE, JSON.stringify({ generated_utc: new Date().toISOString(), kind: "EARNINGS", count: records.length, earnings: records }, null, 1), "utf8");
+  } catch { /* read-only disk: in-memory copy still works */ }
+}
+
+/** Compact earnings block for LLM grounding — kept apart from the news block. */
+export async function getEarningsContextForAI(limit = 20): Promise<string> {
+  const { rows, error } = await earningsBoard(14, 21);
+  if (!rows.length) return `### EARNINGS · last 14d / next 21d\n(${error ?? "no tracked earnings"})`;
+  const rec = rows.map(toEarningsRecord).sort((a, b) => (a.status === b.status ? b.market_impact - a.market_impact : a.status === "REPORTED" ? -1 : 1)).slice(0, limit);
+  const f = (v: number | null, money = false) => (v == null ? "n/a" : money ? `$${(v / 1e9).toFixed(2)}B` : `$${v.toFixed(2)}`);
+  return "### EARNINGS · last 14d (reported) / next 21d (upcoming)\n" + rec.map((e) => e.status === "REPORTED"
+    ? `- ${e.report_date} ${e.ticker} (${e.sector}) REPORTED ${e.fiscal_quarter ?? ""}: EPS ${f(e.eps_actual)} vs ${f(e.eps_estimate)} ${e.eps_verdict ?? ""}; revenue ${f(e.revenue_actual, true)} vs ${f(e.revenue_estimate, true)} ${e.revenue_verdict ?? ""}; stock ${e.stock_reaction_pct == null ? "n/a" : (e.stock_reaction_pct >= 0 ? "+" : "") + e.stock_reaction_pct + "%"}`
+    : `- ${e.report_date} ${e.ticker} (${e.sector}) UPCOMING ${e.fiscal_quarter ?? ""}: EPS est ${f(e.eps_estimate)}, revenue est ${f(e.revenue_estimate, true)}`).join("\n");
 }
