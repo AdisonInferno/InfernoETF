@@ -4,8 +4,10 @@ _Generowany automatycznie z historii git. Zmiany oddalone o mniej niż godzinę 
 
 ## piątek, 23 października 2026
 
-### Sesja #29 · 19:03–19:14 · 4 zmian · AdisonInferno
+### Sesja #29 · 19:03–19:19 · 6 zmian · AdisonInferno
 
+- `19:19` Earnings saved to their own AI file (data/earnings-context.json, /api/news/context?kind=earnings); chat gets news and earnings as two separate blocks
+- `19:14` Dziennik zmian
 - `19:14` Chart board: always 9 charts (fills with the biggest stocks inside your ETFs), layout picker as pictures incl. rows / side-by-side
 - `19:11` Dziennik zmian
 - `19:11` Portfolio: remove ETF overlap warning
