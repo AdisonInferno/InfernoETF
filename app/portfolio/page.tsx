@@ -20,6 +20,7 @@ const PF_CHART_TFS: (ChartTf & PTf)[] = ["1D", "1W", "1M", "3M", "YTD", "1Y", "3
 import PortfolioFlows from "@/components/PortfolioFlows";
 import ResizableSplit from "@/components/ResizableSplit";
 import PortfolioPies from "@/components/PortfolioPies";
+import PortfolioChartBoard from "@/components/PortfolioChartBoard";
 import XtbImport, { type ImportResult } from "@/components/XtbImport";
 import {
   PRESETS,
@@ -236,6 +237,12 @@ export default function PortfolioPage() {
   /* The portfolio as one look-through "fund" for the Composition Map / Charts / News tabs */
   const pItems = useMemo<PItem[]>(() => livePos.map(({ asset: a, weight }) => ({ ticker: a.ticker, name: a.name, weight, kind: a.kind, sector: a.sector, ytd: a.ytd, chg1d: a.chg1d })), [livePos]);
   const pfFund = useMemo(() => buildPortfolioFund(pItems), [pItems]);
+  /* dashboard [ CHARTS ] board: positions with their Yahoo symbol */
+  const [chartsOpen, setChartsOpen] = useState(false);
+  const boardPositions = useMemo(() => livePos.map(({ asset: a, weight }) => {
+    const sym = symOf[a.ticker] ?? a.ticker;
+    return { ticker: a.ticker, name: a.name, weight, sym, href: a.kind === "etf" ? `/etf/${a.ticker}` : `/stock/${a.ticker}${sym !== a.ticker ? `?y=${sym}` : ""}` };
+  }), [livePos, symOf]);
   /* PERFORMANCE DRIVERS: the positions you actually own (Yahoo symbol for the price, real weight) */
   const driverPositions = useMemo(() => livePos.map(({ asset: a, weight }) => ({ tic: symOf[a.ticker] ?? a.ticker, name: `${a.ticker !== (symOf[a.ticker] ?? a.ticker) ? a.ticker + " · " : ""}${a.name}`, w: weight, group: a.kind === "etf" ? "ETFs" : "Stocks" })), [livePos, symOf]);
   /* HOLDINGS tab: map positions (portfolio level of the treemap) + the positions that make ≥70% of the portfolio */
@@ -559,6 +566,7 @@ export default function PortfolioPage() {
     // falling cards are clipped by <main> while its scroll is locked during the transition.
     <div className={`relative mx-auto flex min-h-full w-full max-w-[3200px] flex-none flex-col gap-3 overflow-x-clip bg-[var(--oasis-bg)] px-3 min-[1800px]:px-6 pb-5 pt-3 ${cockpit ? "xl:h-full xl:min-h-0 xl:gap-2 xl:overflow-hidden xl:pb-3 xl:pt-2" : ""}`}>
       {/* XTB import over an existing portfolio: replaces positions after review */}
+      {chartsOpen && <PortfolioChartBoard positions={boardPositions} onClose={() => setChartsOpen(false)} />}
       {importing && showMine && (
         <div className="fixed inset-0 z-[80] overflow-y-auto bg-[var(--oasis-bg)]/85 p-4" onClick={() => setImporting(false)}>
           <div className="mx-auto mt-10 max-w-[1500px]" onClick={(e) => e.stopPropagation()}>
@@ -654,6 +662,8 @@ export default function PortfolioPage() {
                       <button type="button" onClick={() => setConfirmDel(true)} title="Delete the whole portfolio and start again" className="rounded-sm border border-rose-500/25 px-3 py-1.5 font-mono text-[11px] font-bold tracking-[0.08em] text-rose-400/80 transition-colors hover:bg-rose-500/10 hover:text-rose-300">[ DELETE PORTFOLIO ]</button>
                     )}
                     <button type="button" onClick={() => setEditing(true)} className={ghostBtn}>[ EDIT ]</button>
+                    <button type="button" onClick={() => setChartsOpen(true)} title="The 9 largest positions as charts — change the layout, add or remove charts"
+                      className="oasis-on rounded-sm border px-3 py-1.5 font-mono text-[11px] font-bold tracking-[0.08em]">[ ▦ CHARTS · TOP 9 ]</button>
                     <button type="button" onClick={goDeep} className="rounded-sm bg-red-500 px-3 py-1.5 font-mono text-[11px] font-bold tracking-[0.08em] text-white transition-colors hover:bg-red-400">
                       [ DEEP VIEW → ]
                     </button>

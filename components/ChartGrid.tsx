@@ -51,7 +51,7 @@ function MiniChart({ bars }: { bars: Bars }) {
   return <div ref={box} className="absolute inset-0" />;
 }
 
-export default function ChartGrid({ items, tf, onTf, title, hint, minCell = 260, cols }: {
+export default function ChartGrid({ items, tf, onTf, title, hint, minCell = 260, cols, onRemove, onFocus, rowMin = 180, tools }: {
   items: GridItem[];
   tf: GridTf;
   onTf: (t: GridTf) => void;
@@ -62,6 +62,14 @@ export default function ChartGrid({ items, tf, onTf, title, hint, minCell = 260,
   minCell?: number;
   /** fixed number of columns (overrides minCell auto-fill) */
   cols?: number;
+  /** × on each cell */
+  onRemove?: (sym: string) => void;
+  /** ⤢ on each cell — show this one large */
+  onFocus?: (sym: string) => void;
+  /** min row height, px */
+  rowMin?: number;
+  /** extra controls right of the title */
+  tools?: React.ReactNode;
 }) {
   const syms = useMemo(() => items.map((i) => i.sym), [items]);
   const px = usePriceSeries(syms, rangeFor(tf));
@@ -74,8 +82,9 @@ export default function ChartGrid({ items, tf, onTf, title, hint, minCell = 260,
           <span className="font-mono text-[10.5px] font-bold tracking-[0.16em] text-zinc-200">{title}</span>
           {hint && <span className="truncate font-mono text-[9.5px] text-zinc-600">{hint}</span>}
         </div>
+        {tools && <div className="ml-auto flex flex-wrap items-center gap-1.5">{tools}</div>}
       </div>
-      <div className="grid min-h-0 flex-1 auto-rows-[minmax(180px,1fr)] gap-2" style={{ gridTemplateColumns: cols ? `repeat(${cols}, minmax(0, 1fr))` : `repeat(auto-fill, minmax(${minCell}px, 1fr))` }}>
+      <div className="grid min-h-0 flex-1 gap-2" style={{ gridAutoRows: `minmax(${rowMin}px, 1fr)`, gridTemplateColumns: cols ? `repeat(${cols}, minmax(0, 1fr))` : `repeat(auto-fill, minmax(${minCell}px, 1fr))` }}>
         {items.map((it) => {
           const bars = crop(px.series[it.sym.toUpperCase()] ?? null, tf);
           const chg = bars ? ((bars.c[bars.c.length - 1] - bars.c[0]) / bars.c[0]) * 100 : null;
@@ -85,6 +94,8 @@ export default function ChartGrid({ items, tf, onTf, title, hint, minCell = 260,
                 {it.href ? <Link href={it.href} className="text-[12px] font-bold text-zinc-100 hover:text-oasis">{it.label}</Link> : <span className="text-[12px] font-bold text-zinc-100">{it.label}</span>}
                 <span className="min-w-0 flex-1 truncate font-sans text-[10.5px] text-zinc-500">{it.sub}</span>
                 {chg != null && <span className={`text-[11px] font-bold ${chg >= 0 ? "text-emerald-400" : "text-rose-400"}`}>{chg >= 0 ? "+" : "−"}{Math.abs(chg).toFixed(2)}%</span>}
+                {onFocus && <button type="button" onClick={() => onFocus(it.sym)} title="Show this chart large" className="text-[11px] text-zinc-500 hover:text-white">⤢</button>}
+                {onRemove && <button type="button" onClick={() => onRemove(it.sym)} title="Remove from the board" className="text-[13px] leading-none text-zinc-500 hover:text-rose-400">×</button>}
               </div>
               {it.note && <div className="flex-none px-2 font-mono text-[9.5px] text-zinc-500">{it.note}</div>}
               <div className="relative min-h-0 flex-1">
