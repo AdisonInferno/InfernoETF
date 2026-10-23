@@ -2,10 +2,17 @@
 
 _Generowany automatycznie z historii git. Zmiany oddalone o mniej niż godzinę = jedna sesja._
 
+## piątek, 23 października 2026
+
+### Sesja #28 · 15:51–15:51 · 1 zmian · AdisonInferno
+
+- `15:51` Portfolio dashboard: [ CHARTS · TOP 9 ] board — largest positions as charts, layouts 1/2x2/3x2/3x3, show one large with selection strip, remove ×, add + (portfolio or any ticker)
+
 ## czwartek, 22 października 2026
 
-### Sesja #27 · 23:28–00:00 · 7 zmian · AdisonInferno
+### Sesja #27 · 23:28–00:01 · 8 zmian · AdisonInferno
 
+- `00:01` Dziennik zmian
 - `00:00` Market strip: no scrollbar, no settings/collapse buttons; market map: INDEXES option removed
 - `23:48` Dziennik zmian
 - `23:37` Dziennik zmian
