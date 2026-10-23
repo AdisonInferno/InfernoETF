@@ -1,7 +1,6 @@
 "use client";
 
 import ChartGrid, { type GridTf } from "@/components/ChartGrid";
-import { OverlapNotice } from "@/components/RiskNotice";
 import { currencyOf, formatMarketValue } from "@/lib/format";
 import Link from "next/link";
 import { AnimatePresence, LayoutGroup, motion, useReducedMotion, type Variants } from "framer-motion";
@@ -679,7 +678,6 @@ export default function PortfolioPage() {
             )}
 
             {/* ETF overlap note (dismissible) — overview and deep view; clicks on it don't open the deep view */}
-            {(!isDeep || pfTab === "OV") && <div onClick={(e) => e.stopPropagation()} className="flex flex-none flex-col"><OverlapNotice positions={livePos} /></div>}
 
             {/* Deep view tabs — same as an ETF's deep view */}
             {isExpanded && (
@@ -697,7 +695,6 @@ export default function PortfolioPage() {
               <div onClick={(e) => e.stopPropagation()} className="flex min-w-0 flex-col gap-3">
                 {pfTab === "MAP" && (
                   <>
-                    <OverlapNotice positions={livePos} />
                     {/* sector overlap | price charts of the positions making ≥70% of the portfolio — resizable like widgets */}
                     <ResizableSplit storageKey="oasis.pf.holdings.split.v1" minPx={[340, 420]} initial={0.42}
                       height={{ initial: 460, min: 300, max: 1100 }}
